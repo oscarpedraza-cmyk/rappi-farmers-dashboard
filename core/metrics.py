@@ -1,0 +1,291 @@
+"""
+Metric calculations and compensation engine for Rappi Farmers Dashboard.
+
+Compensation structure (May 2026):
+  ADS Revenue:    35% weight | min 80% | max 100% (capped)
+  Markdown Total: 20% weight | min 80% | max 150%
+  Markdown Pro:   20% weight | min 80% | max 150%
+  Churn x AVA:    25% weight | min 80% | max 150%
+
+Qualifier: productividad >= 90% (Zoho Voice + Treble + Meets only)
+Revenue Share ADS: 10% (90-100%) / 20% (100-120%) / 30% (>120%) — cap $2k/mo, $5k/qtr
+Penalty ADS: exclude aliados with ADS investment >= 70% of GMV
+"""
+
+# ── Weights and bounds ────────────────────────────────────────────────────────
+WEIGHTS = {
+    "ADS_Rev":  0.35,
+    "MD_Total": 0.20,
+    "MD_Pro":   0.20,
+    "Churn":    0.25,
+}
+
+BOUNDS = {
+    "ADS_Rev":  (0.80, 1.00),   # capped at 100%
+    "MD_Total": (0.80, 1.50),
+    "MD_Pro":   (0.80, 1.50),
+    "Churn":    (0.80, 1.50),
+}
+
+QUALIFIER_PRODUCTIVIDAD = 0.90   # must be >= 90%
+REVENUE_SHARE_CAP_MONTHLY = 2000  # USD
+
+
+# ── Traffic-light helpers ─────────────────────────────────────────────────────
+def semaforo(val, red_thresh, yellow_thresh=None):
+    """Generic semaphore. Returns 'red', 'yellow', or 'green'."""
+    if val is None:
+        return "gray"
+    if val < red_thresh:
+        return "red"
+    if yellow_thresh and val < yellow_thresh:
+        return "yellow"
+    return "green"
+
+
+def semaforo_att(att_decimal):
+    """ATT as decimal (0–1.5). Red < 0.90, yellow 0.90-0.95, green >= 0.95."""
+    if att_decimal is None:
+        return "gray"
+    if att_decimal < 0.90:
+        return "red"
+    if att_decimal < 0.95:
+        return "yellow"
+    return "green"
+
+
+def semaforo_pitch(pct_decimal):
+    """Pitch Integral. Red < 0.50, yellow 0.50-0.65, green >= 0.65."""
+    if pct_decimal is None:
+        return "gray"
+    if pct_decimal < 0.50:
+        return "red"
+    if pct_decimal < 0.65:
+        return "yellow"
+    return "green"
+
+
+def semaforo_net_rev(adj_pp):
+    """Net Revenue Adjusted in pp. Red < -5, yellow -5 to 0, green >= 0."""
+    if adj_pp is None:
+        return "gray"
+    if adj_pp < -5:
+        return "red"
+    if adj_pp < 0:
+        return "yellow"
+    return "green"
+
+
+def semaforo_no_contactados(pct):
+    """% no contactados. Red > 40%, yellow 30-40%, green <= 30%."""
+    if pct is None:
+        return "gray"
+    if pct > 40:
+        return "red"
+    if pct > 30:
+        return "yellow"
+    return "green"
+
+
+def semaforo_reactivaciones(val):
+    """Reactivaciones = 0 is a direct alert."""
+    if val is None:
+        return "gray"
+    return "red" if val == 0 else "green"
+
+
+EMOJI = {"red": "🔴", "yellow": "🟡", "green": "🟢", "gray": "⚪"}
+COLOR_HEX = {"red": "#FF4B4B", "yellow": "#FFA726", "green": "#4CAF50", "gray": "#9E9E9E"}
+
+
+def get_all_semaforos(farmer: dict) -> dict:
+    return {
+        "Churn":          semaforo_att(farmer.get("ATT_Churn")),
+        "MD Total":       semaforo_att(farmer.get("ATT_MD_Total")),
+        "MD Pro":         semaforo_att(farmer.get("ATT_MD_Pro")),
+        "Ads Bookings":   semaforo_att(farmer.get("ATT_Book")),
+        "Ads Revenue":    semaforo_att(farmer.get("ATT_Rev_real")),
+        "Net Rev Adj":    semaforo_net_rev(farmer.get("Net_Rev_Adj")),
+        "Pitch Integral": semaforo_pitch(farmer.get("Pitch_Pct")),
+        "No Contactados": semaforo_no_contactados(farmer.get("pct_no_contactados")),
+        "Reactivaciones": semaforo_reactivaciones(farmer.get("Reactivaciones")),
+    }
+
+
+def tier_farmer(semaforos: dict) -> str:
+    """Overall tier based on worst metric."""
+    vals = list(semaforos.values())
+    if "red" in vals:
+        return "red"
+    if "yellow" in vals:
+        return "yellow"
+    return "green"
+
+
+# ── Compensation engine ───────────────────────────────────────────────────────
+def _clamp(val, low, high):
+    return max(low, min(high, val))
+
+
+def calcular_variable_score(
+    att_ads_rev,
+    att_md_total,
+    att_md_pro,
+    att_churn,
+    productividad_pct=None,
+):
+    """
+    Returns dict with:
+      - qualifies (bool): False if productividad < 90%
+      - variable_score (0–1): weighted achievement
+      - variable_pct (0–100): % of variable salary earned
+      - contributions: dict with per-KPI contribution
+      - kpi_statuses: dict with 'earning'/'not_earning'/'partial'
+    """
+    qualifies = True
+    if productividad_pct is not None and productividad_pct < QUALIFIER_PRODUCTIVIDAD:
+        qualifies = False
+
+    kpis = {
+        "ADS_Rev":  att_ads_rev,
+        "MD_Total": att_md_total,
+        "MD_Pro":   att_md_pro,
+        "Churn":    att_churn,
+    }
+
+    contributions = {}
+    kpi_statuses = {}
+    total_score = 0.0
+    total_weight = 0.0
+
+    for kpi, att in kpis.items():
+        weight = WEIGHTS[kpi]
+        low, high = BOUNDS[kpi]
+
+        if att is None:
+            contributions[kpi] = None
+            kpi_statuses[kpi] = "sin_dato"
+            continue
+
+        total_weight += weight
+
+        if att < low:
+            contributions[kpi] = 0
+            kpi_statuses[kpi] = "no_gana"
+        else:
+            clamped = _clamp(att, low, high)
+            # Normalize: at min→0, at max→100
+            score_kpi = (clamped - low) / (high - low)
+            contributions[kpi] = round(score_kpi * weight * 100, 2)
+            total_score += score_kpi * weight
+            kpi_statuses[kpi] = "gana" if att >= 0.90 else "parcial"
+
+    max_possible = sum(WEIGHTS[k] for k in kpis if kpis[k] is not None)
+    variable_pct = (total_score / max_possible * 100) if max_possible > 0 else 0
+
+    if not qualifies:
+        variable_pct = 0
+        contributions = {k: 0 for k in contributions}
+
+    return {
+        "qualifies": qualifies,
+        "variable_score": round(total_score, 4),
+        "variable_pct": round(variable_pct, 1),
+        "contributions": contributions,
+        "kpi_statuses": kpi_statuses,
+    }
+
+
+def calcular_revenue_share_ads(att_rev_ads_decimal):
+    """
+    Returns revenue share percentage for ADS (10/20/30%) and label.
+    att_rev_ads_decimal: ATT as 0–1 (e.g. 0.95 = 95%)
+    """
+    if att_rev_ads_decimal is None:
+        return {"pct": 0, "label": "Sin dato", "tier": "gray"}
+    if att_rev_ads_decimal < 0.90:
+        return {"pct": 0, "label": "No aplica (< 90%)", "tier": "red"}
+    if att_rev_ads_decimal <= 1.00:
+        return {"pct": 10, "label": "10% Revenue Share", "tier": "yellow"}
+    if att_rev_ads_decimal <= 1.20:
+        return {"pct": 20, "label": "20% Revenue Share", "tier": "green"}
+    return {"pct": 30, "label": "30% Revenue Share 🔥", "tier": "green"}
+
+
+def calcular_compensacion_completa(farmer: dict) -> dict:
+    """Full compensation snapshot for a farmer row."""
+    # Use pre-calculated productividad_pct from loader (Zoho Voice + Treble + Meets only)
+    prod_pct = farmer.get("productividad_pct")
+
+    variable = calcular_variable_score(
+        att_ads_rev=farmer.get("ATT_Rev_real"),
+        att_md_total=farmer.get("ATT_MD_Total"),
+        att_md_pro=farmer.get("ATT_MD_Pro"),
+        att_churn=farmer.get("ATT_Churn"),
+        productividad_pct=prod_pct,
+    )
+
+    rs_ads = calcular_revenue_share_ads(farmer.get("ATT_Rev_real"))
+
+    return {
+        **variable,
+        "productividad_pct": prod_pct,
+        "rs_ads": rs_ads,
+    }
+
+
+# ── Actionable recommendations ────────────────────────────────────────────────
+def generar_recomendaciones(farmer: dict, semaforos: dict) -> list[str]:
+    recs = []
+
+    # Churn
+    if semaforos.get("Churn") == "red":
+        churn_follows = farmer.get("churn_follows", 0) or 0
+        churn_cont = farmer.get("churn_contactados", 0) or 0
+        if churn_follows == 0:
+            recs.append("🎯 Churn en rojo y sin follows de churn — priorizar detección de aliados en riesgo esta semana.")
+        elif churn_cont < churn_follows * 0.6:
+            recs.append(f"📞 Churn en rojo con {churn_follows} follows pero solo {churn_cont} contactados — problema de gestión, no de cartera. Revisar agenda y abordaje.")
+        if farmer.get("Reactivaciones") == 0:
+            recs.append("⚠️ Reactivaciones = 0 — ningún aliado recuperado. Trabajar pipeline de aliados inactivos urgente.")
+
+    # MD
+    if semaforos.get("MD Total") == "red":
+        md_follows = farmer.get("md_follows", 0) or 0
+        md_cont = farmer.get("md_contactados", 0) or 0
+        if md_follows == 0:
+            recs.append("💰 MD en rojo sin follows — identificar aliados con potencial de Markdown esta semana.")
+        elif md_cont < md_follows * 0.6:
+            recs.append(f"💰 MD en rojo: {md_follows} follows, {md_cont} contactados. Contactabilidad baja — revisar horarios de contacto.")
+
+    if semaforos.get("MD Pro") == "red":
+        recs.append("⭐ MD Pro por debajo del 90% — enfocar en Markdown Pro con aliados PRO de la cartera.")
+
+    # Ads
+    if semaforos.get("Ads Revenue") == "red":
+        brands = farmer.get("brands_riesgo", [])
+        if brands:
+            brand_str = ", ".join(brands[:3])
+            recs.append(f"📢 Ads Revenue en rojo — brands en riesgo de penetración +70%: {brand_str}. Reforzar upsell de Ads en estas cuentas.")
+        else:
+            recs.append("📢 Ads Revenue en rojo — revisar pipeline de inversión con aliados estratégicos.")
+
+    # Pitch Integral
+    if semaforos.get("Pitch Integral") in ("red", "yellow"):
+        pitch_pct = farmer.get("Pitch_Pct", 0) or 0
+        recs.append(f"🎤 Pitch Integral en {pitch_pct*100:.0f}% (meta 65%) — reforzar estructura del pitch en cada visita. Pedir grabaciones para retroalimentar.")
+
+    # Contactabilidad
+    if semaforos.get("No Contactados") == "red":
+        no_cont = farmer.get("no_contactados", 0) or 0
+        recs.append(f"📵 {no_cont} aliados sin contactar — revisar si es problema de datos (teléfonos desactualizados) o de gestión de tiempo.")
+
+    # Net Revenue
+    if semaforos.get("Net Rev Adj") == "red":
+        adj = farmer.get("Net_Rev_Adj", 0) or 0
+        recs.append(f"📉 Net Revenue {adj:+.1f} pp vs ritmo esperado — acelerar facturación en la segunda mitad del mes.")
+
+    if not recs:
+        recs.append("✅ Todos los indicadores en verde. Mantener el ritmo y buscar superación de targets para maximizar Revenue Share ADS.")
+
+    return recs
