@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import json
+import base64
 from datetime import date
 import sys
 from pathlib import Path
@@ -30,10 +31,13 @@ email, is_supervisor = require_auth()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    from pathlib import Path as _Path
-    _logo = _Path(__file__).parent / "assets" / "rappi_logo.png"
-    if _logo.exists():
-        st.image(str(_logo), width=120)
+    _logo_path = Path(__file__).parent / "assets" / "rappi_logo.png"
+    if _logo_path.exists():
+        _logo_b64 = base64.b64encode(_logo_path.read_bytes()).decode()
+        st.markdown(
+            f'<img src="data:image/png;base64,{_logo_b64}" width="130" style="display:block;margin-bottom:4px">',
+            unsafe_allow_html=True
+        )
     else:
         st.markdown("""
         <div style="padding:0.4rem 0 0.6rem">
