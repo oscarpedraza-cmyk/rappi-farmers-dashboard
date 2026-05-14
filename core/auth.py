@@ -16,7 +16,16 @@ from core.loader import FARMERS_EMAILS, EXCLUDED_EMAILS, FARMER_NAMES
 
 SUPERVISOR_EMAIL = "oscar.pedraza@rappi.com"
 SUPERVISOR_NAME  = "Oscar Pedraza"
-LOGO_URL = "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Rappi_logo.svg/320px-Rappi_logo.svg.png"
+
+def _logo_html(width: int = 120) -> str:
+    """Returns an <img> tag with the Rappi logo embedded as base64, or a text fallback."""
+    import base64
+    from pathlib import Path
+    logo_path = Path(__file__).parent.parent / "assets" / "rappi_logo.png"
+    if logo_path.exists():
+        b64 = base64.b64encode(logo_path.read_bytes()).decode()
+        return f'<img src="data:image/png;base64,{b64}" width="{width}" style="display:block;margin:0 auto 0.8rem">'
+    return '<div style="font-size:1.8rem;font-weight:900;color:#E8281F;text-align:center;margin-bottom:0.8rem">rappi</div>'
 
 
 def _allowed_emails() -> set:
@@ -48,7 +57,7 @@ def render_login():
     # Center login card
     _, col, _ = st.columns([1, 1.4, 1])
     with col:
-        st.image(LOGO_URL, width=130)
+        st.markdown(_logo_html(130), unsafe_allow_html=True)
         st.markdown("""
         <div style="
             background: #FFFFFF;
