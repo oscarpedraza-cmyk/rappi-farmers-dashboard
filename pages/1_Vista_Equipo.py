@@ -116,7 +116,7 @@ fig = go.Figure(data=go.Heatmap(
     y=farmers_list,
     text=text,
     texttemplate="%{text}",
-    textfont={"size": 11, "color": "white"},
+    textfont={"size": 11, "color": "white", "family": "sans-serif"},
     colorscale=colorscale,
     showscale=False,
     hovertemplate="%{y} | %{x}: %{text}<extra></extra>",
@@ -126,9 +126,8 @@ fig = go.Figure(data=go.Heatmap(
 fig.update_layout(
     height=max(400, len(farmers_list) * 35),
     margin=dict(l=10, r=10, t=30, b=10),
-    plot_bgcolor="#0F0F1A",
-    paper_bgcolor="#0F0F1A",
-    font=dict(color="white"),
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
     xaxis=dict(side="top"),
 )
 
@@ -181,9 +180,8 @@ for tab, (metric, (key, fmt)) in zip(metric_tabs, METRICS_DISPLAY.items()):
         fig2.update_layout(
             height=max(300, len(sub) * 30),
             margin=dict(l=10, r=10, t=10, b=10),
-            plot_bgcolor="#0F0F1A",
-            paper_bgcolor="#0F0F1A",
-            font=dict(color="white"),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
             xaxis_title=xlabel,
             showlegend=False,
         )

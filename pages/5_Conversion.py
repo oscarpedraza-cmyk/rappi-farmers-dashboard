@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.graph_objects as go
-import plotly.express as px
 import sys
 from pathlib import Path
 
@@ -19,16 +18,37 @@ if "farmers_data" not in st.session_state:
     st.stop()
 
 # ── Load raw Productividad ────────────────────────────────────────────────────
-uploaded = st.session_state.get("_last_uploaded_file")
-
-# We re-read the file from session if available
 raw_prod = st.session_state.get("_productividad_raw")
 
 if raw_prod is None:
-    st.info("Vuelve a subir el Sheet Maestro para ver la conversión detallada.")
+    st.warning("⚠️ **Para ver la conversión, vuelve a subir el Sheet Maestro** en la página principal.")
+    st.info("Este análisis requiere leer la pestaña Productividad del Excel. Sube el archivo nuevamente y regresa aquí.")
     st.stop()
 
 df = raw_prod.copy()
+
+# ── Debug expander ────────────────────────────────────────────────────────────
+with st.expander("🔍 Diagnóstico de datos (expandir si no hay datos)", expanded=False):
+    st.markdown(f"**Filas en Productividad:** {len(df)}")
+    st.markdown(f"**Farmers únicos en col 14:** {df[14].nunique() if 14 in df.columns else '❌ col 14 no encontrada'}")
+    if 14 in df.columns:
+        unique_farmers = df[14].dropna().unique().tolist()
+        st.markdown(f"**Emails encontrados:** {unique_farmers[:5]}")
+    if 26 in df.columns:
+        md_si = (df[26].astype(str).str.upper() == "SI").sum()
+        st.markdown(f"**MD palanca (col 26 == SI):** {md_si} filas")
+    if 35 in df.columns:
+        ads_si = (df[35].astype(str).str.upper() == "SI").sum()
+        st.markdown(f"**Ads palanca (col 35 == SI):** {ads_si} filas")
+    if 40 in df.columns:
+        churn_si = (df[40].astype(str).str.upper() == "SI").sum()
+        st.markdown(f"**Churn palanca (col 40 == SI):** {churn_si} filas")
+    if 32 in df.columns:
+        md_acept = (df[32].astype(str).str.strip().str.lower() == "si").sum()
+        st.markdown(f"**MD aceptado (col 32 == si):** {md_acept}")
+    if 46 in df.columns:
+        churn_reac = df[46].notna().sum()
+        st.markdown(f"**Churn reactivados (col 46 not NaN):** {churn_reac}")
 
 # ── Conversion logic ──────────────────────────────────────────────────────────
 # MD:    col 26 == SI,  contrato = col 32 == "Si"
@@ -57,8 +77,8 @@ def is_md_contrato(row):
     return str(row[MD_ACEPT_COL]).strip().lower() == "si"
 
 def is_ads_contrato(row):
-    tipo = str(row[ADS_TIPO_COL]).strip().lower()
-    never = str(row[ADS_NEVER_COL]).strip().lower()
+    tipo = str(row[ADS_TIPO_COL]).strip().lower() if ADS_TIPO_COL < len(row) else ""
+    never = str(row[ADS_NEVER_COL]).strip().lower() if ADS_NEVER_COL < len(row) else ""
     if tipo in ADS_POSITIVE:
         return True
     if tipo == "never ads" and never in ADS_NEVER_POS:
@@ -66,6 +86,8 @@ def is_ads_contrato(row):
     return False
 
 def is_churn_retencion(row):
+    if CHURN_REAC_COL >= len(row):
+        return False
     val = row[CHURN_REAC_COL]
     return pd.notna(val) and str(val).strip() not in ("", "nan", "NaT")
 
@@ -83,30 +105,34 @@ for farmer_email, sub in df.groupby(FARMER_COL):
         ("Ads",   ADS_COL,   is_ads_contrato),
         ("Churn", CHURN_COL, is_churn_retencion),
     ]:
+        if palanca_col >= df.shape[1]:
+            continue
         p_sub = sub[sub[palanca_col].astype(str).str.upper() == "SI"]
         oportunidades = len(p_sub)
-        contactados   = p_sub.apply(is_contacted, axis=1).sum()
-        contratos     = p_sub.apply(contrato_fn, axis=1).sum()
+        if oportunidades == 0:
+            continue
+        contactados   = int(p_sub.apply(is_contacted, axis=1).sum())
+        contratos     = int(p_sub.apply(contrato_fn, axis=1).sum())
 
-        conv_total    = round(contratos / oportunidades * 100, 1) if oportunidades > 0 else 0
-        conv_efectiva = round(contratos / contactados * 100, 1)   if contactados > 0 else 0
+        conv_total    = round(contratos / oportunidades * 100, 1)
+        conv_efectiva = round(contratos / contactados * 100, 1) if contactados > 0 else 0
 
         results.append({
-            "email":          farmer_email,
-            "Farmer":         name,
-            "Palanca":        palanca_name,
-            "Oportunidades":  int(oportunidades),
-            "Contactados":    int(contactados),
-            "No contactados": int(oportunidades - contactados),
-            "Contratos":      int(contratos),
-            "Conv. total %":  conv_total,
+            "email":            farmer_email,
+            "Farmer":           name,
+            "Palanca":          palanca_name,
+            "Oportunidades":    int(oportunidades),
+            "Contactados":      int(contactados),
+            "No contactados":   int(oportunidades - contactados),
+            "Contratos":        int(contratos),
+            "Conv. total %":    conv_total,
             "Conv. efectiva %": conv_efectiva,
         })
 
 df_conv = pd.DataFrame(results)
 
 if df_conv.empty:
-    st.error("No se encontraron datos de conversión en el archivo.")
+    st.error("⚠️ No se encontraron datos de conversión. Revisa el diagnóstico de datos arriba.")
     st.stop()
 
 # ── Quartiles from session ────────────────────────────────────────────────────
@@ -123,29 +149,25 @@ df_conv["Quartil"] = df_conv["email"].map(lambda e: quartiles.get(e, "Q4"))
 # ── Team averages ─────────────────────────────────────────────────────────────
 st.markdown("## Promedio de conversión del equipo")
 
-for palanca in ["MD", "Ads", "Churn"]:
-    sub = df_conv[df_conv["Palanca"] == palanca]
-    avg_total    = sub["Conv. total %"].mean()
-    avg_efectiva = sub["Conv. efectiva %"].mean()
-    total_ops    = sub["Oportunidades"].sum()
-    total_cont   = sub["Contratos"].sum()
-    st.session_state[f"avg_conv_{palanca}"] = avg_total
-
 col_md, col_ads, col_churn = st.columns(3)
 for col, palanca, icon in [(col_md, "MD", "💰"), (col_ads, "Ads", "📢"), (col_churn, "Churn", "🔄")]:
     sub = df_conv[df_conv["Palanca"] == palanca]
+    if sub.empty:
+        with col:
+            st.metric(f"{icon} {palanca}", "Sin datos")
+        continue
     avg_t  = sub["Conv. total %"].mean()
     avg_e  = sub["Conv. efectiva %"].mean()
     ops    = sub["Oportunidades"].sum()
     contr  = sub["Contratos"].sum()
-    c      = "#4CAF50" if avg_t >= 30 else "#FFA726" if avg_t >= 15 else "#FF4B4B"
+    c      = "#2E7D32" if avg_t >= 30 else "#E65100" if avg_t >= 15 else "#C62828"
 
     with col:
         st.markdown(f"""
-        <div style="background:#1E1E2E;border-radius:12px;padding:1.2rem;border-top:4px solid {c}">
-            <div style="font-size:0.85rem;color:#aaa">{icon} {palanca} — Promedio equipo</div>
+        <div style="background:#F8F9FA;border-radius:12px;padding:1.2rem;border-top:4px solid {c};border:1px solid #E0E0E0">
+            <div style="font-size:0.85rem;color:#555">{icon} {palanca} — Promedio equipo</div>
             <div style="font-size:2.2rem;font-weight:bold;color:{c};margin:0.3rem 0">{avg_t:.1f}%</div>
-            <div style="font-size:0.8rem;color:#ccc">Conv. sobre contactados: <b>{avg_e:.1f}%</b></div>
+            <div style="font-size:0.8rem;color:#666">Conv. sobre contactados: <b>{avg_e:.1f}%</b></div>
             <div style="font-size:0.75rem;color:#888;margin-top:4px">{int(contr)} contratos / {int(ops)} oportunidades</div>
         </div>
         """, unsafe_allow_html=True)
@@ -159,6 +181,9 @@ tabs = st.tabs(["💰 MD (Markdown)", "📢 Ads", "🔄 Churn (Retención)"])
 for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
     with tab:
         sub = df_conv[df_conv["Palanca"] == palanca].copy()
+        if sub.empty:
+            st.info(f"Sin datos de conversión para {palanca}.")
+            continue
         sub = sub.sort_values("Conv. total %", ascending=False)
 
         # Bar chart — funnel per farmer
@@ -166,7 +191,7 @@ for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
         fig.add_trace(go.Bar(
             name="Oportunidades",
             x=sub["Farmer"], y=sub["Oportunidades"],
-            marker_color="#37474F", opacity=0.7,
+            marker_color="#B0BEC5", opacity=0.8,
         ))
         fig.add_trace(go.Bar(
             name="Contactados",
@@ -176,7 +201,7 @@ for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
         fig.add_trace(go.Bar(
             name="Contratos",
             x=sub["Farmer"], y=sub["Contratos"],
-            marker_color="#4CAF50",
+            marker_color="#2E7D32",
             text=sub["Conv. total %"].apply(lambda v: f"{v:.0f}%"),
             textposition="outside",
         ))
@@ -185,9 +210,8 @@ for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
             barmode="overlay",
             height=380,
             margin=dict(l=10, r=10, t=30, b=80),
-            plot_bgcolor="#0F0F1A",
-            paper_bgcolor="#0F0F1A",
-            font=dict(color="white"),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
             legend=dict(orientation="h", y=1.1),
             xaxis_tickangle=-35,
         )
@@ -195,7 +219,7 @@ for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
 
         # Conversion rate chart
         avg_t = sub["Conv. total %"].mean()
-        colors = ["#4CAF50" if v >= avg_t else "#FF4B4B" for v in sub["Conv. total %"]]
+        colors = ["#2E7D32" if v >= avg_t else "#C62828" for v in sub["Conv. total %"]]
 
         fig2 = go.Figure(go.Bar(
             x=sub["Farmer"],
@@ -204,14 +228,13 @@ for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
             text=sub["Conv. total %"].apply(lambda v: f"{v:.1f}%"),
             textposition="outside",
         ))
-        fig2.add_hline(y=avg_t, line_dash="dash", line_color="white",
-                       opacity=0.5, annotation_text=f"Promedio {avg_t:.1f}%")
+        fig2.add_hline(y=avg_t, line_dash="dash", line_color="#FF6B00",
+                       opacity=0.7, annotation_text=f"Promedio {avg_t:.1f}%")
         fig2.update_layout(
             title="% Conversión total (contratos / oportunidades)",
             height=320,
             margin=dict(l=10, r=10, t=40, b=80),
-            plot_bgcolor="#0F0F1A", paper_bgcolor="#0F0F1A",
-            font=dict(color="white"),
+            plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
             xaxis_tickangle=-35,
         )
         st.plotly_chart(fig2, use_container_width=True)
@@ -228,9 +251,9 @@ for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
         def color_conv(val):
             try:
                 v = float(val)
-                if v >= 30: return "color: #4CAF50; font-weight: bold"
-                if v >= 15: return "color: #FFA726; font-weight: bold"
-                return "color: #FF4B4B; font-weight: bold"
+                if v >= 30: return "color: #2E7D32; font-weight: bold"
+                if v >= 15: return "color: #E65100; font-weight: bold"
+                return "color: #C62828; font-weight: bold"
             except: return ""
 
         st.dataframe(
@@ -265,37 +288,40 @@ pivot["Score Conversión"] = (
 pivot = pivot.sort_values("Score Conversión", ascending=False)
 pivot["Rank"] = range(1, len(pivot) + 1)
 
-# Radar chart — top vs bottom
-st.markdown("#### Radar de conversión — Top 3 vs Bottom 3")
-top3    = pivot.head(3)
-bottom3 = pivot.tail(3)
-categories = ["MD %", "Ads %", "Churn %"]
+# Radar chart — top 3 vs bottom 3 (only if enough farmers)
+if len(pivot) >= 4:
+    st.markdown("#### Radar de conversión — Top 3 vs Bottom 3")
+    top3    = pivot.head(3)
+    bottom3 = pivot.tail(3)
+    categories = ["MD %", "Ads %", "Churn %"]
 
-fig_radar = go.Figure()
-for _, row in top3.iterrows():
-    vals = [row["MD"], row["Ads"], row["Churn"]]
-    fig_radar.add_trace(go.Scatterpolar(
-        r=vals + [vals[0]], theta=categories + [categories[0]],
-        fill="toself", name=row["Farmer"],
-        opacity=0.7, line=dict(width=2),
-    ))
-for _, row in bottom3.iterrows():
-    vals = [row["MD"], row["Ads"], row["Churn"]]
-    fig_radar.add_trace(go.Scatterpolar(
-        r=vals + [vals[0]], theta=categories + [categories[0]],
-        fill="toself", name=f"⚠️ {row['Farmer']}",
-        opacity=0.4, line=dict(width=1, dash="dot"),
-    ))
+    # Compute max for radar range
+    max_val = max(pivot[["MD", "Ads", "Churn"]].max()) if not pivot.empty else 60
+    radar_range = max(60, round(max_val * 1.2))
 
-fig_radar.update_layout(
-    polar=dict(radialaxis=dict(visible=True, range=[0, 60])),
-    height=420,
-    paper_bgcolor="#0F0F1A",
-    plot_bgcolor="#0F0F1A",
-    font=dict(color="white"),
-    legend=dict(orientation="h", y=-0.15),
-)
-st.plotly_chart(fig_radar, use_container_width=True)
+    fig_radar = go.Figure()
+    for _, row in top3.iterrows():
+        vals = [row["MD"], row["Ads"], row["Churn"]]
+        fig_radar.add_trace(go.Scatterpolar(
+            r=vals + [vals[0]], theta=categories + [categories[0]],
+            fill="toself", name=row["Farmer"],
+            opacity=0.7, line=dict(width=2),
+        ))
+    for _, row in bottom3.iterrows():
+        vals = [row["MD"], row["Ads"], row["Churn"]]
+        fig_radar.add_trace(go.Scatterpolar(
+            r=vals + [vals[0]], theta=categories + [categories[0]],
+            fill="toself", name=f"⚠️ {row['Farmer']}",
+            opacity=0.4, line=dict(width=1, dash="dot"),
+        ))
+
+    fig_radar.update_layout(
+        polar=dict(radialaxis=dict(visible=True, range=[0, radar_range])),
+        height=420,
+        paper_bgcolor="rgba(0,0,0,0)",
+        legend=dict(orientation="h", y=-0.15),
+    )
+    st.plotly_chart(fig_radar, use_container_width=True)
 
 # Final ranking table
 st.markdown("#### Tabla ranking")
@@ -305,9 +331,9 @@ ranking.columns = ["#", "Q", "Farmer", "MD %", "Ads %", "Churn %", "Score Conv."
 def color_score(val):
     try:
         v = float(val)
-        if v >= 25: return "color:#4CAF50;font-weight:bold"
-        if v >= 12: return "color:#FFA726;font-weight:bold"
-        return "color:#FF4B4B;font-weight:bold"
+        if v >= 25: return "color:#2E7D32;font-weight:bold"
+        if v >= 12: return "color:#E65100;font-weight:bold"
+        return "color:#C62828;font-weight:bold"
     except: return ""
 
 st.dataframe(
@@ -319,43 +345,46 @@ st.dataframe(
 st.markdown("---")
 st.markdown("## 🧠 Insights de conversión")
 
-best_md    = df_conv[df_conv["Palanca"]=="MD"].nlargest(1,"Conv. total %").iloc[0]
-worst_md   = df_conv[df_conv["Palanca"]=="MD"].nsmallest(1,"Conv. total %").iloc[0]
-best_ads   = df_conv[df_conv["Palanca"]=="Ads"].nlargest(1,"Conv. total %").iloc[0]
-worst_ads  = df_conv[df_conv["Palanca"]=="Ads"].nsmallest(1,"Conv. total %").iloc[0]
-best_churn = df_conv[df_conv["Palanca"]=="Churn"].nlargest(1,"Conv. total %").iloc[0]
+def safe_extremes(palanca):
+    sub = df_conv[df_conv["Palanca"] == palanca]
+    if sub.empty:
+        return None, None
+    return (sub.nlargest(1, "Conv. total %").iloc[0],
+            sub.nsmallest(1, "Conv. total %").iloc[0])
 
-avg_md    = df_conv[df_conv["Palanca"]=="MD"]["Conv. total %"].mean()
-avg_ads   = df_conv[df_conv["Palanca"]=="Ads"]["Conv. total %"].mean()
-avg_churn = df_conv[df_conv["Palanca"]=="Churn"]["Conv. total %"].mean()
+best_md, worst_md   = safe_extremes("MD")
+best_ads, worst_ads = safe_extremes("Ads")
+best_churn, _       = safe_extremes("Churn")
 
-gap_md  = best_md["Conv. total %"] - worst_md["Conv. total %"]
-gap_ads = best_ads["Conv. total %"] - worst_ads["Conv. total %"]
+avg_md    = df_conv[df_conv["Palanca"]=="MD"]["Conv. total %"].mean() if not df_conv[df_conv["Palanca"]=="MD"].empty else 0
+avg_ads   = df_conv[df_conv["Palanca"]=="Ads"]["Conv. total %"].mean() if not df_conv[df_conv["Palanca"]=="Ads"].empty else 0
+avg_churn = df_conv[df_conv["Palanca"]=="Churn"]["Conv. total %"].mean() if not df_conv[df_conv["Palanca"]=="Churn"].empty else 0
 
 col1, col2 = st.columns(2)
 with col1:
-    st.markdown(f"""
-    **💰 MD — Mejor vs Peor conversión:**
-    - 🏆 **{best_md['Farmer']}**: {best_md['Conv. total %']:.1f}%
-    - 🚨 **{worst_md['Farmer']}**: {worst_md['Conv. total %']:.1f}%
-    - Brecha: **{gap_md:.1f} pp** — oportunidad de acompañamiento pitch MD
-
-    **📢 Ads — Mejor vs Peor:**
-    - 🏆 **{best_ads['Farmer']}**: {best_ads['Conv. total %']:.1f}%
-    - 🚨 **{worst_ads['Farmer']}**: {worst_ads['Conv. total %']:.1f}%
-    - Brecha: **{gap_ads:.1f} pp** — revisar propuesta de valor ADS
-    """)
+    lines = []
+    if best_md is not None and worst_md is not None:
+        gap_md = best_md["Conv. total %"] - worst_md["Conv. total %"]
+        lines.append(f"**💰 MD — Mejor vs Peor:**\n- 🏆 **{best_md['Farmer']}**: {best_md['Conv. total %']:.1f}%\n- 🚨 **{worst_md['Farmer']}**: {worst_md['Conv. total %']:.1f}%\n- Brecha: **{gap_md:.1f} pp**")
+    if best_ads is not None and worst_ads is not None:
+        gap_ads = best_ads["Conv. total %"] - worst_ads["Conv. total %"]
+        lines.append(f"**📢 Ads — Mejor vs Peor:**\n- 🏆 **{best_ads['Farmer']}**: {best_ads['Conv. total %']:.1f}%\n- 🚨 **{worst_ads['Farmer']}**: {worst_ads['Conv. total %']:.1f}%\n- Brecha: **{gap_ads:.1f} pp**")
+    st.markdown("\n\n".join(lines) if lines else "Sin datos suficientes para insights.")
 
 with col2:
-    low_conv_md = df_conv[(df_conv["Palanca"]=="MD") & (df_conv["Conv. total %"] < avg_md)]
+    low_conv_md  = df_conv[(df_conv["Palanca"]=="MD")  & (df_conv["Conv. total %"] < avg_md)]
     low_conv_ads = df_conv[(df_conv["Palanca"]=="Ads") & (df_conv["Conv. total %"] < avg_ads)]
 
+    md_low_str  = ", ".join(f"**{r['Farmer']}** ({r['Conv. total %']:.0f}%)" for _, r in low_conv_md.iterrows()) or "Ninguno"
+    ads_low_str = ", ".join(f"**{r['Farmer']}** ({r['Conv. total %']:.0f}%)" for _, r in low_conv_ads.iterrows()) or "Ninguno"
+    churn_str   = f"{best_churn['Farmer']} ({best_churn['Conv. total %']:.1f}%)" if best_churn is not None else "Sin datos"
+
     st.markdown(f"""
-    **Farmers bajo el promedio en MD ({avg_md:.1f}%):**
-    {", ".join(f"**{r['Farmer']}** ({r['Conv. total %']:.0f}%)" for _, r in low_conv_md.iterrows()) or "Ninguno"}
+**Farmers bajo el promedio en MD ({avg_md:.1f}%):**
+{md_low_str}
 
-    **Farmers bajo el promedio en Ads ({avg_ads:.1f}%):**
-    {", ".join(f"**{r['Farmer']}** ({r['Conv. total %']:.0f}%)" for _, r in low_conv_ads.iterrows()) or "Ninguno"}
+**Farmers bajo el promedio en Ads ({avg_ads:.1f}%):**
+{ads_low_str}
 
-    **🔄 Churn — Mejor retención:** {best_churn['Farmer']} ({best_churn['Conv. total %']:.1f}% de aliados reactivados)
-    """)
+**🔄 Churn — Mejor retención:** {churn_str}
+""")

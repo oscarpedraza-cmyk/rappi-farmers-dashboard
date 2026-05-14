@@ -122,9 +122,8 @@ if mode == "Por farmer":
     fig.update_layout(
         height=400,
         margin=dict(l=10, r=10, t=30, b=10),
-        plot_bgcolor="#0F0F1A",
-        paper_bgcolor="#0F0F1A",
-        font=dict(color="white"),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
         hovermode="x unified",
     )
@@ -146,10 +145,10 @@ if mode == "Por farmer":
             with red_cols[idx]:
                 color = "#FF4B4B" if weeks >= 3 else "#FFA726" if weeks >= 2 else "#4CAF50"
                 st.markdown(f"""
-                <div style="background:#1E1E2E;border-radius:10px;padding:1rem;text-align:center;border-top:4px solid {color}">
-                    <div style="font-size:0.75rem;color:#aaa">{m}</div>
+                <div style="background:#F8F9FA;border-radius:10px;padding:1rem;text-align:center;border-top:4px solid {color};border:1px solid #E0E0E0">
+                    <div style="font-size:0.75rem;color:#666">{m}</div>
                     <div style="font-size:2rem;font-weight:bold;color:{color}">{weeks}w</div>
-                    <div style="font-size:0.7rem;color:#ccc">consecutivas en 🔴</div>
+                    <div style="font-size:0.7rem;color:#555">consecutivas en 🔴</div>
                 </div>
                 """, unsafe_allow_html=True)
             idx += 1
@@ -203,15 +202,14 @@ else:
             opacity=0.85,
         ))
 
-    fig2.add_hline(y=ref, line_dash="dash", line_color="white",
-                   opacity=0.4, annotation_text="Target")
+    fig2.add_hline(y=ref, line_dash="dash", line_color="#FF6B00",
+                   opacity=0.6, annotation_text="Target")
 
     fig2.update_layout(
         height=450,
         margin=dict(l=10, r=10, t=30, b=10),
-        plot_bgcolor="#0F0F1A",
-        paper_bgcolor="#0F0F1A",
-        font=dict(color="white"),
+        plot_bgcolor="rgba(0,0,0,0)",
+        paper_bgcolor="rgba(0,0,0,0)",
         legend=dict(orientation="v", yanchor="top", y=1, xanchor="left", x=1.01),
         hovermode="x unified",
     )

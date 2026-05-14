@@ -32,21 +32,21 @@ st.markdown("""
     .main-header p  { margin: 0.3rem 0 0; opacity: 0.9; font-size: 0.95rem; }
 
     .metric-card {
-        background: #1E1E2E;
+        background: #F8F9FA;
         border-radius: 10px;
         padding: 1rem;
         border-left: 4px solid;
         margin-bottom: 0.5rem;
     }
     .upload-box {
-        background: #F8F9FA;
+        background: #FFF7F0;
         border: 2px dashed #FF6B00;
         border-radius: 10px;
         padding: 1.5rem;
         text-align: center;
     }
     .stMetric label { font-size: 0.75rem !important; }
-    div[data-testid="stSidebarContent"] { background: #0F0F1A; }
+    .semaforo-table tr:hover td { background: #FFF3E0 !important; }
 </style>
 """, unsafe_allow_html=True)
 
@@ -64,7 +64,7 @@ with st.sidebar:
         value=today.day - 1 if today.day > 1 else 1,
         help="Siempre es el día de envío − 1"
     )
-    dias_mes = st.number_input("Días del mes", min_value=28, max_value=31, value=30)
+    dias_mes = st.number_input("Días del mes", min_value=28, max_value=31, value=31)
 
     progreso_pct = ((dia_corte - 1) / dias_mes) * 100
     st.metric("Progreso del mes", f"{progreso_pct:.1f}%")
@@ -89,7 +89,7 @@ with st.sidebar:
                 # Guardar Productividad raw para pestaña de Conversión
                 try:
                     import pandas as pd
-                    xl = pd.ExcelFile(uploaded_file)
+                    xl = pd.ExcelFile(uploaded_file, engine="openpyxl")
                     if "Productividad" in xl.sheet_names:
                         df_prod_raw = xl.parse("Productividad", header=0)
                         df_prod_raw.columns = range(len(df_prod_raw.columns))
@@ -99,8 +99,10 @@ with st.sidebar:
                         ].copy()
                         df_prod_raw[14] = df_prod_raw[14].str.strip().str.lower()
                         st.session_state["_productividad_raw"] = df_prod_raw
-                except Exception:
-                    pass
+                    # Guardar lista de hojas disponibles
+                    st.session_state["_sheet_names"] = xl.sheet_names
+                except Exception as _e:
+                    import traceback; traceback.print_exc()
 
                 st.success(f"✅ {len(farmers_data)} farmers cargados")
             except Exception as e:
@@ -216,34 +218,34 @@ sorted_farmers = sorted(
 )
 
 def fmt_att(val):
-    if val is None: return "<span style='color:#555'>S/D</span>"
+    if val is None: return "<span style='color:#888'>S/D</span>"
     pct = val * 100
-    if pct >= 95:   c = "#4CAF50"
-    elif pct >= 90: c = "#8BC34A"
-    elif pct >= 80: c = "#FFA726"
-    else:           c = "#FF4B4B"
+    if pct >= 95:   c = "#2E7D32"
+    elif pct >= 90: c = "#558B2F"
+    elif pct >= 80: c = "#E65100"
+    else:           c = "#C62828"
     return f"<span style='color:{c};font-weight:bold'>{pct:.0f}%</span>"
 
 def fmt_pi(val):
-    if val is None: return "<span style='color:#555'>S/D</span>"
+    if val is None: return "<span style='color:#888'>S/D</span>"
     pct = val * 100
-    c = "#4CAF50" if pct >= 65 else "#FFA726" if pct >= 50 else "#FF4B4B"
+    c = "#2E7D32" if pct >= 65 else "#E65100" if pct >= 50 else "#C62828"
     return f"<span style='color:{c};font-weight:bold'>{pct:.0f}%</span>"
 
 def fmt_netrev(val):
-    if val is None: return "<span style='color:#555'>S/D</span>"
-    c = "#4CAF50" if val >= 0 else "#FFA726" if val >= -5 else "#FF4B4B"
+    if val is None: return "<span style='color:#888'>S/D</span>"
+    c = "#2E7D32" if val >= 0 else "#E65100" if val >= -5 else "#C62828"
     return f"<span style='color:{c};font-weight:bold'>{val:+.1f}pp</span>"
 
 def fmt_nc(val):
-    if val is None: return "<span style='color:#555'>S/D</span>"
-    c = "#FF4B4B" if val > 40 else "#FFA726" if val > 30 else "#4CAF50"
+    if val is None: return "<span style='color:#888'>S/D</span>"
+    c = "#C62828" if val > 40 else "#E65100" if val > 30 else "#2E7D32"
     return f"<span style='color:{c};font-weight:bold'>{val:.0f}%</span>"
 
 def fmt_prod(val):
-    if val is None: return "<span style='color:#FF4B4B'>⛔ S/D</span>"
+    if val is None: return "<span style='color:#C62828'>⛔ S/D</span>"
     pct = val * 100
-    c = "#4CAF50" if pct >= 90 else "#FFA726" if pct >= 80 else "#FF4B4B"
+    c = "#2E7D32" if pct >= 90 else "#E65100" if pct >= 80 else "#C62828"
     prefix = "⛔ " if pct < 90 else ""
     return f"<span style='color:{c};font-weight:bold'>{prefix}{pct:.0f}%</span>"
 
@@ -263,7 +265,7 @@ for farmer, data in sorted_farmers:
         qdesc = {"Q1": "Top performers", "Q2": "En camino", "Q3": "Requieren seguimiento", "Q4": "Intervención urgente"}
         rows_html += f"""
         <tr>
-            <td colspan="10" style="background:{qcolor}22;border-left:4px solid {qcolor};
+            <td colspan="10" style="background:{qcolor}18;border-left:4px solid {qcolor};
                 padding:6px 12px;font-weight:bold;color:{qcolor};font-size:0.85rem">
                 {qlabel} — {qdesc.get(q,'')}
             </td>
@@ -271,7 +273,7 @@ for farmer, data in sorted_farmers:
 
     name = data.get("name", farmer)
     qcolor = QUARTILE_COLOR.get(q, "#9E9E9E")
-    var_color = "#4CAF50" if var_pct >= 80 else "#FFA726" if var_pct >= 50 else "#FF4B4B"
+    var_color = "#2E7D32" if var_pct >= 80 else "#E65100" if var_pct >= 50 else "#C62828"
     qualifier_icon = "" if qualifies else " ⛔"
 
     score = all_scores.get(farmer, 0)
@@ -286,11 +288,11 @@ for farmer, data in sorted_farmers:
     prod    = fmt_prod(data.get("productividad_pct"))
 
     rows_html += f"""
-    <tr style="border-bottom:1px solid #222;hover:background:#1a1a2e">
+    <tr style="border-bottom:1px solid #E0E0E0">
         <td style="padding:8px 10px;border-left:3px solid {qcolor}">
-            <span style="background:{qcolor}33;color:{qcolor};font-size:0.7rem;
+            <span style="background:{qcolor}22;color:{qcolor};font-size:0.7rem;
                   font-weight:bold;padding:2px 6px;border-radius:4px;margin-right:6px">{q}</span>
-            <span style="font-weight:600;color:white">{name}{qualifier_icon}</span>
+            <span style="font-weight:600;color:#1A1A1A">{name}{qualifier_icon}</span>
         </td>
         <td style="padding:8px;text-align:center">{churn}</td>
         <td style="padding:8px;text-align:center">{md}</td>
@@ -304,9 +306,9 @@ for farmer, data in sorted_farmers:
     </tr>"""
 
 st.markdown(f"""
-<table style="width:100%;border-collapse:collapse;font-size:0.88rem;background:#0F0F1A">
+<table class="semaforo-table" style="width:100%;border-collapse:collapse;font-size:0.88rem;background:#FFFFFF;border:1px solid #E0E0E0;border-radius:8px">
     <thead>
-        <tr style="background:#1E1E2E;color:#aaa;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px">
+        <tr style="background:#F5F5F5;color:#555;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px">
             <th style="padding:10px;text-align:left;min-width:180px">Farmer</th>
             <th style="padding:10px;text-align:center">Churn</th>
             <th style="padding:10px;text-align:center">MD</th>
@@ -330,6 +332,6 @@ st.markdown("""
     <span>⚠️ <b>Q3</b> Seguimiento activo</span>
     <span>🚨 <b>Q4</b> Intervención urgente</span>
     <span>⛔ = Pierde variable (productividad &lt; 90%)</span>
-    <span>Color: <span style="color:#4CAF50">≥95%</span> / <span style="color:#8BC34A">90-95%</span> / <span style="color:#FFA726">80-90%</span> / <span style="color:#FF4B4B">&lt;80%</span></span>
+    <span>Color: <span style="color:#2E7D32">≥95%</span> / <span style="color:#558B2F">90-95%</span> / <span style="color:#E65100">80-90%</span> / <span style="color:#C62828">&lt;80%</span></span>
 </div>
 """, unsafe_allow_html=True)

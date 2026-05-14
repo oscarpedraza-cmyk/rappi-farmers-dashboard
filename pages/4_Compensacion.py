@@ -110,9 +110,8 @@ fig_rs = go.Figure(go.Bar(
 fig_rs.update_layout(
     height=300,
     margin=dict(l=10, r=10, t=30, b=10),
-    plot_bgcolor="#0F0F1A",
-    paper_bgcolor="#0F0F1A",
-    font=dict(color="white"),
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
     showlegend=False,
     yaxis_title="# Farmers",
 )
@@ -158,10 +157,10 @@ var_color = "#4CAF50" if var_pct_sim >= 80 else "#FFA726" if var_pct_sim >= 50 e
 
 with sim_cols[0]:
     st.markdown(f"""
-    <div style="background:#1E1E2E;border-radius:10px;padding:1.2rem;text-align:center;border-top:4px solid {var_color}">
-        <div style="font-size:0.8rem;color:#aaa">Variable simulado</div>
+    <div style="background:#F8F9FA;border-radius:10px;padding:1.2rem;text-align:center;border-top:4px solid {var_color};border:1px solid #E0E0E0">
+        <div style="font-size:0.8rem;color:#666">Variable simulado</div>
         <div style="font-size:2.5rem;font-weight:bold;color:{var_color}">{var_pct_sim:.0f}%</div>
-        <div style="font-size:0.8rem;color:#ccc">{'⛔ SIN QUALIFIER' if not comp_sim['qualifies'] else '✅ Qualificado'}</div>
+        <div style="font-size:0.8rem;color:#555">{'⛔ SIN QUALIFIER' if not comp_sim['qualifies'] else '✅ Qualificado'}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -169,10 +168,10 @@ with sim_cols[1]:
     rs_pct_sim = rs_sim["pct"]
     rs_color_sim = "#4CAF50" if rs_pct_sim >= 20 else "#FFA726" if rs_pct_sim > 0 else "#FF4B4B"
     st.markdown(f"""
-    <div style="background:#1E1E2E;border-radius:10px;padding:1.2rem;text-align:center;border-top:4px solid {rs_color_sim}">
-        <div style="font-size:0.8rem;color:#aaa">Revenue Share ADS</div>
+    <div style="background:#F8F9FA;border-radius:10px;padding:1.2rem;text-align:center;border-top:4px solid {rs_color_sim};border:1px solid #E0E0E0">
+        <div style="font-size:0.8rem;color:#666">Revenue Share ADS</div>
         <div style="font-size:2.5rem;font-weight:bold;color:{rs_color_sim}">{rs_pct_sim}%</div>
-        <div style="font-size:0.75rem;color:#ccc">{rs_sim['label']}</div>
+        <div style="font-size:0.75rem;color:#555">{rs_sim['label']}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -195,8 +194,8 @@ with sim_cols[2]:
         mc = "#00E676"
 
     st.markdown(f"""
-    <div style="background:#1E1E2E;border-radius:10px;padding:1.2rem;text-align:center;border-top:4px solid {mc}">
-        <div style="font-size:0.8rem;color:#aaa">Gap al próximo tier</div>
+    <div style="background:#F8F9FA;border-radius:10px;padding:1.2rem;text-align:center;border-top:4px solid {mc};border:1px solid #E0E0E0">
+        <div style="font-size:0.8rem;color:#666">Gap al próximo tier</div>
         <div style="font-size:1rem;font-weight:bold;color:{mc};margin-top:0.5rem">{msg}</div>
     </div>
     """, unsafe_allow_html=True)
@@ -218,8 +217,8 @@ with sim_cols[3]:
     ))
     fig_w.update_layout(
         height=180, margin=dict(l=5, r=5, t=20, b=5),
-        plot_bgcolor="#1E1E2E", paper_bgcolor="#1E1E2E",
-        font=dict(color="white", size=10),
+        plot_bgcolor="rgba(0,0,0,0)", paper_bgcolor="rgba(0,0,0,0)",
+        font=dict(size=10),
         title=dict(text="Contribución por KPI", font=dict(size=10)),
         showlegend=False, yaxis_title="pp al variable",
     )

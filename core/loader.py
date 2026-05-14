@@ -160,15 +160,19 @@ def load_pi(xl):
         df = df.iloc[1:].copy()
         df.columns = range(len(df.columns))
 
-        mask = df[2].apply(_is_farmer_email) & (df[3].astype(str).str.strip() == "Total")
+        mask = df[2].apply(_is_farmer_email) & (df[3].astype(str).str.strip().str.lower() == "total")
         df = df[mask].copy()
         df[2] = df[2].str.strip().str.lower()
 
         result = {}
         for _, row in df.iterrows():
             farmer = row[2]
+            # Try col 10 first (% Palancas), fall back to col 9 or search for highest float
+            val = pd.to_numeric(row[10], errors="coerce")
+            if pd.isna(val):
+                val = pd.to_numeric(row[9], errors="coerce")
             result[farmer] = {
-                "Pitch_Pct": pd.to_numeric(row[10], errors="coerce"),
+                "Pitch_Pct": val,
             }
         return result
     except Exception as e:
@@ -287,8 +291,62 @@ def load_penetracion(xl):
         return {}
 
 
+def load_att_productividad(xl):
+    """
+    Reads the 'ATT productividad' sheet.
+    Expects farmer emails (col 14 like Productividad, or col 2 like other sheets)
+    and an ATT value somewhere nearby.
+    Returns {farmer_email: {"ATT_Prod_Sheet": float, "raw_row": dict}}
+    """
+    try:
+        df = xl.parse("ATT productividad", header=0)
+        df.columns = range(len(df.columns))
+
+        # Try to find farmer email column (14 like Productividad, then 2)
+        farmer_col = None
+        for col_candidate in [14, 2, 1, 0]:
+            if col_candidate < len(df.columns):
+                mask = df[col_candidate].apply(
+                    lambda v: isinstance(v, str) and "@rappi" in v.lower()
+                )
+                if mask.sum() >= 1:
+                    farmer_col = col_candidate
+                    break
+
+        if farmer_col is None:
+            print("[loader] ATT productividad: no se encontró columna de email farmer")
+            return {}
+
+        df = df[df[farmer_col].apply(
+            lambda v: isinstance(v, str) and "@rappi" in v.lower()
+        )].copy()
+        df[farmer_col] = df[farmer_col].str.strip().str.lower()
+
+        # Store the entire row so the page can display whatever it finds
+        result = {}
+        for _, row in df.iterrows():
+            farmer = row[farmer_col]
+            # Try to find an ATT decimal column (values between 0 and 2)
+            att_val = None
+            for c in range(len(df.columns)):
+                if c == farmer_col:
+                    continue
+                v = pd.to_numeric(row[c], errors="coerce")
+                if pd.notna(v) and 0 <= v <= 2.5:
+                    att_val = v
+                    break
+            result[farmer] = {
+                "ATT_Prod_Sheet": att_val,
+                "row_data": {str(c): row[c] for c in range(len(df.columns))},
+            }
+        return result
+    except Exception as e:
+        print(f"[loader] ATT productividad error: {e}")
+        return {}
+
+
 def load_sheet_maestro(file_obj, dia_corte: int, dias_mes: int = 30) -> dict:
-    xl = pd.ExcelFile(file_obj)
+    xl = pd.ExcelFile(file_obj, engine="openpyxl")
     sheets = xl.sheet_names
 
     churn   = load_churn(xl)        if "Churn" in sheets        else {}
@@ -299,11 +357,17 @@ def load_sheet_maestro(file_obj, dia_corte: int, dias_mes: int = 30) -> dict:
     pen_raw = "Penetración" if "Penetración" in sheets else ("Penetracion" if "Penetracion" in sheets else None)
     penetracion = load_penetracion(xl) if pen_raw else {}
 
+    # New: ATT Productividad sheet (optional)
+    att_prod_sheet_name = next(
+        (s for s in sheets if s.lower().strip() == "att productividad"), None
+    )
+    att_prod_data = load_att_productividad(xl) if att_prod_sheet_name else {}
+
     progreso_pct = ((dia_corte - 1) / dias_mes) * 100
 
     # Collect all known farmers from data + default list
     all_farmers = set(FARMERS_EMAILS)
-    for src in [churn, md, ads, pi, prod]:
+    for src in [churn, md, ads, pi, prod, att_prod_data]:
         all_farmers |= set(src.keys())
     all_farmers = {
         f for f in all_farmers
@@ -368,6 +432,11 @@ def load_sheet_maestro(file_obj, dia_corte: int, dias_mes: int = 30) -> dict:
 
         # Penetración
         row["brands_riesgo"] = penetracion.get(farmer, [])
+
+        # ATT Productividad sheet (new tab)
+        ap = att_prod_data.get(farmer, {})
+        row["ATT_Prod_Sheet"] = ap.get("ATT_Prod_Sheet")
+        row["_att_prod_row"]  = ap.get("row_data", {})
 
         farmers_data[farmer] = row
 

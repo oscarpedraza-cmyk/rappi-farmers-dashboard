@@ -42,10 +42,10 @@ tier_color = COLOR_HEX.get(tier, "#9E9E9E")
 qualifier_badge = "" if comp.get("qualifies", True) else " ⛔ SIN QUALIFIER"
 
 st.markdown(f"""
-<div style="background:linear-gradient(135deg,{tier_color}22,#1E1E2E);
+<div style="background:linear-gradient(135deg,{tier_color}18,#FFF8F4);
             border-left:6px solid {tier_color};border-radius:12px;padding:1.2rem 1.5rem;margin-bottom:1rem">
-    <h2 style="margin:0;color:white">{EMOJI.get(tier,'⚪')} {selected_name}{qualifier_badge}</h2>
-    <p style="margin:0.3rem 0 0;color:#ccc;font-size:0.9rem">{email} | Corte día {dia_corte}</p>
+    <h2 style="margin:0;color:#1A1A1A">{EMOJI.get(tier,'⚪')} {selected_name}{qualifier_badge}</h2>
+    <p style="margin:0.3rem 0 0;color:#555;font-size:0.9rem">{email} | Corte día {dia_corte}</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -92,11 +92,11 @@ for col, (label, key, fmt), sem_key in zip(cols, metric_defs, sem_keys):
 
     with col:
         st.markdown(f"""
-        <div style="background:#1E1E2E;border-radius:10px;padding:0.7rem;
-                    border-top:4px solid {color};text-align:center;height:100px">
-            <div style="font-size:0.65rem;color:#aaa;margin-bottom:4px">{label}</div>
+        <div style="background:#F8F9FA;border-radius:10px;padding:0.7rem;
+                    border-top:4px solid {color};text-align:center;height:100px;border:1px solid #E0E0E0">
+            <div style="font-size:0.65rem;color:#666;margin-bottom:4px">{label}</div>
             <div style="font-size:1.3rem;font-weight:bold;color:{color}">{display}</div>
-            <div style="font-size:0.7rem;color:#ccc">{EMOJI.get(sem,'⚪')} {consec_label}</div>
+            <div style="font-size:0.7rem;color:#555">{EMOJI.get(sem,'⚪')} {consec_label}</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -123,24 +123,24 @@ for col, (label, follows_key, cont_key, sem_key) in zip(prod_cols, palancas):
 
     with col:
         st.markdown(f"""
-        <div style="background:#1E1E2E;border-radius:10px;padding:1rem;border-left:4px solid {color}">
-            <div style="font-size:0.8rem;color:#aaa;margin-bottom:6px">{EMOJI.get(sem,'⚪')} <b style="color:white">{label}</b></div>
+        <div style="background:#F8F9FA;border-radius:10px;padding:1rem;border-left:4px solid {color};border:1px solid #E0E0E0">
+            <div style="font-size:0.8rem;color:#555;margin-bottom:6px">{EMOJI.get(sem,'⚪')} <b style="color:#1A1A1A">{label}</b></div>
             <div style="display:flex;justify-content:space-between">
-                <span style="color:#ccc;font-size:0.85rem">Oportunidades</span>
-                <span style="color:white;font-weight:bold">{int(follows)}</span>
+                <span style="color:#555;font-size:0.85rem">Oportunidades</span>
+                <span style="color:#1A1A1A;font-weight:bold">{int(follows)}</span>
             </div>
             <div style="display:flex;justify-content:space-between">
-                <span style="color:#ccc;font-size:0.85rem">Contactados</span>
-                <span style="color:#4CAF50;font-weight:bold">{int(contactados)}</span>
+                <span style="color:#555;font-size:0.85rem">Contactados</span>
+                <span style="color:#2E7D32;font-weight:bold">{int(contactados)}</span>
             </div>
             <div style="display:flex;justify-content:space-between">
-                <span style="color:#ccc;font-size:0.85rem">Sin contactar</span>
-                <span style="color:#FF4B4B;font-weight:bold">{int(no_cont)}</span>
+                <span style="color:#555;font-size:0.85rem">Sin contactar</span>
+                <span style="color:#C62828;font-weight:bold">{int(no_cont)}</span>
             </div>
-            <div style="margin-top:8px;background:#333;border-radius:4px;height:6px">
+            <div style="margin-top:8px;background:#E0E0E0;border-radius:4px;height:6px">
                 <div style="background:{color};width:{pct_cont}%;height:6px;border-radius:4px"></div>
             </div>
-            <div style="font-size:0.75rem;color:#aaa;margin-top:3px">{pct_cont:.1f}% efectividad</div>
+            <div style="font-size:0.75rem;color:#666;margin-top:3px">{pct_cont:.1f}% efectividad</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -184,10 +184,10 @@ with comp_cols[0]:
     var_pct = comp.get("variable_pct", 0)
     var_color = "#4CAF50" if var_pct >= 80 else "#FFA726" if var_pct >= 50 else "#FF4B4B"
     st.markdown(f"""
-    <div style="background:#1E1E2E;border-radius:10px;padding:1.2rem;text-align:center">
-        <div style="font-size:0.8rem;color:#aaa">% Variable ganado</div>
+    <div style="background:#F8F9FA;border-radius:10px;padding:1.2rem;text-align:center;border:1px solid #E0E0E0">
+        <div style="font-size:0.8rem;color:#666">% Variable ganado</div>
         <div style="font-size:2.5rem;font-weight:bold;color:{var_color}">{var_pct:.0f}%</div>
-        <div style="font-size:0.75rem;color:#ccc">{'⛔ PIERDE VARIABLE' if not comp.get('qualifies',True) else '✅ Qualificado'}</div>
+        <div style="font-size:0.75rem;color:#555">{'⛔ PIERDE VARIABLE' if not comp.get('qualifies',True) else '✅ Qualificado'}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -196,10 +196,10 @@ with comp_cols[1]:
     rs_pct = rs.get("pct", 0)
     rs_color = "#4CAF50" if rs_pct >= 20 else "#FFA726" if rs_pct > 0 else "#FF4B4B"
     st.markdown(f"""
-    <div style="background:#1E1E2E;border-radius:10px;padding:1.2rem;text-align:center">
-        <div style="font-size:0.8rem;color:#aaa">Revenue Share ADS</div>
+    <div style="background:#F8F9FA;border-radius:10px;padding:1.2rem;text-align:center;border:1px solid #E0E0E0">
+        <div style="font-size:0.8rem;color:#666">Revenue Share ADS</div>
         <div style="font-size:2.5rem;font-weight:bold;color:{rs_color}">{rs_pct}%</div>
-        <div style="font-size:0.75rem;color:#ccc">{rs.get('label','')}</div>
+        <div style="font-size:0.75rem;color:#555">{rs.get('label','')}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -223,7 +223,7 @@ with comp_cols[2]:
     ))
     fig_gauge.update_layout(
         height=200, margin=dict(l=20, r=20, t=30, b=10),
-        paper_bgcolor="#1E1E2E", font=dict(color="white"),
+        paper_bgcolor="rgba(0,0,0,0)",
     )
     st.plotly_chart(fig_gauge, use_container_width=True)
 
@@ -259,10 +259,10 @@ for col, (kpi, label) in zip(contrib_cols, kpi_labels.items()):
 
     with col:
         st.markdown(f"""
-        <div style="background:#1E1E2E;border-radius:8px;padding:0.8rem;border-top:3px solid {color}">
-            <div style="font-size:0.7rem;color:#aaa">{label}</div>
+        <div style="background:#F8F9FA;border-radius:8px;padding:0.8rem;border-top:3px solid {color};border:1px solid #E0E0E0">
+            <div style="font-size:0.7rem;color:#666">{label}</div>
             <div style="font-size:1.1rem;color:{color};font-weight:bold">{icon} {att_str}</div>
-            <div style="font-size:0.75rem;color:#ccc">Contribuye: {contrib_str}</div>
+            <div style="font-size:0.75rem;color:#555">Contribuye: {contrib_str}</div>
         </div>
         """, unsafe_allow_html=True)
 
