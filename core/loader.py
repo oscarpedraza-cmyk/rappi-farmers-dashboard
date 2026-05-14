@@ -17,6 +17,7 @@ FARMERS_EMAILS = [
     "angie.contreras@rappi.com",
     "diana.saavedra@rappi.com",
     "maria.pedraza@rappi.com",
+    "sabas.ramirez@rappi.com",
 ]
 
 # Farmers excluidos (renuncia, licencia, etc.) — no aparecen en el dashboard
@@ -38,6 +39,7 @@ FARMER_NAMES = {
     "angie.contreras@rappi.com": "Angie Contreras",
     "diana.saavedra@rappi.com": "Diana Saavedra",
     "maria.pedraza@rappi.com": "Maria Pedraza",
+    "sabas.ramirez@rappi.com": "Sabas Ramirez",
 }
 
 SLACK_IDS = {
