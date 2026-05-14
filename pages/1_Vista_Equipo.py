@@ -10,14 +10,16 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.metrics import (get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX,
                           calcular_compensacion_completa, score_farmer,
                           assign_quartiles, QUARTILE_COLOR, QUARTILE_LABEL)
+from core.auth import require_auth, render_sidebar_user_badge
 
 st.set_page_config(page_title="Vista Equipo", page_icon="📊", layout="wide")
+email, is_supervisor = require_auth()
 
 st.markdown("# 📊 Vista Equipo — Gerencia Comercial")
 st.caption("Análisis macro: ¿dónde está roto el equipo y qué palanca duele más?")
 
 if "farmers_data" not in st.session_state:
-    st.warning("Carga el Sheet Maestro en la página principal primero.")
+    st.warning("El supervisor aún no ha cargado datos. Vuelve a la página principal.")
     st.stop()
 
 farmers_data = st.session_state["farmers_data"]

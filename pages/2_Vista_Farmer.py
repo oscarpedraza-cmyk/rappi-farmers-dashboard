@@ -11,24 +11,34 @@ from core.metrics import (
     generar_recomendaciones
 )
 from core.db import get_consecutive_red_weeks
+from core.auth import require_auth, render_sidebar_user_badge
 
 st.set_page_config(page_title="Vista Farmer", page_icon="👤", layout="wide")
+email, is_supervisor = require_auth()
 
 st.markdown("# 👤 Vista Farmer — Supervisión Individual")
 st.caption("Análisis micro: métricas, productividad cruzada, compensación y caminos de mejora")
 
 if "farmers_data" not in st.session_state:
-    st.warning("Carga el Sheet Maestro en la página principal primero.")
+    st.warning("El supervisor aún no ha cargado datos. Vuelve a la página principal.")
     st.stop()
 
 farmers_data = st.session_state["farmers_data"]
 dia_corte = st.session_state.get("dia_corte", 15)
 
-# ── Farmer selector ───────────────────────────────────────────────────────────
-names = {data.get("name", email): email for email, data in farmers_data.items()}
+# ── Farmer selector (supervisor sees all; farmer sees only themselves) ─────────
+names = {data.get("name", em): em for em, data in farmers_data.items()}
 sorted_names = sorted(names.keys())
 
-selected_name = st.selectbox("Selecciona un farmer", sorted_names)
+if is_supervisor:
+    selected_name = st.selectbox("Selecciona un farmer", sorted_names)
+else:
+    # Pre-select the logged-in farmer; hide selector if they're in the list
+    my_name = next((data.get("name", em) for em, data in farmers_data.items() if em == email), None)
+    if my_name and my_name in sorted_names:
+        selected_name = st.selectbox("Farmer", sorted_names, index=sorted_names.index(my_name))
+    else:
+        selected_name = st.selectbox("Selecciona un farmer", sorted_names)
 email = names[selected_name]
 data = farmers_data[email]
 

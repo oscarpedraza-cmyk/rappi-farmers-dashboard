@@ -6,8 +6,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS
+from core.auth import require_auth
 
 st.set_page_config(page_title="ATT Productividad", page_icon="📋", layout="wide")
+email, is_supervisor = require_auth()
 
 st.markdown("# 📋 ATT Productividad")
 st.caption("Attainment de productividad por farmer considerando descuentos y ajustes del período.")

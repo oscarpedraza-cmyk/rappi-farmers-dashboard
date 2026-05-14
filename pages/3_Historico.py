@@ -10,8 +10,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.db import get_history, get_available_dates, get_farmer_trend, get_consecutive_red_weeks
 from core.loader import FARMER_NAMES, FARMERS_EMAILS
 from core.metrics import COLOR_HEX, EMOJI
+from core.auth import require_auth
 
 st.set_page_config(page_title="Histórico", page_icon="📈", layout="wide")
+email, is_supervisor = require_auth()
 
 st.markdown("# 📈 Histórico — Evolución en el tiempo")
 st.caption("Tendencias semanales por farmer y por palanca. Cada 'Guardar snapshot' en la página principal agrega un punto al histórico.")

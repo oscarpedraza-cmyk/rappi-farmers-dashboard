@@ -226,6 +226,69 @@ def get_farmer_trend(farmer: str, metric_keys: list) -> list:
     return trend
 
 
+def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
+                      productividad_raw_json: str = None,
+                      updated_by: str = "supervisor") -> bool:
+    """
+    Persists the most recent upload so all farmer sessions can read it.
+    Overwrites the single row in `latest_state` table every time.
+    """
+    try:
+        init_db()
+        payload = json.dumps({
+            "farmers_data":         farmers_data,
+            "dia_corte":            dia_corte,
+            "dias_mes":             dias_mes,
+            "productividad_raw":    productividad_raw_json,   # JSON string or None
+            "updated_by":           updated_by,
+            "updated_at":           datetime.now().isoformat(),
+        }, default=str)
+
+        with _conn() as con:
+            con.execute("""
+                CREATE TABLE IF NOT EXISTS latest_state (
+                    id          INTEGER PRIMARY KEY,
+                    state_json  TEXT NOT NULL,
+                    updated_at  TEXT NOT NULL
+                )
+            """)
+            con.execute("DELETE FROM latest_state")
+            con.execute(
+                "INSERT INTO latest_state (state_json, updated_at) VALUES (?, ?)",
+                (payload, datetime.now().isoformat())
+            )
+        return True
+    except Exception as e:
+        print(f"[db] save_latest_state error: {e}")
+        return False
+
+
+def load_latest_state() -> dict | None:
+    """
+    Returns the dict saved by save_latest_state, or None if nothing saved yet.
+    Keys: farmers_data, dia_corte, dias_mes, productividad_raw, updated_by, updated_at
+    """
+    try:
+        init_db()
+        with _conn() as con:
+            con.execute("""
+                CREATE TABLE IF NOT EXISTS latest_state (
+                    id          INTEGER PRIMARY KEY,
+                    state_json  TEXT NOT NULL,
+                    updated_at  TEXT NOT NULL
+                )
+            """)
+            row = con.execute(
+                "SELECT state_json FROM latest_state ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+        if not row:
+            return None
+        return json.loads(row[0])
+    except Exception as e:
+        print(f"[db] load_latest_state error: {e}")
+        return None
+
+
 def get_consecutive_red_weeks(farmer: str, metric_key: str, red_threshold: float = 0.90) -> int:
     history = get_history(farmer=farmer, weeks_back=8)
     count = 0

@@ -7,8 +7,10 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS
 from core.metrics import QUARTILE_COLOR, QUARTILE_LABEL, score_farmer, assign_quartiles, get_all_semaforos, calcular_compensacion_completa
+from core.auth import require_auth
 
 st.set_page_config(page_title="Conversión", page_icon="🎯", layout="wide")
+email, is_supervisor = require_auth()
 
 st.markdown("# 🎯 Conversión Comercial")
 st.caption("Embudo por palanca: Oportunidades → Contactados → Contrataciones. Promedio de conversión por farmer y por métrica.")

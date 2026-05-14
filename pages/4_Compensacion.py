@@ -10,8 +10,10 @@ from core.metrics import (
     calcular_compensacion_completa, calcular_variable_score,
     calcular_revenue_share_ads, EMOJI, COLOR_HEX, REVENUE_SHARE_CAP_MONTHLY
 )
+from core.auth import require_auth
 
 st.set_page_config(page_title="Compensación", page_icon="💰", layout="wide")
+email, is_supervisor = require_auth()
 
 st.markdown("# 💰 Compensación Variable — Calculadora en tiempo real")
 st.caption("""
