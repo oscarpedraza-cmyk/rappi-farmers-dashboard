@@ -122,6 +122,49 @@ def tier_farmer(semaforos: dict) -> str:
     return "green"
 
 
+def score_farmer(semaforos: dict, comp: dict) -> float:
+    """
+    Composite score 0-100 for quartile ranking.
+    Weights: semáforo (60%) + variable % (40%)
+    Semáforo: green=2, yellow=1, red=0, gray=0
+    """
+    sem_points = {"green": 2, "yellow": 1, "red": 0, "gray": 0}
+    sem_vals = list(semaforos.values())
+    max_sem = len(sem_vals) * 2
+    sem_score = sum(sem_points.get(s, 0) for s in sem_vals) / max_sem * 100 if max_sem > 0 else 0
+
+    var_pct = comp.get("variable_pct", 0) or 0
+    if not comp.get("qualifies", True):
+        var_pct = 0
+
+    return round(sem_score * 0.6 + var_pct * 0.4, 2)
+
+
+def assign_quartiles(farmers_scores: dict) -> dict:
+    """
+    Given {email: score}, returns {email: 'Q1'|'Q2'|'Q3'|'Q4'}.
+    Q1 = best (top 25%), Q4 = worst (bottom 25%).
+    """
+    sorted_farmers = sorted(farmers_scores.items(), key=lambda x: x[1], reverse=True)
+    n = len(sorted_farmers)
+    quartiles = {}
+    for i, (email, _) in enumerate(sorted_farmers):
+        rank_pct = i / n
+        if rank_pct < 0.25:
+            quartiles[email] = "Q1"
+        elif rank_pct < 0.50:
+            quartiles[email] = "Q2"
+        elif rank_pct < 0.75:
+            quartiles[email] = "Q3"
+        else:
+            quartiles[email] = "Q4"
+    return quartiles
+
+
+QUARTILE_COLOR = {"Q1": "#4CAF50", "Q2": "#8BC34A", "Q3": "#FFA726", "Q4": "#FF4B4B"}
+QUARTILE_LABEL = {"Q1": "🏆 Q1", "Q2": "✅ Q2", "Q3": "⚠️ Q3", "Q4": "🚨 Q4"}
+
+
 # ── Compensation engine ───────────────────────────────────────────────────────
 def _clamp(val, low, high):
     return max(low, min(high, val))

@@ -17,8 +17,12 @@ FARMERS_EMAILS = [
     "angie.contreras@rappi.com",
     "diana.saavedra@rappi.com",
     "maria.pedraza@rappi.com",
-    "vanesa.fernandez@rappi.com",
 ]
+
+# Farmers excluidos (renuncia, licencia, etc.) — no aparecen en el dashboard
+EXCLUDED_EMAILS = {
+    "vanesa.fernandez@rappi.com",   # renuncia voluntaria mayo 2026
+}
 
 FARMER_NAMES = {
     "maira.franco@rappi.com": "Maira Franco",
@@ -34,7 +38,6 @@ FARMER_NAMES = {
     "angie.contreras@rappi.com": "Angie Contreras",
     "diana.saavedra@rappi.com": "Diana Saavedra",
     "maria.pedraza@rappi.com": "Maria Pedraza",
-    "vanesa.fernandez@rappi.com": "Vanesa Fernández",
 }
 
 SLACK_IDS = {
@@ -302,7 +305,13 @@ def load_sheet_maestro(file_obj, dia_corte: int, dias_mes: int = 30) -> dict:
     all_farmers = set(FARMERS_EMAILS)
     for src in [churn, md, ads, pi, prod]:
         all_farmers |= set(src.keys())
-    all_farmers = {f for f in all_farmers if "@rappi" in f and "oscar.pedraza" not in f}
+    all_farmers = {
+        f for f in all_farmers
+        if "@rappi" in f
+        and "oscar.pedraza" not in f
+        and f not in EXCLUDED_EMAILS
+        and f in set(FARMERS_EMAILS)   # solo farmers del equipo activo
+    }
 
     farmers_data = {}
     for farmer in all_farmers:

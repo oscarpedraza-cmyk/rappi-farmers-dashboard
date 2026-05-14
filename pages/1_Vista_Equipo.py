@@ -7,7 +7,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.metrics import get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX, calcular_compensacion_completa
+from core.metrics import (get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX,
+                          calcular_compensacion_completa, score_farmer,
+                          assign_quartiles, QUARTILE_COLOR, QUARTILE_LABEL)
 
 st.set_page_config(page_title="Vista Equipo", page_icon="📊", layout="wide")
 

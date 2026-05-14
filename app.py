@@ -6,7 +6,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent))
 
 from core.loader import load_sheet_maestro
-from core.metrics import get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX, calcular_compensacion_completa
+from core.metrics import (get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX,
+                          calcular_compensacion_completa, score_farmer,
+                          assign_quartiles, QUARTILE_COLOR, QUARTILE_LABEL)
 from core.db import save_snapshot, get_available_dates
 
 st.set_page_config(
@@ -177,37 +179,140 @@ for i, (metric, count) in enumerate(sorted_metrics[:4]):
 st.markdown("---")
 st.markdown("### Semáforo del equipo")
 
-# Quick table
-rows_html = ""
-for farmer, data in sorted(farmers_data.items(), key=lambda x: x[1].get("name", "")):
+# ── Calcular scores y cuartiles ───────────────────────────────────────────────
+all_scores = {}
+all_comps = {}
+all_sems = {}
+for farmer, data in farmers_data.items():
     sems = get_all_semaforos(data)
-    tier = tier_farmer(sems)
-    name = data.get("name", farmer)
-
     comp = calcular_compensacion_completa(data)
-    var_pct = comp.get("variable_pct", 0)
+    all_sems[farmer] = sems
+    all_comps[farmer] = comp
+    all_scores[farmer] = score_farmer(sems, comp)
 
-    badges = "".join([EMOJI.get(s, "⚪") for s in sems.values()])
-    qualifier = "" if comp.get("qualifies", True) else " ⛔"
+quartiles = assign_quartiles(all_scores)
+
+# ── Ordenar por cuartil y score (Q1 arriba, Q4 abajo) ────────────────────────
+sorted_farmers = sorted(
+    farmers_data.items(),
+    key=lambda x: (-all_scores.get(x[0], 0))
+)
+
+def fmt_att(val):
+    if val is None: return "<span style='color:#555'>S/D</span>"
+    pct = val * 100
+    if pct >= 95:   c = "#4CAF50"
+    elif pct >= 90: c = "#8BC34A"
+    elif pct >= 80: c = "#FFA726"
+    else:           c = "#FF4B4B"
+    return f"<span style='color:{c};font-weight:bold'>{pct:.0f}%</span>"
+
+def fmt_pi(val):
+    if val is None: return "<span style='color:#555'>S/D</span>"
+    pct = val * 100
+    c = "#4CAF50" if pct >= 65 else "#FFA726" if pct >= 50 else "#FF4B4B"
+    return f"<span style='color:{c};font-weight:bold'>{pct:.0f}%</span>"
+
+def fmt_netrev(val):
+    if val is None: return "<span style='color:#555'>S/D</span>"
+    c = "#4CAF50" if val >= 0 else "#FFA726" if val >= -5 else "#FF4B4B"
+    return f"<span style='color:{c};font-weight:bold'>{val:+.1f}pp</span>"
+
+def fmt_nc(val):
+    if val is None: return "<span style='color:#555'>S/D</span>"
+    c = "#FF4B4B" if val > 40 else "#FFA726" if val > 30 else "#4CAF50"
+    return f"<span style='color:{c};font-weight:bold'>{val:.0f}%</span>"
+
+def fmt_prod(val):
+    if val is None: return "<span style='color:#FF4B4B'>⛔ S/D</span>"
+    pct = val * 100
+    c = "#4CAF50" if pct >= 90 else "#FFA726" if pct >= 80 else "#FF4B4B"
+    prefix = "⛔ " if pct < 90 else ""
+    return f"<span style='color:{c};font-weight:bold'>{prefix}{pct:.0f}%</span>"
+
+rows_html = ""
+current_q = None
+for farmer, data in sorted_farmers:
+    q = quartiles.get(farmer, "Q4")
+    comp = all_comps[farmer]
+    var_pct = comp.get("variable_pct", 0)
+    qualifies = comp.get("qualifies", True)
+
+    # Separator row between quartiles
+    if q != current_q:
+        current_q = q
+        qcolor = QUARTILE_COLOR.get(q, "#9E9E9E")
+        qlabel = QUARTILE_LABEL.get(q, q)
+        qdesc = {"Q1": "Top performers", "Q2": "En camino", "Q3": "Requieren seguimiento", "Q4": "Intervención urgente"}
+        rows_html += f"""
+        <tr>
+            <td colspan="10" style="background:{qcolor}22;border-left:4px solid {qcolor};
+                padding:6px 12px;font-weight:bold;color:{qcolor};font-size:0.85rem">
+                {qlabel} — {qdesc.get(q,'')}
+            </td>
+        </tr>"""
+
+    name = data.get("name", farmer)
+    qcolor = QUARTILE_COLOR.get(q, "#9E9E9E")
+    var_color = "#4CAF50" if var_pct >= 80 else "#FFA726" if var_pct >= 50 else "#FF4B4B"
+    qualifier_icon = "" if qualifies else " ⛔"
+
+    score = all_scores.get(farmer, 0)
+
+    churn   = fmt_att(data.get("ATT_Churn"))
+    md      = fmt_att(data.get("ATT_MD_Total"))
+    mdpro   = fmt_att(data.get("ATT_MD_Pro"))
+    ads     = fmt_att(data.get("ATT_Rev_real"))
+    netrev  = fmt_netrev(data.get("Net_Rev_Adj"))
+    pi      = fmt_pi(data.get("Pitch_Pct"))
+    nc      = fmt_nc(data.get("pct_no_contactados"))
+    prod    = fmt_prod(data.get("productividad_pct"))
 
     rows_html += f"""
-    <tr style="border-bottom:1px solid #333">
-        <td style="padding:8px;font-weight:bold">{EMOJI.get(tier,'⚪')} {name}{qualifier}</td>
-        <td style="padding:8px;letter-spacing:4px">{badges}</td>
-        <td style="padding:8px;color:{'#4CAF50' if var_pct >= 80 else '#FFA726' if var_pct >= 50 else '#FF4B4B'};font-weight:bold">{var_pct:.0f}%</td>
+    <tr style="border-bottom:1px solid #222;hover:background:#1a1a2e">
+        <td style="padding:8px 10px;border-left:3px solid {qcolor}">
+            <span style="background:{qcolor}33;color:{qcolor};font-size:0.7rem;
+                  font-weight:bold;padding:2px 6px;border-radius:4px;margin-right:6px">{q}</span>
+            <span style="font-weight:600;color:white">{name}{qualifier_icon}</span>
+        </td>
+        <td style="padding:8px;text-align:center">{churn}</td>
+        <td style="padding:8px;text-align:center">{md}</td>
+        <td style="padding:8px;text-align:center">{mdpro}</td>
+        <td style="padding:8px;text-align:center">{ads}</td>
+        <td style="padding:8px;text-align:center">{netrev}</td>
+        <td style="padding:8px;text-align:center">{pi}</td>
+        <td style="padding:8px;text-align:center">{nc}</td>
+        <td style="padding:8px;text-align:center">{prod}</td>
+        <td style="padding:8px;text-align:center;font-weight:bold;color:{var_color}">{var_pct:.0f}%</td>
     </tr>"""
 
 st.markdown(f"""
-<table style="width:100%;border-collapse:collapse;font-size:0.9rem">
+<table style="width:100%;border-collapse:collapse;font-size:0.88rem;background:#0F0F1A">
     <thead>
-        <tr style="background:#1E1E2E;color:white">
-            <th style="padding:10px;text-align:left">Farmer</th>
-            <th style="padding:10px;text-align:left">Churn | MD | MDPro | AdsBook | AdsRev | NetRev | Pitch | NoCont | Reactiv</th>
-            <th style="padding:10px;text-align:left">Variable %</th>
+        <tr style="background:#1E1E2E;color:#aaa;font-size:0.75rem;text-transform:uppercase;letter-spacing:1px">
+            <th style="padding:10px;text-align:left;min-width:180px">Farmer</th>
+            <th style="padding:10px;text-align:center">Churn</th>
+            <th style="padding:10px;text-align:center">MD</th>
+            <th style="padding:10px;text-align:center">MD Pro</th>
+            <th style="padding:10px;text-align:center">Ads Rev</th>
+            <th style="padding:10px;text-align:center">Net Rev</th>
+            <th style="padding:10px;text-align:center">Pitch</th>
+            <th style="padding:10px;text-align:center">No Cont.</th>
+            <th style="padding:10px;text-align:center">Productividad</th>
+            <th style="padding:10px;text-align:center">Variable</th>
         </tr>
     </thead>
     <tbody>{rows_html}</tbody>
 </table>
 """, unsafe_allow_html=True)
 
-st.caption("⛔ = Pierde variable (productividad < 90%) | Navega por las páginas del menú izquierdo para el análisis detallado")
+st.markdown("""
+<div style="margin-top:0.8rem;font-size:0.75rem;color:#666;display:flex;gap:1.5rem;flex-wrap:wrap">
+    <span>🏆 <b>Q1</b> Top performers</span>
+    <span>✅ <b>Q2</b> En camino</span>
+    <span>⚠️ <b>Q3</b> Seguimiento activo</span>
+    <span>🚨 <b>Q4</b> Intervención urgente</span>
+    <span>⛔ = Pierde variable (productividad &lt; 90%)</span>
+    <span>Color: <span style="color:#4CAF50">≥95%</span> / <span style="color:#8BC34A">90-95%</span> / <span style="color:#FFA726">80-90%</span> / <span style="color:#FF4B4B">&lt;80%</span></span>
+</div>
+""", unsafe_allow_html=True)
