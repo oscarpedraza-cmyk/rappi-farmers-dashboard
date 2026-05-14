@@ -259,7 +259,7 @@ for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
             except: return ""
 
         st.dataframe(
-            display.style.applymap(color_conv, subset=["Conv. Total %", "Conv. Efectiva %"]),
+            display.style.map(color_conv, subset=["Conv. Total %", "Conv. Efectiva %"]),
             use_container_width=True, hide_index=True
         )
 
@@ -339,7 +339,7 @@ def color_score(val):
     except: return ""
 
 st.dataframe(
-    ranking.style.applymap(color_score, subset=["MD %", "Ads %", "Churn %", "Score Conv."]),
+    ranking.style.map(color_score, subset=["MD %", "Ads %", "Churn %", "Score Conv."]),
     use_container_width=True, hide_index=True
 )
 

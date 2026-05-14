@@ -9,7 +9,7 @@ from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS
 from core.auth import require_auth
 
 st.set_page_config(page_title="ATT Productividad — Rappi Farmers", page_icon="🚀", layout="wide")
-email, is_supervisor = require_auth()
+email_auth, is_supervisor = require_auth()
 
 st.markdown("# 📋 ATT Productividad")
 st.caption("Attainment de productividad por farmer considerando descuentos y ajustes del período.")
@@ -24,11 +24,11 @@ dia_corte    = st.session_state.get("dia_corte", 13)
 
 # Collect ATT Prod Sheet data from farmers_data
 att_rows = []
-for email, data in farmers_data.items():
+for em, data in farmers_data.items():
     if data.get("ATT_Prod_Sheet") is not None:
         att_rows.append({
-            "email": email,
-            "Farmer": data.get("name", email),
+            "email": em,
+            "Farmer": data.get("name", em),
             "ATT Productividad": data["ATT_Prod_Sheet"],
         })
 
@@ -57,10 +57,10 @@ if not has_att_sheet:
     st.caption("Datos de contactos efectivos: Zoho Voice + Treble + Meets — qualifier para variable")
 
     prod_rows = []
-    for email, data in farmers_data.items():
+    for em, data in farmers_data.items():
         p = data.get("productividad_pct")
         prod_rows.append({
-            "Farmer": data.get("name", email),
+            "Farmer": data.get("name", em),
             "Productividad %": round(p * 100, 1) if p is not None else None,
             "Qualifier": "✅ OK" if (p is not None and p >= 0.90) else ("⛔ PIERDE VARIABLE" if p is not None else "⚪ Sin dato"),
             "Follows totales": data.get("total_follows"),
@@ -79,7 +79,7 @@ if not has_att_sheet:
         except: return ""
 
     st.dataframe(
-        df_prod.style.applymap(color_prod, subset=["Productividad %"]),
+        df_prod.style.map(color_prod, subset=["Productividad %"]),
         use_container_width=True, hide_index=True
     )
 
@@ -155,9 +155,9 @@ st.markdown("### Detalle por farmer")
 
 # Also merge with productividad_pct from loader
 extra = []
-for email, data in farmers_data.items():
+for em, data in farmers_data.items():
     p = data.get("productividad_pct")
-    extra.append({"email": email, "Prod. Zoho/Treble/Meets": round(p * 100, 1) if p is not None else None})
+    extra.append({"email": em, "Prod. Zoho/Treble/Meets": round(p * 100, 1) if p is not None else None})
 df_extra = pd.DataFrame(extra)
 
 df_display = df_att.merge(df_extra, on="email", how="left")
@@ -172,7 +172,7 @@ def color_att(val):
     except: return ""
 
 st.dataframe(
-    df_display.style.applymap(color_att, subset=["ATT %"]),
+    df_display.style.map(color_att, subset=["ATT %"]),
     use_container_width=True, hide_index=True
 )
 

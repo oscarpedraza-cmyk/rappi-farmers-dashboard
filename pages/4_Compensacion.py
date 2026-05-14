@@ -74,7 +74,7 @@ display_cols = ["Farmer", "Churn (25%)", "MD Total (20%)", "MD Pro (20%)",
                 "ADS Rev (35%)", "Qualifier", "Variable %", "RS ADS", "RS Label"]
 
 st.dataframe(
-    df[display_cols].style.applymap(color_variable, subset=["Variable %"]),
+    df[display_cols].style.map(color_variable, subset=["Variable %"]),
     use_container_width=True, hide_index=True
 )
 
