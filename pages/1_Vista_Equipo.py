@@ -12,7 +12,7 @@ from core.metrics import (get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX,
                           assign_quartiles, QUARTILE_COLOR, QUARTILE_LABEL)
 from core.auth import require_auth, render_sidebar_user_badge
 
-st.set_page_config(page_title="Vista Equipo", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Vista Equipo — Rappi Farmers", page_icon="🚀", layout="wide")
 email, is_supervisor = require_auth()
 
 st.markdown("# 📊 Vista Equipo — Gerencia Comercial")

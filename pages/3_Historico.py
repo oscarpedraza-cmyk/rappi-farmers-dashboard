@@ -12,7 +12,7 @@ from core.loader import FARMER_NAMES, FARMERS_EMAILS
 from core.metrics import COLOR_HEX, EMOJI
 from core.auth import require_auth
 
-st.set_page_config(page_title="Histórico", page_icon="📈", layout="wide")
+st.set_page_config(page_title="Histórico — Rappi Farmers", page_icon="🚀", layout="wide")
 email, is_supervisor = require_auth()
 
 st.markdown("# 📈 Histórico — Evolución en el tiempo")

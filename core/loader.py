@@ -151,32 +151,93 @@ def load_ads(xl):
 
 def load_pi(xl):
     """
-    Structure: header row 0, data from row 1.
-    Col 0: WEEK | Col 1: Lider | Col 2: Farmer | Col 3: Brand_id | Col 10: % Palancas
-    Filter: col 2 has @rappi AND col 3 == 'Total' (per-farmer aggregate row)
+    Reads Pitch Integral from the PI sheet.
+
+    Strategy A — 'Total' aggregate row:
+      Some sheet versions have a summary row per farmer where col 3 = 'Total'.
+      We look for that row and read % Palancas from col 10 (or nearby).
+
+    Strategy B — average across all weeks:
+      If no 'Total' row exists, the monthly PI is the average of all weekly
+      per-farmer rows. We detect the pitch column automatically.
+
+    Returns {farmer_email: {"Pitch_Pct": float, "_pi_rows": [weekly floats]}}
     """
     try:
         df = xl.parse("PI", header=None)
         df = df.iloc[1:].copy()
         df.columns = range(len(df.columns))
+        n_cols = len(df.columns)
 
-        mask = df[2].apply(_is_farmer_email) & (df[3].astype(str).str.strip().str.lower() == "total")
-        df = df[mask].copy()
-        df[2] = df[2].str.strip().str.lower()
+        # ── Find farmer-email column (try 2, then 1, 0, 3) ──────────────────
+        farmer_col = None
+        for c in [2, 1, 3, 0]:
+            if c < n_cols and df[c].apply(_is_farmer_email).any():
+                farmer_col = c
+                break
+        if farmer_col is None:
+            print("[loader] PI: no se encontró columna de email farmer")
+            return {}
 
+        df_all = df[df[farmer_col].apply(_is_farmer_email)].copy()
+        df_all[farmer_col] = df_all[farmer_col].str.strip().str.lower()
+
+        # ── Strategy A: look for 'Total' tag in neighbouring columns ─────────
+        for tag_col in [3, 4, farmer_col + 1, farmer_col + 2]:
+            if tag_col == farmer_col or tag_col >= n_cols:
+                continue
+            mask_total = df_all[tag_col].astype(str).str.strip().str.lower() == "total"
+            if mask_total.sum() < 1:
+                continue
+            df_total = df_all[mask_total].copy()
+            # Try pitch columns 10, 9, 11, 8 — accept first with plausible decimals
+            for pitch_col in [10, 9, 11, 8, 7]:
+                if pitch_col >= n_cols:
+                    continue
+                vals = pd.to_numeric(df_total[pitch_col], errors="coerce")
+                valid = vals.dropna()
+                if not valid.empty and valid.between(0, 1.5).mean() >= 0.5:
+                    result = {}
+                    for idx, row in df_total.iterrows():
+                        farmer = row[farmer_col]
+                        v = pd.to_numeric(row[pitch_col], errors="coerce")
+                        result[farmer] = {"Pitch_Pct": v if pd.notna(v) else None,
+                                          "_pi_rows": [v] if pd.notna(v) else []}
+                    print(f"[loader] PI: Strategy A → {len(result)} farmers (tag_col={tag_col}, pitch_col={pitch_col})")
+                    return result
+
+        # ── Strategy B: average all rows per farmer ───────────────────────────
+        # Find the column whose values (for farmer rows) are mostly in [0, 1]
+        best_pitch_col = None
+        best_coverage  = 0
+        for pitch_col in [10, 9, 11, 8, 7, 12]:
+            if pitch_col >= n_cols:
+                continue
+            vals = pd.to_numeric(df_all[pitch_col], errors="coerce")
+            in_range = vals.between(0, 1).sum()
+            coverage = in_range / max(len(df_all), 1)
+            if coverage > best_coverage:
+                best_coverage  = coverage
+                best_pitch_col = pitch_col
+
+        if best_pitch_col is None or best_coverage < 0.3:
+            print(f"[loader] PI: Strategy B no encontró columna válida (best_coverage={best_coverage:.2f})")
+            return {}
+
+        df_all["_val"] = pd.to_numeric(df_all[best_pitch_col], errors="coerce")
         result = {}
-        for _, row in df.iterrows():
-            farmer = row[2]
-            # Try col 10 first (% Palancas), fall back to col 9 or search for highest float
-            val = pd.to_numeric(row[10], errors="coerce")
-            if pd.isna(val):
-                val = pd.to_numeric(row[9], errors="coerce")
-            result[farmer] = {
-                "Pitch_Pct": val,
-            }
+        for farmer, group in df_all.groupby(farmer_col):
+            weekly_vals = group["_val"].dropna().tolist()
+            avg = float(np.nanmean(weekly_vals)) if weekly_vals else None
+            result[farmer] = {"Pitch_Pct": round(avg, 4) if avg is not None else None,
+                              "_pi_rows": weekly_vals}
+        print(f"[loader] PI: Strategy B → {len(result)} farmers (pitch_col={best_pitch_col}, coverage={best_coverage:.0%})")
         return result
+
     except Exception as e:
+        import traceback
         print(f"[loader] PI error: {e}")
+        traceback.print_exc()
         return {}
 
 
@@ -415,7 +476,8 @@ def load_sheet_maestro(file_obj, dia_corte: int, dias_mes: int = 30) -> dict:
 
         # PI
         p = pi.get(farmer, {})
-        row["Pitch_Pct"] = p.get("Pitch_Pct")
+        row["Pitch_Pct"]  = p.get("Pitch_Pct")
+        row["_pi_rows"]   = p.get("_pi_rows", [])   # weekly values for trend chart
 
         # Productividad
         pr = prod.get(farmer, {})

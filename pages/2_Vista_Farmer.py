@@ -13,7 +13,7 @@ from core.metrics import (
 from core.db import get_consecutive_red_weeks
 from core.auth import require_auth, render_sidebar_user_badge
 
-st.set_page_config(page_title="Vista Farmer", page_icon="👤", layout="wide")
+st.set_page_config(page_title="Vista Farmer — Rappi Farmers", page_icon="🚀", layout="wide")
 email, is_supervisor = require_auth()
 
 st.markdown("# 👤 Vista Farmer — Supervisión Individual")

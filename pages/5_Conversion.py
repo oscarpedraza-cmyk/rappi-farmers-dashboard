@@ -9,7 +9,7 @@ from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS
 from core.metrics import QUARTILE_COLOR, QUARTILE_LABEL, score_farmer, assign_quartiles, get_all_semaforos, calcular_compensacion_completa
 from core.auth import require_auth
 
-st.set_page_config(page_title="Conversión", page_icon="🎯", layout="wide")
+st.set_page_config(page_title="Conversión — Rappi Farmers", page_icon="🚀", layout="wide")
 email, is_supervisor = require_auth()
 
 st.markdown("# 🎯 Conversión Comercial")
