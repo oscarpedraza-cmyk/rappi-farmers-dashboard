@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import plotly.graph_objects as go
 import sys
 from pathlib import Path
 
@@ -8,16 +7,9 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.auth import require_auth
 from core.style import inject_global_css
 
-st.set_page_config(page_title="ATT Productividad — Rappi Farmers", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="Follow Track — Rappi Farmers", page_icon="🚀", layout="wide")
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email_auth, is_supervisor = require_auth()
-
-st.markdown("""
-<div class="rb-page-header">
-    <h1>📋 ATT Productividad</h1>
-    <p>Contactos efectivos por farmer: Zoho Voice + Treble + Videoconferencia — qualifier para variable.</p>
-</div>
-""", unsafe_allow_html=True)
 
 # ── Auto-load si session_state está vacío ─────────────────────────────────────
 if "farmers_data" not in st.session_state:
@@ -27,113 +19,196 @@ if "farmers_data" not in st.session_state:
         st.session_state["farmers_data"] = latest["farmers_data"]
         st.session_state["dia_corte"]    = latest["dia_corte"]
         st.session_state["dias_mes"]     = latest["dias_mes"]
+        if latest.get("att_prod_raw"):
+            st.session_state["_att_prod_raw"] = latest["att_prod_raw"]
+        if latest.get("productividad_raw"):
+            try:
+                df_raw = pd.read_json(latest["productividad_raw"])
+                df_raw.columns = [int(c) for c in df_raw.columns]
+                st.session_state["_productividad_raw"] = df_raw
+            except Exception:
+                pass
     else:
-        st.warning("⏳ El supervisor aún no ha cargado datos para este período. Vuelve más tarde o contacta a Oscar Pedraza.")
+        st.warning("⏳ El supervisor aún no ha cargado datos. Vuelve más tarde o contacta a Oscar Pedraza.")
         st.stop()
 
 farmers_data = st.session_state["farmers_data"]
 
-# ── Build table ───────────────────────────────────────────────────────────────
-prod_rows = []
-for em, data in farmers_data.items():
-    p = data.get("productividad_pct")
-    pct_nc = data.get("pct_no_contactados")
-    prod_rows.append({
-        "Farmer":          data.get("name", em),
-        "Productividad %": f"{p*100:.1f}" if p is not None else None,
-        "Qualifier":       "✅ OK" if (p is not None and p >= 0.90)
-                           else ("⛔ PIERDE VARIABLE" if p is not None else "⚪ Sin dato"),
-        "Follows totales": int(data.get("total_follows") or 0),
-        "Sin contactar":   int(data.get("no_contactados") or 0),
-        "% Sin contactar": f"{pct_nc:.1f}" if pct_nc is not None else None,
-        "_prod_num":       round(p * 100, 1) if p is not None else None,  # para ordenar y graficar
-    })
+# ── Try to load Follow Track raw table ───────────────────────────────────────
+att_raw_json = st.session_state.get("_att_prod_raw")
 
-df = pd.DataFrame(prod_rows).sort_values("_prod_num", ascending=False, na_position="last")
-
-# ── Summary metrics ───────────────────────────────────────────────────────────
-df_valid   = df.dropna(subset=["_prod_num"])
-qualifiers = (df_valid["_prod_num"] >= 90).sum()
-no_qualif  = (df_valid["_prod_num"] < 90).sum()
-avg_prod   = df_valid["_prod_num"].mean() if not df_valid.empty else 0
-sin_dato   = df["_prod_num"].isna().sum()
-
-col1, col2, col3, col4, col5 = st.columns(5)
-with col1: st.metric("👥 Total farmers",    len(df))
-with col2: st.metric("✅ Con qualifier",    int(qualifiers), help="Productividad ≥ 90%")
-with col3: st.metric("⛔ Sin qualifier",    int(no_qualif),  help="Pierde variable completo")
-with col4: st.metric("📊 Promedio equipo", f"{avg_prod:.1f}%")
-with col5: st.metric("⚪ Sin dato",        int(sin_dato))
-
-st.markdown("---")
-
-# ── Bar chart ─────────────────────────────────────────────────────────────────
-df_plot = df_valid.copy()
-colors = ["#00C9A7" if v >= 90 else "#F59E0B" if v >= 80 else "#EF4444"
-          for v in df_plot["_prod_num"]]
-
-fig = go.Figure(go.Bar(
-    y=df_plot["Farmer"],
-    x=df_plot["_prod_num"],
-    orientation="h",
-    marker_color=colors,
-    text=df_plot["_prod_num"].apply(lambda v: f"{v:.1f}%"),
-    textposition="outside",
-    hovertemplate="%{y}: %{x:.1f}%<extra></extra>",
-))
-fig.add_vline(x=90, line_dash="dash", line_color="#E8281F", opacity=0.8,
-              annotation_text="Qualifier 90%", annotation_position="top")
-fig.update_layout(
-    height=max(300, len(df_plot) * 36),
-    margin=dict(l=10, r=70, t=20, b=10),
-    plot_bgcolor="rgba(0,0,0,0)",
-    paper_bgcolor="rgba(0,0,0,0)",
-    xaxis_title="Productividad %",
-    xaxis=dict(range=[0, max(115, df_plot["_prod_num"].max() + 10)]),
-    showlegend=False,
-)
-st.plotly_chart(fig, use_container_width=True)
-
-# ── Detail table ──────────────────────────────────────────────────────────────
-st.markdown("### Detalle por farmer")
-
-def color_prod(val):
+if att_raw_json:
     try:
-        v = float(val)
-        if v >= 90: return "color:#00B341;font-weight:bold"
-        if v >= 80: return "color:#F59E0B;font-weight:bold"
-        return "color:#EF4444;font-weight:bold"
-    except:
-        return ""
-
-def color_pct_nc(val):
-    try:
-        v = float(val)
-        if v <= 20: return "color:#00B341;font-weight:bold"
-        if v <= 35: return "color:#F59E0B;font-weight:bold"
-        return "color:#EF4444;font-weight:bold"
-    except:
-        return ""
-
-display_cols = ["Farmer", "Productividad %", "Qualifier", "Follows totales", "Sin contactar", "% Sin contactar"]
-st.dataframe(
-    df[display_cols].style
-      .map(color_prod,   subset=["Productividad %"])
-      .map(color_pct_nc, subset=["% Sin contactar"]),
-    use_container_width=True,
-    hide_index=True,
-)
-
-# ── Farmers at risk ───────────────────────────────────────────────────────────
-at_risk = df_valid[df_valid["_prod_num"] < 90].sort_values("_prod_num")
-if not at_risk.empty:
-    st.markdown("---")
-    st.error(f"### 🚨 {len(at_risk)} farmers bajo el qualifier (< 90%)")
-    for _, row in at_risk.iterrows():
-        diff = 90 - row["_prod_num"]
-        st.markdown(
-            f"- **{row['Farmer']}**: {row['_prod_num']:.1f}% "
-            f"— faltan **{diff:.1f} pp** para no perder el variable"
-        )
+        df = pd.read_json(att_raw_json)
+    except Exception:
+        df = None
 else:
-    st.success("✅ Todo el equipo supera el qualifier de productividad (≥ 90%)")
+    df = None
+
+# ── FOLLOW TRACK VIEW ─────────────────────────────────────────────────────────
+if df is not None and not df.empty:
+
+    n = len(df)
+    medals = ["🥇", "🥈", "🥉"]
+
+    def _find_col(dataframe, *hints):
+        """Case-insensitive column finder."""
+        for hint in hints:
+            for col in dataframe.columns:
+                if hint.lower() in str(col).lower():
+                    return col
+        return None
+
+    col_farmer   = _find_col(df, "farmer", "email", "correo")
+    col_pais     = _find_col(df, "país", "pais", "país", "country")
+    col_lider    = _find_col(df, "líder", "lider", "leader")
+    col_meta     = _find_col(df, "meta", "target", "goal")
+    col_comp     = _find_col(df, "completado", "complete")
+    col_desc_dia = _find_col(df, "desc. día", "desc día", "desc dia", "descdia")
+    col_desc_fol = _find_col(df, "desc. follow", "desc follow", "descfollow")
+    col_pend     = _find_col(df, "pendiente", "pending")
+    col_pct      = _find_col(df, "cumpl", "% cumpl", "pct")
+    col_estado   = _find_col(df, "estado", "status", "state")
+
+    def fmt_num(row, col, color):
+        if col is None:
+            return '<span style="color:#D1D5DB">—</span>'
+        v = row.get(col) if hasattr(row, "get") else row[col]
+        if pd.isna(v):
+            return '<span style="color:#D1D5DB">—</span>'
+        try:
+            return f'<span style="color:{color};font-weight:700">{int(float(v))}</span>'
+        except Exception:
+            return f'<span style="color:{color}">{v}</span>'
+
+    def fmt_pct(row, col):
+        if col is None:
+            return '<span style="color:#D1D5DB">—</span>'
+        v = row.get(col) if hasattr(row, "get") else row[col]
+        if pd.isna(v):
+            return '<span style="color:#D1D5DB">—</span>'
+        try:
+            vf = float(str(v).replace("%", "").strip())
+            c = "#00B341" if vf >= 90 else "#F59E0B" if vf >= 70 else "#EF4444"
+            return f'<span style="color:{c};font-weight:700">{vf:.1f}%</span>'
+        except Exception:
+            return f'<span style="font-weight:600">{v}</span>'
+
+    def fmt_estado(row, col):
+        if col is None:
+            return ""
+        v = row.get(col) if hasattr(row, "get") else row[col]
+        if pd.isna(v):
+            return ""
+        s = str(v).strip()
+        if not s or s.lower() == "nan":
+            return ""
+        s_low = s.lower()
+        if "crít" in s_low or "critic" in s_low or "x" in s_low:
+            return (f'<span style="background:#FEE2E2;color:#EF4444;border-radius:20px;'
+                    f'padding:4px 14px;font-size:0.75rem;font-weight:700;white-space:nowrap">'
+                    f'✗ Crítico</span>')
+        if "ok" in s_low or "bien" in s_low or "cumple" in s_low:
+            return (f'<span style="background:#D1FAE5;color:#00B341;border-radius:20px;'
+                    f'padding:4px 14px;font-size:0.75rem;font-weight:700">✓ OK</span>')
+        return (f'<span style="background:#FEE2E2;color:#EF4444;border-radius:20px;'
+                f'padding:4px 14px;font-size:0.75rem;font-weight:700">{s}</span>')
+
+    # Build rows
+    rows_html = ""
+    for i, (_, row) in enumerate(df.iterrows()):
+        rank   = i + 1
+        medal  = medals[i] if i < 3 else str(rank)
+        bg     = "#FFFFFF" if i % 2 == 0 else "#FAFBFC"
+
+        farmer_val = str(row[col_farmer]).strip() if col_farmer and pd.notna(row[col_farmer]) else "—"
+        pais_val   = str(row[col_pais]).strip()   if col_pais   and pd.notna(row[col_pais])   else "—"
+        lider_val  = str(row[col_lider]).strip()  if col_lider  and pd.notna(row[col_lider])  else "—"
+
+        rows_html += f"""
+        <tr style="background:{bg};border-bottom:1px solid #F3F4F6">
+            <td style="padding:13px 16px;text-align:center;font-size:1.05rem">{medal}</td>
+            <td style="padding:13px 16px;color:#4A6CF7;font-weight:600;font-size:0.84rem">{farmer_val}</td>
+            <td style="padding:13px 16px;color:#374151;font-size:0.84rem">{pais_val}</td>
+            <td style="padding:13px 16px;color:#374151;font-size:0.84rem">{lider_val}</td>
+            <td style="padding:13px 16px;text-align:center">{fmt_num(row, col_meta,     '#4A90D9')}</td>
+            <td style="padding:13px 16px;text-align:center">{fmt_num(row, col_comp,     '#00B341')}</td>
+            <td style="padding:13px 16px;text-align:center">{fmt_num(row, col_desc_dia, '#F59E0B')}</td>
+            <td style="padding:13px 16px;text-align:center">{fmt_num(row, col_desc_fol, '#F59E0B')}</td>
+            <td style="padding:13px 16px;text-align:center">{fmt_num(row, col_pend,     '#F59E0B')}</td>
+            <td style="padding:13px 16px;text-align:center">{fmt_pct(row, col_pct)}</td>
+            <td style="padding:13px 16px;text-align:center">{fmt_estado(row, col_estado)}</td>
+        </tr>"""
+
+    st.markdown(f"""
+    <div style="border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.10);margin-bottom:2rem">
+        <div style="background:#1A1A2E;padding:1.3rem 1.8rem">
+            <div style="font-size:1.6rem;font-weight:900;color:white;letter-spacing:-0.5px;margin:0">
+                Follow <span style="color:#FF6B00">Track</span>
+            </div>
+            <div style="color:rgba(255,255,255,0.55);font-size:0.82rem;margin-top:3px">
+                Ranking del Equipo &nbsp;·&nbsp; {n} farmers
+            </div>
+        </div>
+        <div style="overflow-x:auto">
+        <table style="width:100%;border-collapse:collapse;font-size:0.84rem;background:white">
+            <thead>
+                <tr style="background:#F8F9FA;border-bottom:2px solid #E5E7EB">
+                    <th style="padding:11px 16px;text-align:center;color:#6B7280;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.8px;font-weight:600">#</th>
+                    <th style="padding:11px 16px;text-align:left;color:#6B7280;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.8px;font-weight:600">FARMER</th>
+                    <th style="padding:11px 16px;text-align:left;color:#6B7280;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.8px;font-weight:600">PAÍS</th>
+                    <th style="padding:11px 16px;text-align:left;color:#6B7280;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.8px;font-weight:600">LÍDER</th>
+                    <th style="padding:11px 16px;text-align:center;color:#6B7280;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.8px;font-weight:600">META</th>
+                    <th style="padding:11px 16px;text-align:center;color:#6B7280;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.8px;font-weight:600">COMPLETADOS</th>
+                    <th style="padding:11px 16px;text-align:center;color:#6B7280;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.8px;font-weight:600">DESC. DÍA</th>
+                    <th style="padding:11px 16px;text-align:center;color:#6B7280;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.8px;font-weight:600">DESC. FOLLOWS</th>
+                    <th style="padding:11px 16px;text-align:center;color:#6B7280;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.8px;font-weight:600">PENDIENTES</th>
+                    <th style="padding:11px 16px;text-align:center;color:#6B7280;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.8px;font-weight:600">% CUMPL.</th>
+                    <th style="padding:11px 16px;text-align:center;color:#6B7280;font-size:0.68rem;text-transform:uppercase;letter-spacing:0.8px;font-weight:600">ESTADO</th>
+                </tr>
+            </thead>
+            <tbody>{rows_html}</tbody>
+        </table>
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+
+# ── FALLBACK: productividad desde hoja Productividad ─────────────────────────
+else:
+    st.markdown("""
+    <div class="rb-page-header">
+        <h1>📋 ATT Productividad</h1>
+        <p>Contactos efectivos por farmer: Zoho Voice + Treble + Videoconferencia.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.info("📂 Sube el archivo con la pestaña **ATT productividad** para ver el Follow Track. Mostrando datos de la hoja Productividad como referencia.")
+
+    prod_rows = []
+    for em, data in farmers_data.items():
+        p     = data.get("productividad_pct")
+        pct_nc = data.get("pct_no_contactados")
+        prod_rows.append({
+            "Farmer":          data.get("name", em),
+            "Productividad %": f"{p*100:.1f}" if p is not None else None,
+            "Qualifier":       "✅ OK" if (p is not None and p >= 0.90)
+                               else ("⛔ PIERDE VARIABLE" if p is not None else "⚪ Sin dato"),
+            "Follows totales": int(data.get("total_follows") or 0),
+            "Sin contactar":   int(data.get("no_contactados") or 0),
+            "% Sin contactar": f"{pct_nc:.1f}" if pct_nc is not None else None,
+            "_prod_num":       round(p * 100, 1) if p is not None else None,
+        })
+
+    df_fb = pd.DataFrame(prod_rows).sort_values("_prod_num", ascending=False, na_position="last")
+
+    def color_p(val):
+        try:
+            v = float(val)
+            if v >= 90: return "color:#00B341;font-weight:bold"
+            if v >= 80: return "color:#F59E0B;font-weight:bold"
+            return "color:#EF4444;font-weight:bold"
+        except: return ""
+
+    display_cols = ["Farmer", "Productividad %", "Qualifier", "Follows totales", "Sin contactar", "% Sin contactar"]
+    st.dataframe(df_fb[display_cols].style.map(color_p, subset=["Productividad %"]),
+                 use_container_width=True, hide_index=True)

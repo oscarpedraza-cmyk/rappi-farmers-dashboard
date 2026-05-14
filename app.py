@@ -87,10 +87,12 @@ with st.sidebar:
                     st.session_state["dias_mes"]     = dias_mes
                     st.session_state["snap_date"]    = today
 
-                    # Raw Productividad for Conversión tab
-                    prod_raw_json = None
+                    # Raw sheets for sub-pages
+                    prod_raw_json     = None
+                    att_prod_raw_json = None
                     try:
                         xl = pd.ExcelFile(uploaded_file, engine="openpyxl")
+                        # Productividad → Conversión tab
                         if "Productividad" in xl.sheet_names:
                             df_prod_raw = xl.parse("Productividad", header=0)
                             df_prod_raw.columns = range(len(df_prod_raw.columns))
@@ -102,17 +104,28 @@ with st.sidebar:
                             df_prod_raw[14] = df_prod_raw[14].str.strip().str.lower()
                             st.session_state["_productividad_raw"] = df_prod_raw
                             prod_raw_json = df_prod_raw.to_json()
+                        # ATT productividad → Follow Track tab (raw, sin transformar)
+                        att_sheet = next(
+                            (s for s in xl.sheet_names if s.strip().lower() == "att productividad"), None
+                        )
+                        if att_sheet:
+                            df_att_raw = xl.parse(att_sheet, header=0)
+                            # Drop fully-empty rows and columns
+                            df_att_raw = df_att_raw.dropna(how="all").dropna(axis=1, how="all")
+                            st.session_state["_att_prod_raw"] = df_att_raw.to_json()
+                            att_prod_raw_json = df_att_raw.to_json()
                         st.session_state["_sheet_names"] = xl.sheet_names
                     except Exception as _e:
                         pass
 
                     # ── Auto-save for team ─────────────────────────────────
                     save_latest_state(
-                        farmers_data    = farmers_data,
-                        dia_corte       = dia_corte,
-                        dias_mes        = dias_mes,
-                        productividad_raw_json = prod_raw_json,
-                        updated_by      = email,
+                        farmers_data          = farmers_data,
+                        dia_corte             = dia_corte,
+                        dias_mes              = dias_mes,
+                        productividad_raw_json= prod_raw_json,
+                        att_prod_raw_json     = att_prod_raw_json,
+                        updated_by            = email,
                     )
 
                     n = len(farmers_data)
@@ -152,6 +165,9 @@ with st.sidebar:
                         st.session_state["_productividad_raw"] = df_raw
                     except Exception:
                         pass
+                # Restore ATT productividad for Follow Track tab
+                if latest.get("att_prod_raw"):
+                    st.session_state["_att_prod_raw"] = latest["att_prod_raw"]
 
         dia_corte    = st.session_state.get("dia_corte", today.day - 1)
         dias_mes     = st.session_state.get("dias_mes", 31)
