@@ -7,12 +7,18 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS
 from core.auth import require_auth
+from core.style import inject_global_css
 
 st.set_page_config(page_title="ATT Productividad — Rappi Farmers", page_icon="🚀", layout="wide")
+st.markdown(inject_global_css(), unsafe_allow_html=True)
 email_auth, is_supervisor = require_auth()
 
-st.markdown("# 📋 ATT Productividad")
-st.caption("Attainment de productividad por farmer considerando descuentos y ajustes del período.")
+st.markdown("""
+<div class="rb-page-header">
+    <h1>📋 ATT Productividad</h1>
+    <p>Attainment de productividad por farmer considerando descuentos y ajustes del período.</p>
+</div>
+""", unsafe_allow_html=True)
 
 if "farmers_data" not in st.session_state:
     st.warning("Carga el Sheet Maestro en la página principal primero.")
@@ -73,9 +79,9 @@ if not has_att_sheet:
     def color_prod(val):
         try:
             v = float(val)
-            if v >= 90: return "color:#2E7D32;font-weight:bold"
-            if v >= 80: return "color:#E65100;font-weight:bold"
-            return "color:#C62828;font-weight:bold"
+            if v >= 90: return "color:#00B341;font-weight:bold"
+            if v >= 80: return "color:#F59E0B;font-weight:bold"
+            return "color:#EF4444;font-weight:bold"
         except: return ""
 
     st.dataframe(
@@ -85,7 +91,7 @@ if not has_att_sheet:
 
     # Bar chart
     df_plot = df_prod.dropna(subset=["Productividad %"]).copy()
-    colors = ["#2E7D32" if v >= 90 else "#E65100" if v >= 80 else "#C62828" for v in df_plot["Productividad %"]]
+    colors = ["#00C9A7" if v >= 90 else "#F59E0B" if v >= 80 else "#EF4444" for v in df_plot["Productividad %"]]
 
     fig = go.Figure(go.Bar(
         y=df_plot["Farmer"], x=df_plot["Productividad %"],
@@ -94,7 +100,7 @@ if not has_att_sheet:
         text=df_plot["Productividad %"].apply(lambda v: f"{v:.1f}%"),
         textposition="outside",
     ))
-    fig.add_vline(x=90, line_dash="dash", line_color="#FF6B00", opacity=0.7,
+    fig.add_vline(x=90, line_dash="dash", line_color="#E8281F", opacity=0.7,
                   annotation_text="Qualifier 90%")
     fig.update_layout(
         height=max(300, len(df_plot) * 32),
@@ -129,7 +135,7 @@ with col4: st.metric("📊 ATT promedio", f"{avg_att:.1f}%")
 st.markdown("---")
 
 # ── Bar chart ─────────────────────────────────────────────────────────────────
-colors = ["#2E7D32" if v >= 90 else "#E65100" if v >= 80 else "#C62828" for v in df_att["ATT %"]]
+colors = ["#00C9A7" if v >= 90 else "#F59E0B" if v >= 80 else "#EF4444" for v in df_att["ATT %"]]
 
 fig = go.Figure(go.Bar(
     y=df_att["Farmer"], x=df_att["ATT %"],
@@ -138,7 +144,7 @@ fig = go.Figure(go.Bar(
     text=df_att["ATT %"].apply(lambda v: f"{v:.1f}%"),
     textposition="outside",
 ))
-fig.add_vline(x=90, line_dash="dash", line_color="#FF6B00", opacity=0.8,
+fig.add_vline(x=90, line_dash="dash", line_color="#E8281F", opacity=0.8,
               annotation_text="Qualifier 90%", annotation_position="top")
 fig.update_layout(
     height=max(300, len(df_att) * 35),
@@ -166,9 +172,9 @@ df_display = df_display[["Farmer", "ATT %", "Qualifier", "Prod. Zoho/Treble/Meet
 def color_att(val):
     try:
         v = float(val)
-        if v >= 90: return "color:#2E7D32;font-weight:bold"
-        if v >= 80: return "color:#E65100;font-weight:bold"
-        return "color:#C62828;font-weight:bold"
+        if v >= 90: return "color:#00B341;font-weight:bold"
+        if v >= 80: return "color:#F59E0B;font-weight:bold"
+        return "color:#EF4444;font-weight:bold"
     except: return ""
 
 st.dataframe(

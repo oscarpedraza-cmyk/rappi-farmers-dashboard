@@ -179,19 +179,19 @@ def render_sidebar_user_badge():
     name  = get_auth_name()
     is_sup = st.session_state.get("auth_is_supervisor", False)
     role   = "🔑 Supervisor" if is_sup else "👤 Farmer"
-    role_color = "#FF6B00" if is_sup else "#2E7D32"
+    role_color = "rgba(255,255,255,0.9)" if is_sup else "rgba(255,255,255,0.7)"
 
     st.sidebar.markdown(f"""
     <div style="
-        background: rgba(255,255,255,0.08);
+        background: rgba(0,0,0,0.15);
         border-radius: 10px;
         padding: 0.7rem 0.9rem;
         margin-bottom: 0.5rem;
-        border-left: 3px solid {role_color};
+        border-left: 3px solid rgba(255,255,255,0.5);
     ">
-        <div style="font-size:0.7rem;color:#AAA;margin-bottom:2px">{role}</div>
+        <div style="font-size:0.7rem;color:rgba(255,255,255,0.6);margin-bottom:2px">{role}</div>
         <div style="font-weight:700;color:white;font-size:0.9rem">{name}</div>
-        <div style="font-size:0.7rem;color:#888">{email}</div>
+        <div style="font-size:0.7rem;color:rgba(255,255,255,0.55)">{email}</div>
     </div>
     """, unsafe_allow_html=True)
 

@@ -11,12 +11,18 @@ from core.metrics import (get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX,
                           calcular_compensacion_completa, score_farmer,
                           assign_quartiles, QUARTILE_COLOR, QUARTILE_LABEL)
 from core.auth import require_auth, render_sidebar_user_badge
+from core.style import inject_global_css
 
 st.set_page_config(page_title="Vista Equipo — Rappi Farmers", page_icon="🚀", layout="wide")
+st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
 
-st.markdown("# 📊 Vista Equipo — Gerencia Comercial")
-st.caption("Análisis macro: ¿dónde está roto el equipo y qué palanca duele más?")
+st.markdown("""
+<div class="rb-page-header">
+    <h1>📊 Vista Equipo — Gerencia Comercial</h1>
+    <p>Análisis macro: ¿dónde está roto el equipo y qué palanca duele más?</p>
+</div>
+""", unsafe_allow_html=True)
 
 if "farmers_data" not in st.session_state:
     st.warning("El supervisor aún no ha cargado datos. Vuelve a la página principal.")
@@ -104,12 +110,12 @@ for _, row in df.iterrows():
     text.append(t_row)
 
 colorscale = [
-    [0.0, "#FF4B4B"],
-    [0.33, "#FF4B4B"],
-    [0.34, "#FFA726"],
-    [0.66, "#FFA726"],
-    [0.67, "#4CAF50"],
-    [1.0, "#4CAF50"],
+    [0.0, "#EF4444"],
+    [0.33, "#EF4444"],
+    [0.34, "#F59E0B"],
+    [0.66, "#F59E0B"],
+    [0.67, "#00B341"],
+    [1.0, "#00B341"],
 ]
 
 fig = go.Figure(data=go.Heatmap(
@@ -155,7 +161,7 @@ for tab, (metric, (key, fmt)) in zip(metric_tabs, METRICS_DISPLAY.items()):
         sub["Display"] = sub.apply(lambda r: EMOJI.get(r["Semáforo"], "⚪") + " " + fmt_val(r["Valor"], fmt), axis=1)
 
         # Bar chart
-        colors = [COLOR_HEX.get(s, "#9E9E9E") for s in sub["Semáforo"]]
+        colors = [COLOR_HEX.get(s, "#9CA3AF") for s in sub["Semáforo"]]
         vals = sub["Valor"].tolist()
         if fmt == "decimal":
             vals_display = [v * 100 for v in vals]
@@ -178,7 +184,7 @@ for tab, (metric, (key, fmt)) in zip(metric_tabs, METRICS_DISPLAY.items()):
             text=sub["Display"].tolist(),
             textposition="outside",
         ))
-        fig2.add_vline(x=xline, line_dash="dash", line_color="white", opacity=0.5)
+        fig2.add_vline(x=xline, line_dash="dash", line_color="#E8281F", opacity=0.5)
         fig2.update_layout(
             height=max(300, len(sub) * 30),
             margin=dict(l=10, r=10, t=10, b=10),

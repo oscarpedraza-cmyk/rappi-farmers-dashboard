@@ -95,7 +95,7 @@ def semaforo_reactivaciones(val):
 
 
 EMOJI = {"red": "🔴", "yellow": "🟡", "green": "🟢", "gray": "⚪"}
-COLOR_HEX = {"red": "#FF4B4B", "yellow": "#FFA726", "green": "#4CAF50", "gray": "#9E9E9E"}
+COLOR_HEX = {"red": "#EF4444", "yellow": "#F59E0B", "green": "#00B341", "gray": "#9CA3AF"}
 
 
 def get_all_semaforos(farmer: dict) -> dict:
@@ -161,7 +161,7 @@ def assign_quartiles(farmers_scores: dict) -> dict:
     return quartiles
 
 
-QUARTILE_COLOR = {"Q1": "#4CAF50", "Q2": "#8BC34A", "Q3": "#FFA726", "Q4": "#FF4B4B"}
+QUARTILE_COLOR = {"Q1": "#00B341", "Q2": "#00C9A7", "Q3": "#F59E0B", "Q4": "#EF4444"}
 QUARTILE_LABEL = {"Q1": "🏆 Q1", "Q2": "✅ Q2", "Q3": "⚠️ Q3", "Q4": "🚨 Q4"}
 
 

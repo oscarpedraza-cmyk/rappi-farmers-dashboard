@@ -8,12 +8,18 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS
 from core.metrics import QUARTILE_COLOR, QUARTILE_LABEL, score_farmer, assign_quartiles, get_all_semaforos, calcular_compensacion_completa
 from core.auth import require_auth
+from core.style import inject_global_css
 
 st.set_page_config(page_title="Conversión — Rappi Farmers", page_icon="🚀", layout="wide")
+st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
 
-st.markdown("# 🎯 Conversión Comercial")
-st.caption("Embudo por palanca: Oportunidades → Contactados → Contrataciones. Promedio de conversión por farmer y por métrica.")
+st.markdown("""
+<div class="rb-page-header">
+    <h1>🎯 Conversión Comercial</h1>
+    <p>Embudo por palanca: Oportunidades → Contactados → Contrataciones</p>
+</div>
+""", unsafe_allow_html=True)
 
 if "farmers_data" not in st.session_state:
     st.warning("Carga el Sheet Maestro en la página principal primero.")
@@ -162,15 +168,15 @@ for col, palanca, icon in [(col_md, "MD", "💰"), (col_ads, "Ads", "📢"), (co
     avg_e  = sub["Conv. efectiva %"].mean()
     ops    = sub["Oportunidades"].sum()
     contr  = sub["Contratos"].sum()
-    c      = "#2E7D32" if avg_t >= 30 else "#E65100" if avg_t >= 15 else "#C62828"
+    c      = "#00B341" if avg_t >= 30 else "#F59E0B" if avg_t >= 15 else "#EF4444"
 
     with col:
         st.markdown(f"""
-        <div style="background:#F8F9FA;border-radius:12px;padding:1.2rem;border-top:4px solid {c};border:1px solid #E0E0E0">
-            <div style="font-size:0.85rem;color:#555">{icon} {palanca} — Promedio equipo</div>
-            <div style="font-size:2.2rem;font-weight:bold;color:{c};margin:0.3rem 0">{avg_t:.1f}%</div>
-            <div style="font-size:0.8rem;color:#666">Conv. sobre contactados: <b>{avg_e:.1f}%</b></div>
-            <div style="font-size:0.75rem;color:#888;margin-top:4px">{int(contr)} contratos / {int(ops)} oportunidades</div>
+        <div style="background:#FFFFFF;border-radius:12px;padding:1.2rem;border-top:4px solid {c};border:1px solid #E5E7EB;box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+            <div style="font-size:0.72rem;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">{icon} {palanca} — Promedio equipo</div>
+            <div style="font-size:2.2rem;font-weight:800;color:{c};margin:0.3rem 0">{avg_t:.1f}%</div>
+            <div style="font-size:0.8rem;color:#374151">Conv. sobre contactados: <b>{avg_e:.1f}%</b></div>
+            <div style="font-size:0.75rem;color:#9CA3AF;margin-top:4px">{int(contr)} contratos / {int(ops)} oportunidades</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -193,17 +199,17 @@ for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
         fig.add_trace(go.Bar(
             name="Oportunidades",
             x=sub["Farmer"], y=sub["Oportunidades"],
-            marker_color="#B0BEC5", opacity=0.8,
+            marker_color="#E5E7EB", opacity=0.9,
         ))
         fig.add_trace(go.Bar(
             name="Contactados",
             x=sub["Farmer"], y=sub["Contactados"],
-            marker_color="#1565C0", opacity=0.85,
+            marker_color="#00C9A7", opacity=0.85,
         ))
         fig.add_trace(go.Bar(
             name="Contratos",
             x=sub["Farmer"], y=sub["Contratos"],
-            marker_color="#2E7D32",
+            marker_color="#00B341",
             text=sub["Conv. total %"].apply(lambda v: f"{v:.0f}%"),
             textposition="outside",
         ))
@@ -221,7 +227,7 @@ for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
 
         # Conversion rate chart
         avg_t = sub["Conv. total %"].mean()
-        colors = ["#2E7D32" if v >= avg_t else "#C62828" for v in sub["Conv. total %"]]
+        colors = ["#00C9A7" if v >= avg_t else "#EF4444" for v in sub["Conv. total %"]]
 
         fig2 = go.Figure(go.Bar(
             x=sub["Farmer"],
@@ -230,7 +236,7 @@ for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
             text=sub["Conv. total %"].apply(lambda v: f"{v:.1f}%"),
             textposition="outside",
         ))
-        fig2.add_hline(y=avg_t, line_dash="dash", line_color="#FF6B00",
+        fig2.add_hline(y=avg_t, line_dash="dash", line_color="#E8281F",
                        opacity=0.7, annotation_text=f"Promedio {avg_t:.1f}%")
         fig2.update_layout(
             title="% Conversión total (contratos / oportunidades)",
@@ -253,9 +259,9 @@ for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
         def color_conv(val):
             try:
                 v = float(val)
-                if v >= 30: return "color: #2E7D32; font-weight: bold"
-                if v >= 15: return "color: #E65100; font-weight: bold"
-                return "color: #C62828; font-weight: bold"
+                if v >= 30: return "color: #00B341; font-weight: bold"
+                if v >= 15: return "color: #F59E0B; font-weight: bold"
+                return "color: #EF4444; font-weight: bold"
             except: return ""
 
         st.dataframe(
@@ -333,9 +339,9 @@ ranking.columns = ["#", "Q", "Farmer", "MD %", "Ads %", "Churn %", "Score Conv."
 def color_score(val):
     try:
         v = float(val)
-        if v >= 25: return "color:#2E7D32;font-weight:bold"
-        if v >= 12: return "color:#E65100;font-weight:bold"
-        return "color:#C62828;font-weight:bold"
+        if v >= 25: return "color:#00B341;font-weight:bold"
+        if v >= 12: return "color:#F59E0B;font-weight:bold"
+        return "color:#EF4444;font-weight:bold"
     except: return ""
 
 st.dataframe(

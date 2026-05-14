@@ -11,17 +11,18 @@ from core.metrics import (
     calcular_revenue_share_ads, EMOJI, COLOR_HEX, REVENUE_SHARE_CAP_MONTHLY
 )
 from core.auth import require_auth
+from core.style import inject_global_css
 
 st.set_page_config(page_title="Compensación — Rappi Farmers", page_icon="🚀", layout="wide")
+st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
 
-st.markdown("# 💰 Compensación Variable — Calculadora en tiempo real")
-st.caption("""
-**Estructura:** ADS Revenue 35% | Markdown Total 20% | Markdown Pro 20% | Churn x AVA 25%
-**Qualifier:** Productividad ≥ 90% (Zoho Voice + Treble + Meets). Si <90% → pierde TODO el variable.
-**Revenue Share ADS:** 10% (90–100%) / 20% (100–120%) / 30% (>120%) — cap $2k/mes, $5k/trim.
-**Penalidad ADS:** No cuenta revenue de aliados con inversión ADS ≥ 70% de su GMV.
-""")
+st.markdown("""
+<div class="rb-page-header">
+    <h1>💰 Compensación Variable</h1>
+    <p>ADS Rev 35% | MD Total 20% | MD Pro 20% | Churn 25% · Qualifier: Productividad ≥ 90%</p>
+</div>
+""", unsafe_allow_html=True)
 
 if "farmers_data" not in st.session_state:
     st.warning("Carga el Sheet Maestro en la página principal primero.")
@@ -33,10 +34,10 @@ farmers_data = st.session_state["farmers_data"]
 st.markdown("## Ranking de compensación del equipo")
 
 rows = []
-for email, data in farmers_data.items():
+for farmer_em, data in farmers_data.items():
     comp = calcular_compensacion_completa(data)
     rs = comp.get("rs_ads", {})
-    name = data.get("name", email)
+    name = data.get("name", farmer_em)
 
     att_churn = data.get("ATT_Churn")
     att_md = data.get("ATT_MD_Total")
@@ -47,7 +48,7 @@ for email, data in farmers_data.items():
         return f"{v*100:.1f}%" if v is not None else "S/D"
 
     rows.append({
-        "_email": email,
+        "_email": farmer_em,
         "Farmer": name,
         "Churn (25%)": fmt_att(att_churn),
         "MD Total (20%)": fmt_att(att_md),
@@ -65,18 +66,36 @@ df = pd.DataFrame(rows).sort_values("Variable %", ascending=False)
 # Color rows
 def color_variable(val):
     if val >= 80:
-        return "color: #4CAF50; font-weight: bold"
+        return "color: #00B341; font-weight: bold"
     elif val >= 50:
-        return "color: #FFA726; font-weight: bold"
-    return "color: #FF4B4B; font-weight: bold"
+        return "color: #F59E0B; font-weight: bold"
+    return "color: #EF4444; font-weight: bold"
 
 display_cols = ["Farmer", "Churn (25%)", "MD Total (20%)", "MD Pro (20%)",
                 "ADS Rev (35%)", "Qualifier", "Variable %", "RS ADS", "RS Label"]
 
-st.dataframe(
-    df[display_cols].style.map(color_variable, subset=["Variable %"]),
-    use_container_width=True, hide_index=True
-)
+# For non-supervisors: only show their own row (highlight is enough, but we show all for context)
+if not is_supervisor:
+    my_email = email
+    my_name  = next((d.get("name", my_email) for e, d in farmers_data.items() if e == my_email), None)
+
+    def highlight_own_row(row):
+        style = [""] * len(row)
+        if row.get("Farmer") == my_name:
+            style = ["background-color: #FEF3C7; font-weight: bold"] * len(row)
+        return style
+
+    st.dataframe(
+        df[display_cols].style
+            .map(color_variable, subset=["Variable %"])
+            .apply(highlight_own_row, axis=1),
+        use_container_width=True, hide_index=True
+    )
+else:
+    st.dataframe(
+        df[display_cols].style.map(color_variable, subset=["Variable %"]),
+        use_container_width=True, hide_index=True
+    )
 
 # ── Summary metrics ───────────────────────────────────────────────────────────
 col1, col2, col3, col4 = st.columns(4)
@@ -100,12 +119,12 @@ st.markdown("## Distribución Revenue Share ADS")
 rs_counts = df["RS ADS"].value_counts().reset_index()
 rs_counts.columns = ["RS %", "Farmers"]
 rs_label_map = {0: "No aplica (< 90%)", 10: "10% (90–100%)", 20: "20% (100–120%)", 30: "30% (> 120%)"}
-rs_color_map = {0: "#FF4B4B", 10: "#FFA726", 20: "#4CAF50", 30: "#00E676"}
+rs_color_map = {0: "#EF4444", 10: "#F59E0B", 20: "#00C9A7", 30: "#00B341"}
 
 fig_rs = go.Figure(go.Bar(
     x=[rs_label_map.get(r, str(r)) for r in rs_counts["RS %"]],
     y=rs_counts["Farmers"],
-    marker_color=[rs_color_map.get(r, "#9E9E9E") for r in rs_counts["RS %"]],
+    marker_color=[rs_color_map.get(r, "#9CA3AF") for r in rs_counts["RS %"]],
     text=rs_counts["Farmers"],
     textposition="outside",
 ))
@@ -125,8 +144,28 @@ st.markdown("## Simulador individual de variable")
 st.caption("Ajusta los ATTs para proyectar el efecto en la compensación")
 
 names_map = {data.get("name", e): e for e, data in farmers_data.items()}
-selected_name = st.selectbox("Farmer a simular", sorted(names_map.keys()))
-email_sim = names_map[selected_name]
+email_sim_locked = None
+if is_supervisor:
+    selected_name = st.selectbox("Farmer a simular", sorted(names_map.keys()))
+else:
+    # Lock to own farmer — no selectbox
+    email_sim_locked = next(
+        (e for e in farmers_data if e == email), None
+    )
+    if email_sim_locked:
+        selected_name = farmers_data[email_sim_locked].get("name", email_sim_locked)
+        st.markdown(
+            f'<div style="background:#FFFFFF;border:1px solid #E5E7EB;border-radius:10px;'
+            f'padding:0.6rem 1rem;margin-bottom:0.8rem;display:inline-block;'
+            f'font-size:0.9rem;color:#374151;font-weight:600">'
+            f'👤 Simulando tu perfil — {selected_name}</div>',
+            unsafe_allow_html=True
+        )
+    else:
+        st.warning("Tu perfil no fue encontrado en los datos.")
+        st.stop()
+fallback_email = email_sim_locked if email_sim_locked else list(names_map.values())[0]
+email_sim = names_map.get(selected_name, fallback_email)
 data_sim = farmers_data[email_sim]
 
 c1, c2, c3, c4, c5 = st.columns(5)
@@ -155,25 +194,25 @@ rs_sim = calcular_revenue_share_ads(att_ads_sim)
 
 sim_cols = st.columns(4)
 var_pct_sim = comp_sim["variable_pct"]
-var_color = "#4CAF50" if var_pct_sim >= 80 else "#FFA726" if var_pct_sim >= 50 else "#FF4B4B"
+var_color = "#00B341" if var_pct_sim >= 80 else "#F59E0B" if var_pct_sim >= 50 else "#EF4444"
 
 with sim_cols[0]:
     st.markdown(f"""
-    <div style="background:#F8F9FA;border-radius:10px;padding:1.2rem;text-align:center;border-top:4px solid {var_color};border:1px solid #E0E0E0">
-        <div style="font-size:0.8rem;color:#666">Variable simulado</div>
-        <div style="font-size:2.5rem;font-weight:bold;color:{var_color}">{var_pct_sim:.0f}%</div>
-        <div style="font-size:0.8rem;color:#555">{'⛔ SIN QUALIFIER' if not comp_sim['qualifies'] else '✅ Qualificado'}</div>
+    <div style="background:#FFFFFF;border-radius:10px;padding:1.2rem;text-align:center;border-top:4px solid {var_color};border:1px solid #E5E7EB;box-shadow:0 2px 6px rgba(0,0,0,0.05)">
+        <div style="font-size:0.72rem;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Variable simulado</div>
+        <div style="font-size:2.5rem;font-weight:800;color:{var_color}">{var_pct_sim:.0f}%</div>
+        <div style="font-size:0.8rem;color:#9CA3AF">{'⛔ SIN QUALIFIER' if not comp_sim['qualifies'] else '✅ Qualificado'}</div>
     </div>
     """, unsafe_allow_html=True)
 
 with sim_cols[1]:
     rs_pct_sim = rs_sim["pct"]
-    rs_color_sim = "#4CAF50" if rs_pct_sim >= 20 else "#FFA726" if rs_pct_sim > 0 else "#FF4B4B"
+    rs_color_sim = "#00B341" if rs_pct_sim >= 20 else "#F59E0B" if rs_pct_sim > 0 else "#EF4444"
     st.markdown(f"""
-    <div style="background:#F8F9FA;border-radius:10px;padding:1.2rem;text-align:center;border-top:4px solid {rs_color_sim};border:1px solid #E0E0E0">
-        <div style="font-size:0.8rem;color:#666">Revenue Share ADS</div>
-        <div style="font-size:2.5rem;font-weight:bold;color:{rs_color_sim}">{rs_pct_sim}%</div>
-        <div style="font-size:0.75rem;color:#555">{rs_sim['label']}</div>
+    <div style="background:#FFFFFF;border-radius:10px;padding:1.2rem;text-align:center;border-top:4px solid {rs_color_sim};border:1px solid #E5E7EB;box-shadow:0 2px 6px rgba(0,0,0,0.05)">
+        <div style="font-size:0.72rem;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Revenue Share ADS</div>
+        <div style="font-size:2.5rem;font-weight:800;color:{rs_color_sim}">{rs_pct_sim}%</div>
+        <div style="font-size:0.75rem;color:#9CA3AF">{rs_sim['label']}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -182,22 +221,22 @@ with sim_cols[2]:
     if att_ads_sim < 0.90:
         gap = (0.90 - att_ads_sim) * 100
         msg = f"Faltan {gap:.1f}pp para ganar RS ADS (10%)"
-        mc = "#FFA726"
+        mc = "#F59E0B"
     elif att_ads_sim < 1.00:
         gap = (1.00 - att_ads_sim) * 100
         msg = f"Faltan {gap:.1f}pp para tier 20%"
-        mc = "#FFA726"
+        mc = "#F59E0B"
     elif att_ads_sim < 1.20:
         gap = (1.20 - att_ads_sim) * 100
         msg = f"Faltan {gap:.1f}pp para tier 30% 🔥"
-        mc = "#4CAF50"
+        mc = "#00B341"
     else:
         msg = "🔥 En tier máximo 30%"
-        mc = "#00E676"
+        mc = "#00B341"
 
     st.markdown(f"""
-    <div style="background:#F8F9FA;border-radius:10px;padding:1.2rem;text-align:center;border-top:4px solid {mc};border:1px solid #E0E0E0">
-        <div style="font-size:0.8rem;color:#666">Gap al próximo tier</div>
+    <div style="background:#FFFFFF;border-radius:10px;padding:1.2rem;text-align:center;border-top:4px solid {mc};border:1px solid #E5E7EB;box-shadow:0 2px 6px rgba(0,0,0,0.05)">
+        <div style="font-size:0.72rem;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">Gap al próximo tier</div>
         <div style="font-size:1rem;font-weight:bold;color:{mc};margin-top:0.5rem">{msg}</div>
     </div>
     """, unsafe_allow_html=True)
@@ -209,7 +248,7 @@ with sim_cols[3]:
     kpi_names = {"ADS_Rev": "ADS", "MD_Total": "MD", "MD_Pro": "MD Pro", "Churn": "Churn"}
     labels = [kpi_names.get(k, k) for k in contribs]
     values = [v if v is not None else 0 for v in contribs.values()]
-    colors_bar = ["#4CAF50" if v > 0 else "#FF4B4B" for v in values]
+    colors_bar = ["#00C9A7" if v > 0 else "#EF4444" for v in values]
 
     fig_w = go.Figure(go.Bar(
         x=labels, y=values,

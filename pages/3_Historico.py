@@ -11,12 +11,18 @@ from core.db import get_history, get_available_dates, get_farmer_trend, get_cons
 from core.loader import FARMER_NAMES, FARMERS_EMAILS
 from core.metrics import COLOR_HEX, EMOJI
 from core.auth import require_auth
+from core.style import inject_global_css
 
 st.set_page_config(page_title="Histórico — Rappi Farmers", page_icon="🚀", layout="wide")
+st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
 
-st.markdown("# 📈 Histórico — Evolución en el tiempo")
-st.caption("Tendencias semanales por farmer y por palanca. Cada 'Guardar snapshot' en la página principal agrega un punto al histórico.")
+st.markdown("""
+<div class="rb-page-header">
+    <h1>📈 Histórico — Evolución en el tiempo</h1>
+    <p>Tendencias semanales por farmer y por palanca. Guardar snapshot en página principal agrega puntos al histórico.</p>
+</div>
+""", unsafe_allow_html=True)
 
 dates = get_available_dates()
 
@@ -145,12 +151,12 @@ if mode == "Por farmer":
         if m in red_map:
             weeks = get_consecutive_red_weeks(email, red_map[m])
             with red_cols[idx]:
-                color = "#FF4B4B" if weeks >= 3 else "#FFA726" if weeks >= 2 else "#4CAF50"
+                color = "#EF4444" if weeks >= 3 else "#F59E0B" if weeks >= 2 else "#00B341"
                 st.markdown(f"""
-                <div style="background:#F8F9FA;border-radius:10px;padding:1rem;text-align:center;border-top:4px solid {color};border:1px solid #E0E0E0">
-                    <div style="font-size:0.75rem;color:#666">{m}</div>
-                    <div style="font-size:2rem;font-weight:bold;color:{color}">{weeks}w</div>
-                    <div style="font-size:0.7rem;color:#555">consecutivas en 🔴</div>
+                <div style="background:#FFFFFF;border-radius:10px;padding:1rem;text-align:center;border-top:4px solid {color};border:1px solid #E5E7EB;box-shadow:0 2px 6px rgba(0,0,0,0.05)">
+                    <div style="font-size:0.72rem;color:#6B7280;font-weight:600;text-transform:uppercase;letter-spacing:0.5px">{m}</div>
+                    <div style="font-size:2rem;font-weight:800;color:{color}">{weeks}w</div>
+                    <div style="font-size:0.7rem;color:#9CA3AF">consecutivas en 🔴</div>
                 </div>
                 """, unsafe_allow_html=True)
             idx += 1
@@ -204,7 +210,7 @@ else:
             opacity=0.85,
         ))
 
-    fig2.add_hline(y=ref, line_dash="dash", line_color="#FF6B00",
+    fig2.add_hline(y=ref, line_dash="dash", line_color="#E8281F",
                    opacity=0.6, annotation_text="Target")
 
     fig2.update_layout(

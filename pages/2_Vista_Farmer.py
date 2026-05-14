@@ -10,12 +10,14 @@ from core.metrics import (
 )
 from core.db import get_consecutive_red_weeks
 from core.auth import require_auth
+from core.style import inject_global_css
 
 st.set_page_config(
     page_title="Vista Farmer — Rappi Farmers",
     page_icon="🚀",
     layout="wide",
 )
+st.markdown(inject_global_css(), unsafe_allow_html=True)
 email_auth, is_supervisor = require_auth()
 
 if "farmers_data" not in st.session_state:
@@ -33,48 +35,51 @@ sorted_names = sorted(names.keys())
 
 if is_supervisor:
     selected_name = st.selectbox("👤 Selecciona un farmer", sorted_names)
+    farmer_email  = names[selected_name]
 else:
-    my_name = next(
-        (data.get("name", em) for em, data in farmers_data.items() if em == email_auth),
+    # Non-supervisors are locked to their own profile — no selectbox
+    farmer_email = next(
+        (em for em, data in farmers_data.items() if em == email_auth),
         None
     )
-    default_idx = sorted_names.index(my_name) if my_name and my_name in sorted_names else 0
-    selected_name = st.selectbox("👤 Farmer", sorted_names, index=default_idx)
+    if farmer_email is None:
+        st.error(
+            "⚠️ Tu perfil no fue encontrado en los datos del equipo. "
+            "Contacta a Oscar Pedraza para verificar que tu email esté registrado."
+        )
+        st.stop()
+    selected_name = farmers_data[farmer_email].get("name", farmer_email)
+    st.markdown(
+        f'<div style="background:#FFFFFF;border:1px solid #E5E7EB;border-radius:10px;'
+        f'padding:0.6rem 1rem;margin-bottom:0.8rem;display:inline-block;'
+        f'font-size:0.9rem;color:#374151;font-weight:600">'
+        f'👤 Tu perfil — {selected_name}</div>',
+        unsafe_allow_html=True
+    )
 
-farmer_email = names[selected_name]
-data         = farmers_data[farmer_email]
+data = farmers_data[farmer_email]
 sems         = get_all_semaforos(data)
 tier         = tier_farmer(sems)
 comp         = calcular_compensacion_completa(data)
 
 # ── Header ────────────────────────────────────────────────────────────────────
-tier_color = COLOR_HEX.get(tier, "#9E9E9E")
+tier_color = COLOR_HEX.get(tier, "#9CA3AF")
 var_pct    = comp.get("variable_pct", 0)
 qualifies  = comp.get("qualifies", True)
 qual_badge = "" if qualifies else " ⛔"
+var_color  = "#00B341" if var_pct >= 80 else "#F59E0B" if var_pct >= 50 else "#EF4444"
 
 st.markdown(f"""
-<div style="
-    background: linear-gradient(135deg, {tier_color}15, #FFFFFF);
-    border-left: 5px solid {tier_color};
-    border-radius: 12px;
-    padding: 1rem 1.5rem;
-    margin-bottom: 1rem;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-">
+<div class="rb-page-header" style="display:flex;justify-content:space-between;align-items:center;border-left-color:{tier_color}">
     <div>
-        <h2 style="margin:0;font-size:1.4rem;color:#1A1A1A">
+        <h1 style="font-size:1.4rem">
             {EMOJI.get(tier,'⚪')} {selected_name}{qual_badge}
-        </h2>
-        <p style="margin:0.2rem 0 0;color:#666;font-size:0.85rem">
-            Corte día {dia_corte} · {progreso_pct:.1f}% del mes
-        </p>
+        </h1>
+        <p>Corte día {dia_corte} · {progreso_pct:.1f}% del mes</p>
     </div>
     <div style="text-align:right">
-        <div style="font-size:2rem;font-weight:800;color:{('#2E7D32' if var_pct >= 80 else '#E65100' if var_pct >= 50 else '#C62828')}">{var_pct:.0f}%</div>
-        <div style="font-size:0.75rem;color:#888">variable ganado</div>
+        <div style="font-size:2rem;font-weight:800;color:{var_color}">{var_pct:.0f}%</div>
+        <div style="font-size:0.75rem;color:#9CA3AF">variable ganado</div>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -103,7 +108,7 @@ cols = st.columns(9)
 for col, (label, key, fmt, sem_key) in zip(cols, metric_defs):
     val   = data.get(key)
     sem   = sems.get(sem_key, "gray")
-    color = COLOR_HEX.get(sem, "#9E9E9E")
+    color = COLOR_HEX.get(sem, "#9CA3AF")
 
     if val is None:                          display = "S/D"
     elif fmt == "decimal":                   display = f"{val*100:.0f}%"
@@ -113,18 +118,18 @@ for col, (label, key, fmt, sem_key) in zip(cols, metric_defs):
 
     consec = get_consecutive_red_weeks(farmer_email, metric_map_red[sem_key]) \
              if sem_key in metric_map_red else 0
-    consec_txt = f"<div style='font-size:0.62rem;color:#C62828'>{consec}w 🔴</div>" \
+    consec_txt = f"<div style='font-size:0.62rem;color:#EF4444'>{consec}w 🔴</div>" \
                  if consec >= 2 else ""
 
     with col:
         st.markdown(f"""
-        <div style="background:#FAFAFA;border-radius:10px;padding:0.6rem 0.4rem;
+        <div style="background:#FFFFFF;border-radius:10px;padding:0.6rem 0.4rem;
                     border-top:3px solid {color};text-align:center;min-height:80px;
-                    border:1px solid #EEEEEE">
-            <div style="font-size:0.6rem;color:#888;margin-bottom:3px;
-                        text-transform:uppercase;letter-spacing:0.4px">{label}</div>
+                    border:1px solid #E5E7EB;box-shadow:0 2px 6px rgba(0,0,0,0.05)">
+            <div style="font-size:0.6rem;color:#6B7280;margin-bottom:3px;
+                        text-transform:uppercase;letter-spacing:0.5px;font-weight:600">{label}</div>
             <div style="font-size:1.2rem;font-weight:800;color:{color};line-height:1.1">{display}</div>
-            <div style="font-size:0.68rem;color:#777">{EMOJI.get(sem,'⚪')}</div>
+            <div style="font-size:0.68rem;color:#9CA3AF">{EMOJI.get(sem,'⚪')}</div>
             {consec_txt}
         </div>
         """, unsafe_allow_html=True)
@@ -146,29 +151,30 @@ for col, (label, fk, ck, sk) in zip(prod_cols, palancas):
     no_cont     = follows - contactados
     pct_cont    = round(contactados / follows * 100) if follows > 0 else 0
     sem         = sems.get(sk, "gray")
-    color       = COLOR_HEX.get(sem, "#9E9E9E")
+    color       = COLOR_HEX.get(sem, "#9CA3AF")
 
     with col:
         st.markdown(f"""
-        <div style="background:#FAFAFA;border-radius:10px;padding:0.9rem 1rem;
-                    border-left:4px solid {color};border:1px solid #EEE">
+        <div style="background:#FFFFFF;border-radius:10px;padding:0.9rem 1rem;
+                    border-left:4px solid {color};border:1px solid #E5E7EB;
+                    box-shadow:0 2px 6px rgba(0,0,0,0.05)">
             <div style="font-weight:700;color:#1A1A1A;margin-bottom:0.5rem;font-size:0.9rem">{label}</div>
             <div style="display:flex;justify-content:space-between;margin-bottom:2px">
-                <span style="color:#666;font-size:0.82rem">Follows</span>
+                <span style="color:#6B7280;font-size:0.82rem">Follows</span>
                 <span style="font-weight:700;color:#1A1A1A">{follows}</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-bottom:2px">
-                <span style="color:#666;font-size:0.82rem">Contactados</span>
-                <span style="font-weight:700;color:#2E7D32">{contactados}</span>
+                <span style="color:#6B7280;font-size:0.82rem">Contactados</span>
+                <span style="font-weight:700;color:#00B341">{contactados}</span>
             </div>
             <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-                <span style="color:#666;font-size:0.82rem">Sin contactar</span>
-                <span style="font-weight:700;color:#C62828">{no_cont}</span>
+                <span style="color:#6B7280;font-size:0.82rem">Sin contactar</span>
+                <span style="font-weight:700;color:#EF4444">{no_cont}</span>
             </div>
-            <div style="background:#E0E0E0;border-radius:4px;height:5px">
-                <div style="background:{color};width:{pct_cont}%;height:5px;border-radius:4px"></div>
+            <div style="background:#E5E7EB;border-radius:4px;height:5px">
+                <div style="background:#00C9A7;width:{pct_cont}%;height:5px;border-radius:4px"></div>
             </div>
-            <div style="font-size:0.72rem;color:#888;margin-top:3px">{pct_cont}% efectividad</div>
+            <div style="font-size:0.72rem;color:#9CA3AF;margin-top:3px">{pct_cont}% efectividad</div>
         </div>
         """, unsafe_allow_html=True)
 
@@ -194,21 +200,21 @@ kpi_statuses = comp.get("kpi_statuses", {})
 vc1, vc2, vc3, vc4, vc5, vc6 = st.columns(6)
 
 with vc1:
-    vc = "#2E7D32" if var_pct >= 80 else "#E65100" if var_pct >= 50 else "#C62828"
+    vc = "#00B341" if var_pct >= 80 else "#F59E0B" if var_pct >= 50 else "#EF4444"
     st.markdown(f"""
-    <div style="background:#FAFAFA;border-radius:10px;padding:0.9rem;text-align:center;border:1px solid #EEE;border-top:3px solid {vc}">
-        <div style="font-size:0.65rem;color:#888;text-transform:uppercase">Variable</div>
+    <div style="background:#FFFFFF;border-radius:10px;padding:0.9rem;text-align:center;border:1px solid #E5E7EB;border-top:3px solid {vc};box-shadow:0 2px 6px rgba(0,0,0,0.05)">
+        <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;font-weight:600;letter-spacing:0.5px">Variable</div>
         <div style="font-size:1.8rem;font-weight:800;color:{vc}">{var_pct:.0f}%</div>
-        <div style="font-size:0.68rem;color:#888">{'⛔ Sin qualifier' if not qualifies else '✅ Qualifier OK'}</div>
+        <div style="font-size:0.68rem;color:#9CA3AF">{'⛔ Sin qualifier' if not qualifies else '✅ Qualifier OK'}</div>
     </div>""", unsafe_allow_html=True)
 
 with vc2:
-    rsc = "#2E7D32" if rs_pct >= 20 else "#E65100" if rs_pct > 0 else "#C62828"
+    rsc = "#00B341" if rs_pct >= 20 else "#F59E0B" if rs_pct > 0 else "#EF4444"
     st.markdown(f"""
-    <div style="background:#FAFAFA;border-radius:10px;padding:0.9rem;text-align:center;border:1px solid #EEE;border-top:3px solid {rsc}">
-        <div style="font-size:0.65rem;color:#888;text-transform:uppercase">RS ADS</div>
+    <div style="background:#FFFFFF;border-radius:10px;padding:0.9rem;text-align:center;border:1px solid #E5E7EB;border-top:3px solid {rsc};box-shadow:0 2px 6px rgba(0,0,0,0.05)">
+        <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;font-weight:600;letter-spacing:0.5px">RS ADS</div>
         <div style="font-size:1.8rem;font-weight:800;color:{rsc}">{rs_pct}%</div>
-        <div style="font-size:0.68rem;color:#888">{rs.get('label','—')[:18]}</div>
+        <div style="font-size:0.68rem;color:#9CA3AF">{rs.get('label','—')[:18]}</div>
     </div>""", unsafe_allow_html=True)
 
 kpi_defs = [
@@ -217,20 +223,20 @@ kpi_defs = [
     ("MD_Pro",   "MD Pro 20%",   data.get("ATT_MD_Pro")),
     ("Churn",    "Churn 25%",    data.get("ATT_Churn")),
 ]
-status_map = {"gana": ("🟢","#2E7D32"), "parcial": ("🟡","#E65100"),
-              "no_gana": ("🔴","#C62828"), "sin_dato": ("⚪","#9E9E9E")}
+status_map = {"gana": ("🟢","#00B341"), "parcial": ("🟡","#F59E0B"),
+              "no_gana": ("🔴","#EF4444"), "sin_dato": ("⚪","#9CA3AF")}
 
 for col, (kpi, label, att_val) in zip([vc3, vc4, vc5, vc6], kpi_defs):
-    icon, kcolor = status_map.get(kpi_statuses.get(kpi, "sin_dato"), ("⚪","#9E9E9E"))
+    icon, kcolor = status_map.get(kpi_statuses.get(kpi, "sin_dato"), ("⚪","#9CA3AF"))
     att_str      = f"{att_val*100:.0f}%" if att_val is not None else "S/D"
     contrib      = contribs.get(kpi)
     contrib_str  = f"+{contrib:.1f}pp" if contrib else "—"
     with col:
         st.markdown(f"""
-        <div style="background:#FAFAFA;border-radius:10px;padding:0.9rem;text-align:center;border:1px solid #EEE;border-top:3px solid {kcolor}">
-            <div style="font-size:0.6rem;color:#888;text-transform:uppercase">{label}</div>
+        <div style="background:#FFFFFF;border-radius:10px;padding:0.9rem;text-align:center;border:1px solid #E5E7EB;border-top:3px solid {kcolor};box-shadow:0 2px 6px rgba(0,0,0,0.05)">
+            <div style="font-size:0.6rem;color:#6B7280;text-transform:uppercase;font-weight:600;letter-spacing:0.5px">{label}</div>
             <div style="font-size:1.4rem;font-weight:800;color:{kcolor}">{icon} {att_str}</div>
-            <div style="font-size:0.68rem;color:#888">{contrib_str} al var.</div>
+            <div style="font-size:0.68rem;color:#9CA3AF">{contrib_str} al var.</div>
         </div>""", unsafe_allow_html=True)
 
 # ── Plan de acción — farmer-centric ──────────────────────────────────────────
@@ -266,17 +272,17 @@ if brands:
     for col, brand in zip(cols_b, brands[:5]):
         with col:
             st.markdown(f"""
-            <div style="background:#FFF3E0;border:1px solid #FF6B00;border-radius:8px;
+            <div style="background:#FFF7ED;border:1px solid #FF6B00;border-radius:8px;
                         padding:0.5rem 0.4rem;text-align:center;font-size:0.78rem;
-                        font-weight:600;color:#E65100">
+                        font-weight:600;color:#FF6B00">
                 ⚡ {brand}
             </div>
             """, unsafe_allow_html=True)
     if len(brands) > 5:
         st.caption(f"… y {len(brands)-5} aliados más. Ver lista completa en Vista Equipo → Rankings.")
     st.markdown("""
-    <div style="background:#FFF8F2;border-radius:8px;padding:0.7rem 1rem;
-                border-left:3px solid #FF6B00;margin-top:0.5rem;font-size:0.82rem;color:#555">
+    <div style="background:#F0FDF9;border-radius:8px;padding:0.7rem 1rem;
+                border-left:3px solid #00C9A7;margin-top:0.5rem;font-size:0.82rem;color:#374151">
         💡 <b>Acción:</b> proponer inversión ADS a estos brands en la próxima visita.
         Son aliados activos con revenue significativo y baja penetración — el upsell más sencillo.
     </div>

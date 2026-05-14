@@ -7,20 +7,22 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.auth import require_auth
 from core.metrics import COLOR_HEX, EMOJI
+from core.style import inject_global_css
 
 st.set_page_config(
     page_title="Pitch Integral — Rappi Farmers",
     page_icon="🚀",
     layout="wide",
 )
+st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
 
 # ── Semáforo helpers ──────────────────────────────────────────────────────────
 def pi_color(pct):
-    if pct is None: return "#9E9E9E"
-    if pct >= 65:   return "#2E7D32"
-    if pct >= 50:   return "#E65100"
-    return "#C62828"
+    if pct is None: return "#9CA3AF"
+    if pct >= 65:   return "#00B341"
+    if pct >= 50:   return "#F59E0B"
+    return "#EF4444"
 
 def pi_status(pct):
     if pct is None: return "⚪ Sin dato"
@@ -58,11 +60,12 @@ df = pd.DataFrame(rows)
 has_data = df["Pitch %"].notna().any()
 
 # ── Header ────────────────────────────────────────────────────────────────────
-st.markdown("# 🎤 Pitch Integral")
-st.caption(
-    "Porcentaje de visitas donde el farmer presentó el pitch completo (todas las palancas). "
-    "Meta: ≥ 65% | Seguimiento: 50–65% | Crítico: < 50%"
-)
+st.markdown("""
+<div class="rb-page-header">
+    <h1>🎤 Pitch Integral</h1>
+    <p>% visitas con pitch completo (todas palancas). Meta: ≥ 65% | Seguimiento: 50–65% | Crítico: &lt; 50%</p>
+</div>
+""", unsafe_allow_html=True)
 
 if not has_data:
     st.error("""
@@ -122,9 +125,9 @@ fig = go.Figure(go.Bar(
     hovertemplate="%{y}: %{x:.1f}%<extra></extra>",
 ))
 
-fig.add_vline(x=65, line_dash="dash", line_color="#2E7D32", opacity=0.7,
+fig.add_vline(x=65, line_dash="dash", line_color="#00B341", opacity=0.7,
               annotation_text="Meta 65%", annotation_position="top")
-fig.add_vline(x=50, line_dash="dot",  line_color="#E65100", opacity=0.6,
+fig.add_vline(x=50, line_dash="dot",  line_color="#F59E0B", opacity=0.6,
               annotation_text="Mínimo 50%")
 
 fig.update_layout(
@@ -166,7 +169,7 @@ for _, row in df.sort_values("Pitch %", ascending=False, na_position="last").ite
             dots += f'<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{dc};margin:1px" title="{v*100:.0f}%" ></span>'
 
     rows_html += f"""
-    <tr style="border-bottom:1px solid #F0F0F0">
+    <tr style="border-bottom:1px solid #F3F4F6">
         <td style="padding:10px 14px;font-weight:600;color:#1A1A1A">{row['Farmer']}</td>
         <td style="padding:10px 8px;text-align:center;font-size:1.1rem;font-weight:700;color:{color}">{disp}</td>
         <td style="padding:10px 8px;text-align:center">{status}</td>
@@ -175,11 +178,11 @@ for _, row in df.sort_values("Pitch %", ascending=False, na_position="last").ite
     </tr>"""
 
 st.markdown(f"""
-<table style="width:100%;border-collapse:collapse;font-size:0.88rem;background:#FFF;
-              border:1px solid #EEE;border-radius:12px;overflow:hidden;
-              box-shadow:0 2px 10px rgba(0,0,0,0.05)">
+<table style="width:100%;border-collapse:collapse;font-size:0.88rem;background:#FFFFFF;
+              border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;
+              box-shadow:0 2px 8px rgba(0,0,0,0.06)">
     <thead>
-        <tr style="background:#F8F8F8;color:#555;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.8px">
+        <tr style="background:#F9FAFB;color:#6B7280;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.8px">
             <th style="padding:10px 14px;text-align:left">Farmer</th>
             <th style="padding:10px;text-align:center">Pitch %</th>
             <th style="padding:10px;text-align:center">Estado</th>
@@ -218,9 +221,9 @@ if farmers_with_weekly:
             hovertemplate=f"{name} — semana %{{x}}: %{{y:.1f}}<extra></extra>",
         ))
 
-    fig2.add_hline(y=65, line_dash="dash", line_color="#2E7D32", opacity=0.5,
+    fig2.add_hline(y=65, line_dash="dash", line_color="#00B341", opacity=0.5,
                    annotation_text="Meta 65%")
-    fig2.add_hline(y=50, line_dash="dot",  line_color="#E65100", opacity=0.4,
+    fig2.add_hline(y=50, line_dash="dot",  line_color="#F59E0B", opacity=0.4,
                    annotation_text="Mín 50%")
 
     max_weeks = max(len(d.get("_pi_rows", [])) for _, d in farmers_with_weekly)
