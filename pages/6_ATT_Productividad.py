@@ -37,24 +37,26 @@ farmers_data = st.session_state["farmers_data"]
 prod_rows = []
 for em, data in farmers_data.items():
     p = data.get("productividad_pct")
+    pct_nc = data.get("pct_no_contactados")
     prod_rows.append({
         "Farmer":          data.get("name", em),
-        "Productividad %": round(p * 100, 1) if p is not None else None,
+        "Productividad %": f"{p*100:.1f}" if p is not None else None,
         "Qualifier":       "✅ OK" if (p is not None and p >= 0.90)
                            else ("⛔ PIERDE VARIABLE" if p is not None else "⚪ Sin dato"),
-        "Follows totales": data.get("total_follows"),
-        "Sin contactar":   data.get("no_contactados"),
-        "% Sin contactar": data.get("pct_no_contactados"),
+        "Follows totales": int(data.get("total_follows") or 0),
+        "Sin contactar":   int(data.get("no_contactados") or 0),
+        "% Sin contactar": f"{pct_nc:.1f}" if pct_nc is not None else None,
+        "_prod_num":       round(p * 100, 1) if p is not None else None,  # para ordenar y graficar
     })
 
-df = pd.DataFrame(prod_rows).sort_values("Productividad %", ascending=False, na_position="last")
+df = pd.DataFrame(prod_rows).sort_values("_prod_num", ascending=False, na_position="last")
 
 # ── Summary metrics ───────────────────────────────────────────────────────────
-df_valid   = df.dropna(subset=["Productividad %"])
-qualifiers = (df_valid["Productividad %"] >= 90).sum()
-no_qualif  = (df_valid["Productividad %"] < 90).sum()
-avg_prod   = df_valid["Productividad %"].mean() if not df_valid.empty else 0
-sin_dato   = df["Productividad %"].isna().sum()
+df_valid   = df.dropna(subset=["_prod_num"])
+qualifiers = (df_valid["_prod_num"] >= 90).sum()
+no_qualif  = (df_valid["_prod_num"] < 90).sum()
+avg_prod   = df_valid["_prod_num"].mean() if not df_valid.empty else 0
+sin_dato   = df["_prod_num"].isna().sum()
 
 col1, col2, col3, col4, col5 = st.columns(5)
 with col1: st.metric("👥 Total farmers",    len(df))
@@ -68,14 +70,14 @@ st.markdown("---")
 # ── Bar chart ─────────────────────────────────────────────────────────────────
 df_plot = df_valid.copy()
 colors = ["#00C9A7" if v >= 90 else "#F59E0B" if v >= 80 else "#EF4444"
-          for v in df_plot["Productividad %"]]
+          for v in df_plot["_prod_num"]]
 
 fig = go.Figure(go.Bar(
     y=df_plot["Farmer"],
-    x=df_plot["Productividad %"],
+    x=df_plot["_prod_num"],
     orientation="h",
     marker_color=colors,
-    text=df_plot["Productividad %"].apply(lambda v: f"{v:.1f}%"),
+    text=df_plot["_prod_num"].apply(lambda v: f"{v:.1f}%"),
     textposition="outside",
     hovertemplate="%{y}: %{x:.1f}%<extra></extra>",
 ))
@@ -87,7 +89,7 @@ fig.update_layout(
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)",
     xaxis_title="Productividad %",
-    xaxis=dict(range=[0, max(115, df_plot["Productividad %"].max() + 10)]),
+    xaxis=dict(range=[0, max(115, df_plot["_prod_num"].max() + 10)]),
     showlegend=False,
 )
 st.plotly_chart(fig, use_container_width=True)
@@ -113,8 +115,9 @@ def color_pct_nc(val):
     except:
         return ""
 
+display_cols = ["Farmer", "Productividad %", "Qualifier", "Follows totales", "Sin contactar", "% Sin contactar"]
 st.dataframe(
-    df.style
+    df[display_cols].style
       .map(color_prod,   subset=["Productividad %"])
       .map(color_pct_nc, subset=["% Sin contactar"]),
     use_container_width=True,
@@ -122,14 +125,14 @@ st.dataframe(
 )
 
 # ── Farmers at risk ───────────────────────────────────────────────────────────
-at_risk = df_valid[df_valid["Productividad %"] < 90].sort_values("Productividad %")
+at_risk = df_valid[df_valid["_prod_num"] < 90].sort_values("_prod_num")
 if not at_risk.empty:
     st.markdown("---")
     st.error(f"### 🚨 {len(at_risk)} farmers bajo el qualifier (< 90%)")
     for _, row in at_risk.iterrows():
-        diff = 90 - row["Productividad %"]
+        diff = 90 - row["_prod_num"]
         st.markdown(
-            f"- **{row['Farmer']}**: {row['Productividad %']:.1f}% "
+            f"- **{row['Farmer']}**: {row['_prod_num']:.1f}% "
             f"— faltan **{diff:.1f} pp** para no perder el variable"
         )
 else:
