@@ -21,8 +21,23 @@ st.markdown(inject_global_css(), unsafe_allow_html=True)
 email_auth, is_supervisor = require_auth()
 
 if "farmers_data" not in st.session_state:
-    st.warning("El supervisor aún no ha cargado datos. Vuelve a la página principal.")
-    st.stop()
+    import pandas as pd
+    from core.db import load_latest_state
+    latest = load_latest_state()
+    if latest:
+        st.session_state["farmers_data"]  = latest["farmers_data"]
+        st.session_state["dia_corte"]     = latest["dia_corte"]
+        st.session_state["dias_mes"]      = latest["dias_mes"]
+        if latest.get("productividad_raw"):
+            try:
+                df_raw = pd.read_json(latest["productividad_raw"])
+                df_raw.columns = [int(c) for c in df_raw.columns]
+                st.session_state["_productividad_raw"] = df_raw
+            except Exception:
+                pass
+    else:
+        st.warning("⏳ El supervisor aún no ha cargado datos para este período. Vuelve más tarde o contacta a Oscar Pedraza.")
+        st.stop()
 
 farmers_data = st.session_state["farmers_data"]
 dia_corte    = st.session_state.get("dia_corte", 13)
@@ -38,8 +53,9 @@ if is_supervisor:
     farmer_email  = names[selected_name]
 else:
     # Non-supervisors are locked to their own profile — no selectbox
+    email_auth_clean = email_auth.strip().lower()
     farmer_email = next(
-        (em for em, data in farmers_data.items() if em == email_auth),
+        (em for em in farmers_data if em.strip().lower() == email_auth_clean),
         None
     )
     if farmer_email is None:
