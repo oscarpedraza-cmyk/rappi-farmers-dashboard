@@ -30,11 +30,18 @@ email, is_supervisor = require_auth()
 
 # ── Sidebar ───────────────────────────────────────────────────────────────────
 with st.sidebar:
-    st.image(
-        "https://upload.wikimedia.org/wikipedia/commons/thumb/8/88/Rappi_logo.svg/320px-Rappi_logo.svg.png",
-        width=110
-    )
-    st.markdown("---")
+    st.markdown("""
+    <div style="padding:0.6rem 0 0.8rem">
+        <span style="font-size:1.6rem;font-weight:900;color:#FFFFFF;letter-spacing:-1px;font-family:'Inter',sans-serif">
+            rappi
+        </span>
+        <span style="font-size:0.7rem;font-weight:600;color:rgba(255,255,255,0.7);
+                     vertical-align:middle;margin-left:6px;letter-spacing:0.5px">
+            FARMERS
+        </span>
+    </div>
+    """, unsafe_allow_html=True)
+    st.markdown('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.2);margin:0 0 0.8rem">', unsafe_allow_html=True)
 
     render_sidebar_user_badge()
 
