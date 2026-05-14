@@ -2,10 +2,15 @@
 Historical storage — dual backend:
   1. Google Sheets (if GSHEET_ID env var set) — persists across Render deploys
   2. SQLite local (fallback for local dev)
+
+Latest state sharing:
+  - Uses st.cache_resource (process-level, shared across ALL user sessions)
+  - Falls back to SQLite for persistence across server restarts
 """
 import os
 import json
 import sqlite3
+import streamlit as st
 from datetime import date, datetime
 from pathlib import Path
 
@@ -226,24 +231,42 @@ def get_farmer_trend(farmer: str, metric_keys: list) -> list:
     return trend
 
 
+# ── Process-level shared cache (survives across user sessions in same process) ──
+@st.cache_resource
+def _process_cache() -> dict:
+    """
+    Single dict shared by ALL user sessions in this Streamlit process.
+    Oscar writes here → Maria and the whole team reads it instantly.
+    """
+    return {}
+
+
 def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
                       productividad_raw_json: str = None,
                       updated_by: str = "supervisor") -> bool:
     """
     Persists the most recent upload so all farmer sessions can read it.
-    Overwrites the single row in `latest_state` table every time.
+    Saves to:
+      1. st.cache_resource (instant — shared across all sessions in same process)
+      2. SQLite (backup — survives process restarts)
     """
+    payload = {
+        "farmers_data":      farmers_data,
+        "dia_corte":         dia_corte,
+        "dias_mes":          dias_mes,
+        "productividad_raw": productividad_raw_json,
+        "updated_by":        updated_by,
+        "updated_at":        datetime.now().isoformat(),
+    }
+
+    # 1. Write to process-level cache (all sessions see this immediately)
+    cache = _process_cache()
+    cache["latest"] = payload
+
+    # 2. Persist to SQLite as backup
     try:
         init_db()
-        payload = json.dumps({
-            "farmers_data":         farmers_data,
-            "dia_corte":            dia_corte,
-            "dias_mes":             dias_mes,
-            "productividad_raw":    productividad_raw_json,   # JSON string or None
-            "updated_by":           updated_by,
-            "updated_at":           datetime.now().isoformat(),
-        }, default=str)
-
+        payload_json = json.dumps(payload, default=str)
         with _conn() as con:
             con.execute("""
                 CREATE TABLE IF NOT EXISTS latest_state (
@@ -255,19 +278,28 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
             con.execute("DELETE FROM latest_state")
             con.execute(
                 "INSERT INTO latest_state (state_json, updated_at) VALUES (?, ?)",
-                (payload, datetime.now().isoformat())
+                (payload_json, datetime.now().isoformat())
             )
-        return True
     except Exception as e:
-        print(f"[db] save_latest_state error: {e}")
-        return False
+        print(f"[db] save_latest_state sqlite error: {e}")
+
+    return True
 
 
 def load_latest_state() -> dict | None:
     """
     Returns the dict saved by save_latest_state, or None if nothing saved yet.
+    Reads from:
+      1. st.cache_resource (instant, always current within the process)
+      2. SQLite fallback (if process restarted since last upload)
     Keys: farmers_data, dia_corte, dias_mes, productividad_raw, updated_by, updated_at
     """
+    # 1. Try process-level cache first (fastest, most current)
+    cache = _process_cache()
+    if cache.get("latest"):
+        return cache["latest"]
+
+    # 2. Fall back to SQLite (survives restarts)
     try:
         init_db()
         with _conn() as con:
@@ -283,7 +315,10 @@ def load_latest_state() -> dict | None:
             ).fetchone()
         if not row:
             return None
-        return json.loads(row[0])
+        result = json.loads(row[0])
+        # Warm up the process cache so next calls are instant
+        cache["latest"] = result
+        return result
     except Exception as e:
         print(f"[db] load_latest_state error: {e}")
         return None
