@@ -85,6 +85,23 @@ with st.sidebar:
                 st.session_state["dia_corte"] = dia_corte
                 st.session_state["dias_mes"] = dias_mes
                 st.session_state["snap_date"] = today
+
+                # Guardar Productividad raw para pestaña de Conversión
+                try:
+                    import pandas as pd
+                    xl = pd.ExcelFile(uploaded_file)
+                    if "Productividad" in xl.sheet_names:
+                        df_prod_raw = xl.parse("Productividad", header=0)
+                        df_prod_raw.columns = range(len(df_prod_raw.columns))
+                        # Filtrar solo farmers activos
+                        df_prod_raw = df_prod_raw[
+                            df_prod_raw[14].apply(lambda v: isinstance(v, str) and "@rappi" in v.lower())
+                        ].copy()
+                        df_prod_raw[14] = df_prod_raw[14].str.strip().str.lower()
+                        st.session_state["_productividad_raw"] = df_prod_raw
+                except Exception:
+                    pass
+
                 st.success(f"✅ {len(farmers_data)} farmers cargados")
             except Exception as e:
                 st.error(f"Error leyendo el archivo: {e}")
