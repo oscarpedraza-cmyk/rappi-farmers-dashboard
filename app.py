@@ -88,16 +88,18 @@ with st.sidebar:
                     st.session_state["snap_date"]    = today
 
                     # Raw sheets for sub-pages
-                    prod_raw_json     = None
-                    att_prod_raw_json = None
-                    _sheet_debug      = []
-                    _att_error        = None
+                    prod_raw_json       = None
+                    att_prod_raw_json   = None
+                    conversion_raw_json = None
+                    _sheet_debug        = []
+                    _att_error          = None
                     try:
                         # Seek back — load_sheet_maestro() already read the file stream
                         uploaded_file.seek(0)
                         xl = pd.ExcelFile(uploaded_file, engine="openpyxl")
                         _sheet_debug = list(xl.sheet_names)
-                        # Productividad → Conversión tab
+
+                        # Productividad → funnel clásico
                         if "Productividad" in xl.sheet_names:
                             df_prod_raw = xl.parse("Productividad", header=0)
                             df_prod_raw.columns = range(len(df_prod_raw.columns))
@@ -109,6 +111,7 @@ with st.sidebar:
                             df_prod_raw[14] = df_prod_raw[14].str.strip().str.lower()
                             st.session_state["_productividad_raw"] = df_prod_raw
                             prod_raw_json = df_prod_raw.to_json()
+
                         # ATT productividad → Follow Track tab (raw, sin transformar)
                         att_sheet = next(
                             (s for s in xl.sheet_names
@@ -116,35 +119,48 @@ with st.sidebar:
                         )
                         if att_sheet:
                             df_att_raw = xl.parse(att_sheet, header=0)
-                            # Drop fully-empty rows and columns
                             df_att_raw = df_att_raw.dropna(how="all").dropna(axis=1, how="all")
                             st.session_state["_att_prod_raw"] = df_att_raw.to_json()
                             att_prod_raw_json = df_att_raw.to_json()
+
+                        # Conversión → DETALLE real por store (falsa conversión)
+                        conv_sheet = next(
+                            (s for s in xl.sheet_names
+                             if s.strip().lower() in ("conversión", "conversion", "detalle")), None
+                        )
+                        if conv_sheet:
+                            df_conv_raw = xl.parse(conv_sheet, header=0)
+                            df_conv_raw = df_conv_raw.dropna(how="all")
+                            # Normalize farmer email column
+                            if "FARMER" in df_conv_raw.columns:
+                                df_conv_raw["FARMER"] = df_conv_raw["FARMER"].astype(str).str.strip().str.lower()
+                            st.session_state["_conversion_raw"] = df_conv_raw.to_json()
+                            conversion_raw_json = df_conv_raw.to_json()
+
                         st.session_state["_sheet_names"] = xl.sheet_names
                     except Exception as _e:
                         _att_error = str(_e)
 
                     # ── Auto-save for team ─────────────────────────────────
                     save_latest_state(
-                        farmers_data          = farmers_data,
-                        dia_corte             = dia_corte,
-                        dias_mes              = dias_mes,
-                        productividad_raw_json= prod_raw_json,
-                        att_prod_raw_json     = att_prod_raw_json,
-                        updated_by            = email,
+                        farmers_data           = farmers_data,
+                        dia_corte              = dia_corte,
+                        dias_mes               = dias_mes,
+                        productividad_raw_json = prod_raw_json,
+                        att_prod_raw_json      = att_prod_raw_json,
+                        conversion_raw_json    = conversion_raw_json,
+                        updated_by             = email,
                     )
 
                     n = len(farmers_data)
-                    if att_prod_raw_json:
-                        st.success(f"✅ {n} farmers cargados · Follow Track ✓")
-                    else:
+                    extras = []
+                    if att_prod_raw_json:   extras.append("Follow Track ✓")
+                    if conversion_raw_json: extras.append("Conversión Real ✓")
+                    extra_str = " · ".join(extras)
+                    if _att_error:
                         sheets_found = ", ".join(_sheet_debug) if _sheet_debug else "ninguna"
-                        st.success(f"✅ {n} farmers cargados para el equipo")
-                        st.warning(
-                            f"⚠️ No se encontró la pestaña **ATT productividad** en el archivo. "
-                            f"Pestañas detectadas: `{sheets_found}`"
-                            + (f"\nError: {_att_error}" if _att_error else "")
-                        )
+                        st.warning(f"⚠️ Error leyendo pestañas extra: {_att_error}\nPestañas: {sheets_found}")
+                    st.success(f"✅ {n} farmers cargados" + (f" · {extra_str}" if extra_str else " para el equipo"))
                 except Exception as e:
                     st.error(f"Error: {e}")
 
@@ -184,6 +200,9 @@ with st.sidebar:
                 # Restore ATT productividad for Follow Track tab
                 if latest.get("att_prod_raw"):
                     st.session_state["_att_prod_raw"] = latest["att_prod_raw"]
+                # Restore Conversión DETALLE for real conversion analysis
+                if latest.get("conversion_raw"):
+                    st.session_state["_conversion_raw"] = latest["conversion_raw"]
 
         dia_corte    = st.session_state.get("dia_corte", today.day - 1)
         dias_mes     = st.session_state.get("dias_mes", 31)
