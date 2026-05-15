@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+import io
 import sys
 from pathlib import Path
 
@@ -23,7 +24,7 @@ if "farmers_data" not in st.session_state:
             st.session_state["_att_prod_raw"] = latest["att_prod_raw"]
         if latest.get("productividad_raw"):
             try:
-                df_raw = pd.read_json(latest["productividad_raw"])
+                df_raw = pd.read_json(io.StringIO(latest["productividad_raw"]))
                 df_raw.columns = [int(c) for c in df_raw.columns]
                 st.session_state["_productividad_raw"] = df_raw
             except Exception:
@@ -39,7 +40,7 @@ att_raw_json = st.session_state.get("_att_prod_raw")
 
 if att_raw_json:
     try:
-        df = pd.read_json(att_raw_json)
+        df = pd.read_json(io.StringIO(att_raw_json))
     except Exception as _parse_err:
         df = None
         if is_supervisor:

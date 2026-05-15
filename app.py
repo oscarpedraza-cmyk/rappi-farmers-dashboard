@@ -175,7 +175,8 @@ with st.sidebar:
                 # Restore raw productividad for Conversión tab
                 if latest.get("productividad_raw"):
                     try:
-                        df_raw = pd.read_json(latest["productividad_raw"])
+                        import io as _io
+                        df_raw = pd.read_json(_io.StringIO(latest["productividad_raw"]))
                         df_raw.columns = [int(c) for c in df_raw.columns]
                         st.session_state["_productividad_raw"] = df_raw
                     except Exception:
