@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from core.auth import require_auth
+from core.auth import require_auth, render_topbar
 from core.metrics import COLOR_HEX, EMOJI
 from core.style import inject_global_css
 
@@ -17,6 +17,8 @@ st.set_page_config(
 )
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
+render_topbar()
+
 
 # ── Semáforo helpers ──────────────────────────────────────────────────────────
 def pi_color(pct):

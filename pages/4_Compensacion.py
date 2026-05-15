@@ -11,12 +11,14 @@ from core.metrics import (
     calcular_compensacion_completa, calcular_variable_score,
     calcular_revenue_share_ads, EMOJI, COLOR_HEX, REVENUE_SHARE_CAP_MONTHLY
 )
-from core.auth import require_auth
+from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 
 st.set_page_config(page_title="Compensación — Rappi Farmers", page_icon="🚀", layout="wide")
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
+render_topbar()
+
 
 st.markdown("""
 <div class="rb-page-header">

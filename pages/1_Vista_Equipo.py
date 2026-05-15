@@ -11,12 +11,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.metrics import (get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX,
                           calcular_compensacion_completa, score_farmer,
                           assign_quartiles, QUARTILE_COLOR, QUARTILE_LABEL)
-from core.auth import require_auth, render_sidebar_user_badge
+from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 
 st.set_page_config(page_title="Vista Equipo — Rappi Farmers", page_icon="🚀", layout="wide")
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
+render_topbar()
+
 
 st.markdown("""
 <div class="rb-page-header">

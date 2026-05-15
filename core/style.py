@@ -1,204 +1,339 @@
 """
-core/style.py — Shared Rappi Business design system CSS.
-Call inject_global_css() once per page, right after set_page_config().
+core/style.py — Rappi Farmers Design System
+Sidebar → top bar layout. Call inject_global_css() once per page.
 """
 
+# ── Design tokens ─────────────────────────────────────────────────────────────
+BG_PAGE    = "#EBF0F8"   # page background — contrasts white cards
+BG_CARD    = "#FFFFFF"   # card / chart surface
+BG_NAV     = "#1C2340"   # top navbar (dark navy)
+BG_SIDEBAR = "#1C2340"   # sidebar nav (same dark navy)
+C_RED      = "#E8281F"   # Rappi red — primary accent
+C_GREEN    = "#059669"   # success
+C_AMBER    = "#D97706"   # warning
+C_BLUE     = "#2563EB"   # info
+C_TEXT     = "#0F172A"   # primary text
+C_MUTED    = "#64748B"   # secondary text
+C_BORDER   = "#E2E8F0"   # card borders
+
+
 def inject_global_css() -> str:
-    return """
+    return f"""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+/* ── Fonts ──────────────────────────────────────────────────────────────────── */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+html, body, [class*="css"], [class*="st-"] {{
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    font-size: 15px;
+    color: {C_TEXT};
+}}
 
-/* ── Base ── */
-html, body, [class*="css"] { font-family: 'Inter', sans-serif !important; }
+/* ── Page background ─────────────────────────────────────────────────────────── */
+.stApp {{
+    background: {BG_PAGE} !important;
+}}
+.main .block-container {{
+    background: {BG_PAGE} !important;
+    padding-top: 0.5rem !important;
+    padding-left: 1.8rem !important;
+    padding-right: 1.8rem !important;
+    max-width: 1400px !important;
+}}
 
-/* ── Page background ── */
-.main .block-container {
-    background: #F4F5F7 !important;
-    padding-top: 1.5rem !important;
-}
+/* ── Hide Streamlit chrome ────────────────────────────────────────────────── */
+#MainMenu {{ visibility: hidden; }}
+footer    {{ visibility: hidden; }}
+header    {{ visibility: hidden; }}
 
-/* ── Hide Streamlit default menu & footer ── */
-#MainMenu { visibility: hidden; }
-footer    { visibility: hidden; }
-
-/* ── Sidebar — Rappi red ── */
-[data-testid="stSidebar"] > div:first-child {
-    background: #E8281F !important;
-}
+/* ── Sidebar — dark navy ─────────────────────────────────────────────────── */
+[data-testid="stSidebar"] > div:first-child {{
+    background: {BG_SIDEBAR} !important;
+    border-right: 1px solid rgba(255,255,255,0.06);
+}}
 [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] .stMarkdown,
 [data-testid="stSidebar"] p,
-[data-testid="stSidebar"] span { color: white !important; }
+[data-testid="stSidebar"] span {{ color: rgba(255,255,255,0.85) !important; }}
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] h3 { color: white !important; }
-[data-testid="stSidebar"] hr { border-color: rgba(255,255,255,0.2) !important; }
-
-/* Sidebar section labels */
-[data-testid="stSidebar"] .sidebar-section-label {
-    color: rgba(255,255,255,0.6) !important;
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-}
-
-/* Sidebar inputs — slightly darker red */
-[data-testid="stSidebar"] .stNumberInput input,
-[data-testid="stSidebar"] .stTextInput input,
-[data-testid="stSidebar"] .stSelectbox select {
-    background: #C62419 !important;
+[data-testid="stSidebar"] h3 {{ color: #FFFFFF !important; }}
+[data-testid="stSidebar"] hr {{ border-color: rgba(255,255,255,0.12) !important; }}
+[data-testid="stSidebar"] .stButton > button {{
+    background: rgba(255,255,255,0.10) !important;
     color: white !important;
-    border-color: rgba(255,255,255,0.3) !important;
-}
-[data-testid="stSidebar"] .stMetric {
-    background: rgba(0,0,0,0.12);
-    border-radius: 8px;
-    padding: 8px;
-}
-[data-testid="stSidebar"] .stMetric label { color: rgba(255,255,255,0.7) !important; }
-[data-testid="stSidebar"] .stMetric [data-testid="metric-container"] > div { color: white !important; }
+    border: 1px solid rgba(255,255,255,0.20) !important;
+}}
+[data-testid="stSidebar"] .stButton > button:hover {{
+    background: rgba(255,255,255,0.18) !important;
+}}
 
-/* ── Native Streamlit metrics — white card ── */
-[data-testid="metric-container"] {
-    background: #FFFFFF !important;
-    border: 1px solid #E5E7EB !important;
-    border-radius: 12px !important;
-    padding: 1rem 1.2rem !important;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06) !important;
-}
-
-/* ── Buttons ── */
-.stButton > button {
+/* Nav links in sidebar */
+[data-testid="stSidebarNav"] a {{
+    color: rgba(255,255,255,0.75) !important;
     border-radius: 8px !important;
-    font-weight: 600 !important;
-    transition: all 0.2s !important;
-}
-.stButton > button[kind="primary"],
-.stButton > button {
-    background: #E8281F !important;
-    border-color: #E8281F !important;
-    color: white !important;
-}
-.stButton > button:hover {
-    background: #C62419 !important;
-    border-color: #C62419 !important;
-    box-shadow: 0 4px 12px rgba(232,40,31,0.35) !important;
-}
+    font-size: 0.88rem !important;
+    font-weight: 500 !important;
+    padding: 0.45rem 0.9rem !important;
+    transition: background 0.15s;
+}}
+[data-testid="stSidebarNav"] a:hover {{
+    background: rgba(255,255,255,0.10) !important;
+    color: #FFFFFF !important;
+}}
+[data-testid="stSidebarNav"] a[aria-current="page"] {{
+    background: {C_RED} !important;
+    color: #FFFFFF !important;
+    font-weight: 700 !important;
+}}
+[data-testid="stSidebarNav"] svg {{ display: none; }}
 
-/* ── File uploader ── */
-[data-testid="stFileUploader"] {
-    background: #FFFFFF !important;
-    border: 2px dashed #E8281F !important;
-    border-radius: 12px !important;
-    padding: 0.5rem !important;
-}
+/* ── Top navbar (rendered via HTML) ─────────────────────────────────────── */
+.rb-topbar {{
+    background: {BG_NAV};
+    border-radius: 14px;
+    padding: 0.85rem 1.4rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.2rem;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+}}
+.rb-topbar-brand {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}}
+.rb-topbar-brand .brand-name {{
+    font-size: 1.05rem;
+    font-weight: 800;
+    color: #FFFFFF;
+    letter-spacing: -0.3px;
+}}
+.rb-topbar-brand .brand-name span {{ color: {C_RED}; }}
+.rb-topbar-right {{
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}}
+.rb-user-badge {{
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.14);
+    border-radius: 10px;
+    padding: 0.45rem 0.9rem;
+}}
+.rb-user-badge .user-name {{
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: #FFFFFF;
+}}
+.rb-user-badge .user-role {{
+    font-size: 0.7rem;
+    color: rgba(255,255,255,0.55);
+    margin-top: 1px;
+}}
+.rb-status-dot {{
+    width: 8px; height: 8px;
+    background: {C_GREEN};
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(5,150,105,0.3);
+}}
+.rb-meta-chip {{
+    font-size: 0.72rem;
+    color: rgba(255,255,255,0.5);
+    background: rgba(255,255,255,0.06);
+    border-radius: 6px;
+    padding: 3px 8px;
+}}
 
-/* ── Tabs ── */
-[data-testid="stTab"] { font-weight: 600 !important; }
-[data-testid="stTab"][aria-selected="true"] {
-    border-bottom: 2px solid #E8281F !important;
-    color: #E8281F !important;
-}
-
-/* ── Dataframe / table ── */
-[data-testid="stDataFrame"] thead tr {
-    background: #F9FAFB !important;
-}
-[data-testid="stDataFrame"] tbody tr {
-    border-bottom: 1px solid #F3F4F6 !important;
-}
-
-/* ── Card classes ── */
-
-/* Generic white card */
-.rb-card {
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
-    padding: 1.2rem 1.4rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    margin-bottom: 0.8rem;
-}
+/* ── Cards ─────────────────────────────────────────────────────────────── */
+.rb-card {{
+    background: {BG_CARD};
+    border: 1px solid {C_BORDER};
+    border-radius: 14px;
+    padding: 1.3rem 1.5rem;
+    box-shadow: 0 4px 16px rgba(15,23,42,0.07);
+    margin-bottom: 0.9rem;
+}}
 
 /* KPI metric card */
-.rb-metric {
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-radius: 12px;
-    padding: 1rem 1.2rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+.rb-metric {{
+    background: {BG_CARD};
+    border: 1px solid {C_BORDER};
+    border-radius: 14px;
+    padding: 1.1rem 1.2rem;
+    box-shadow: 0 4px 16px rgba(15,23,42,0.07);
     text-align: center;
-}
-.rb-metric .rb-metric-label {
-    font-size: 0.72rem;
+}}
+.rb-metric .rb-metric-label {{
+    font-size: 0.7rem;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    color: #6B7280;
-    margin-bottom: 4px;
-}
-.rb-metric .rb-metric-value {
+    letter-spacing: 0.7px;
+    color: {C_MUTED};
+    margin-bottom: 5px;
+}}
+.rb-metric .rb-metric-value {{
     font-size: 2rem;
     font-weight: 800;
-    color: #1A1A1A;
+    color: {C_TEXT};
     line-height: 1.1;
-}
-.rb-metric .rb-metric-sub {
-    font-size: 0.78rem;
-    color: #9CA3AF;
+}}
+.rb-metric .rb-metric-sub {{
+    font-size: 0.77rem;
+    color: {C_MUTED};
     margin-top: 4px;
-}
+}}
 
 /* Section title */
-.rb-section-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #374151;
-    margin: 1rem 0 0.5rem;
-}
-
-/* Page header card */
-.rb-page-header {
-    background: #FFFFFF;
-    border: 1px solid #E5E7EB;
-    border-left: 4px solid #E8281F;
-    border-radius: 12px;
-    padding: 1.2rem 1.6rem;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-    margin-bottom: 1.2rem;
-}
-.rb-page-header h1 {
-    margin: 0;
-    font-size: 1.6rem;
+.rb-section-title {{
+    font-size: 1.05rem;
     font-weight: 700;
-    color: #1A1A1A;
-}
-.rb-page-header p {
+    color: {C_TEXT};
+    margin: 1.2rem 0 0.6rem;
+    letter-spacing: -0.2px;
+}}
+
+/* Page header */
+.rb-page-header {{
+    background: {BG_CARD};
+    border: 1px solid {C_BORDER};
+    border-left: 5px solid {C_RED};
+    border-radius: 14px;
+    padding: 1.1rem 1.5rem;
+    box-shadow: 0 4px 16px rgba(15,23,42,0.07);
+    margin-bottom: 1.2rem;
+}}
+.rb-page-header h1 {{
+    margin: 0;
+    font-size: 1.45rem;
+    font-weight: 800;
+    color: {C_TEXT};
+    letter-spacing: -0.4px;
+}}
+.rb-page-header p {{
     margin: 0.2rem 0 0;
-    font-size: 0.85rem;
-    color: #6B7280;
-}
+    font-size: 0.84rem;
+    color: {C_MUTED};
+}}
 
 /* Caption */
-.rb-caption {
-    font-size: 0.78rem;
-    color: #9CA3AF;
-}
+.rb-caption {{ font-size: 0.77rem; color: {C_MUTED}; }}
 
-/* Semaphore hover table row */
-.semaforo-table tr:hover td { background: #F9FAFB !important; }
-.semaforo-table { border-radius: 10px; overflow: hidden; }
+/* Upload expander section */
+.rb-upload-section {{
+    background: {BG_CARD};
+    border: 1px solid {C_BORDER};
+    border-top: 4px solid {C_RED};
+    border-radius: 14px;
+    padding: 1.2rem 1.5rem;
+    box-shadow: 0 4px 16px rgba(15,23,42,0.07);
+    margin-bottom: 1.2rem;
+}}
 
-/* Info/update banner */
-.last-update-banner {
-    background: #FFFFFF;
-    border-left: 4px solid #E8281F;
-    border-radius: 0 8px 8px 0;
+/* ── Semáforo table ─────────────────────────────────────────────────────── */
+.semaforo-table tr:hover td {{ background: #F8FAFC !important; }}
+.semaforo-table {{ border-radius: 12px; overflow: hidden; }}
+
+/* ── Last update banner ─────────────────────────────────────────────────── */
+.last-update-banner {{
+    background: {BG_CARD};
+    border-left: 4px solid {C_RED};
+    border-radius: 0 10px 10px 0;
     padding: 0.6rem 1rem;
     margin-bottom: 1rem;
-    font-size: 0.85rem;
-    color: #374151;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.04);
-}
+    font-size: 0.84rem;
+    color: {C_TEXT};
+    box-shadow: 0 2px 8px rgba(15,23,42,0.05);
+}}
+
+/* ── Native Streamlit metrics — white card ──────────────────────────────── */
+[data-testid="metric-container"] {{
+    background: {BG_CARD} !important;
+    border: 1px solid {C_BORDER} !important;
+    border-radius: 14px !important;
+    padding: 1rem 1.2rem !important;
+    box-shadow: 0 4px 16px rgba(15,23,42,0.07) !important;
+}}
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.stButton > button {{
+    border-radius: 9px !important;
+    font-weight: 600 !important;
+    font-size: 0.88rem !important;
+    transition: all 0.18s !important;
+}}
+.stButton > button[kind="primary"],
+.stButton > button {{
+    background: {C_RED} !important;
+    border-color: {C_RED} !important;
+    color: white !important;
+}}
+.stButton > button:hover {{
+    background: #C62419 !important;
+    border-color: #C62419 !important;
+    box-shadow: 0 4px 14px rgba(232,40,31,0.35) !important;
+    transform: translateY(-1px);
+}}
+
+/* ── File uploader ────────────────────────────────────────────────────────── */
+[data-testid="stFileUploader"] {{
+    background: #FFF8F8 !important;
+    border: 2px dashed {C_RED} !important;
+    border-radius: 12px !important;
+    padding: 0.5rem !important;
+}}
+
+/* ── Tabs ────────────────────────────────────────────────────────────────── */
+[data-testid="stTab"] {{ font-weight: 600 !important; font-size: 0.88rem !important; }}
+[data-testid="stTab"][aria-selected="true"] {{
+    border-bottom: 3px solid {C_RED} !important;
+    color: {C_RED} !important;
+}}
+
+/* ── Dataframe ──────────────────────────────────────────────────────────── */
+[data-testid="stDataFrame"] thead tr {{ background: #F8FAFC !important; }}
+[data-testid="stDataFrame"] tbody tr {{ border-bottom: 1px solid {C_BORDER} !important; }}
+
+/* ── Inputs / selects ────────────────────────────────────────────────────── */
+[data-testid="stNumberInput"] input,
+[data-testid="stTextInput"] input,
+[data-testid="stSelectbox"] > div > div {{
+    border-radius: 8px !important;
+    border-color: {C_BORDER} !important;
+}}
+[data-testid="stNumberInput"] input:focus,
+[data-testid="stTextInput"] input:focus {{
+    border-color: {C_RED} !important;
+    box-shadow: 0 0 0 3px rgba(232,40,31,0.12) !important;
+}}
+
+/* ── Expander ────────────────────────────────────────────────────────────── */
+[data-testid="stExpander"] {{
+    background: {BG_CARD} !important;
+    border: 1px solid {C_BORDER} !important;
+    border-radius: 12px !important;
+    box-shadow: 0 2px 8px rgba(15,23,42,0.05) !important;
+}}
+
+/* ── Plotly chart container ──────────────────────────────────────────────── */
+.js-plotly-plot {{
+    background: {BG_CARD} !important;
+    border-radius: 12px !important;
+}}
+
+/* ── Alerts ─────────────────────────────────────────────────────────────── */
+[data-testid="stAlert"] {{
+    border-radius: 10px !important;
+    font-size: 0.88rem !important;
+}}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────── */
+::-webkit-scrollbar {{ width: 6px; height: 6px; }}
+::-webkit-scrollbar-track {{ background: {BG_PAGE}; }}
+::-webkit-scrollbar-thumb {{ background: #CBD5E1; border-radius: 3px; }}
+::-webkit-scrollbar-thumb:hover {{ background: #94A3B8; }}
 </style>
 """

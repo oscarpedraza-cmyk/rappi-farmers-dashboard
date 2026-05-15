@@ -13,14 +13,14 @@ from core.metrics import (get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX,
                           calcular_compensacion_completa, score_farmer,
                           assign_quartiles, QUARTILE_COLOR, QUARTILE_LABEL)
 from core.db import save_snapshot, get_available_dates, save_latest_state, load_latest_state
-from core.auth import require_auth, render_sidebar_user_badge
+from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 
 st.set_page_config(
     page_title="Rappi Farmers Dashboard",
     page_icon="🚀",
     layout="wide",
-    initial_sidebar_state="expanded",
+    initial_sidebar_state="collapsed",
 )
 
 # ── Global Rappi CSS ──────────────────────────────────────────────────────────
@@ -29,52 +29,83 @@ st.markdown(inject_global_css(), unsafe_allow_html=True)
 # ── Auth gate ─────────────────────────────────────────────────────────────────
 email, is_supervisor = require_auth()
 
-# ── Sidebar ───────────────────────────────────────────────────────────────────
+# ── Sidebar — only navigation branding ──────────────────────────────────────
 with st.sidebar:
     _logo_path = Path(__file__).parent / "assets" / "rappi_logo.png"
     if _logo_path.exists():
         _logo_b64 = base64.b64encode(_logo_path.read_bytes()).decode()
         st.markdown(
-            f'<img src="data:image/png;base64,{_logo_b64}" width="130" style="display:block;margin-bottom:4px">',
+            f'<img src="data:image/png;base64,{_logo_b64}" width="110" '
+            f'style="display:block;margin:0.5rem auto 0.8rem">',
             unsafe_allow_html=True
         )
     else:
-        st.markdown("""
-        <div style="padding:0.4rem 0 0.6rem">
-            <span style="font-size:1.6rem;font-weight:900;color:#FFFFFF;letter-spacing:-1px">rappi</span>
-            <span style="font-size:0.7rem;font-weight:600;color:rgba(255,255,255,0.7);margin-left:6px">FARMERS</span>
-        </div>
-        """, unsafe_allow_html=True)
-    st.markdown('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.2);margin:0 0 0.8rem">', unsafe_allow_html=True)
-
-    render_sidebar_user_badge()
-
-    st.markdown("---")
-    st.markdown('<p style="color:rgba(255,255,255,0.6);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;margin:0">⚙️ Configuración</p>',
+        st.markdown(
+            '<div style="text-align:center;padding:0.5rem 0 0.8rem">'
+            '<span style="font-size:1.4rem;font-weight:900;color:#E8281F">rappi</span>'
+            '<span style="font-size:0.65rem;font-weight:700;color:rgba(255,255,255,0.5);'
+            'display:block;letter-spacing:1px">FARMERS</span></div>',
+            unsafe_allow_html=True
+        )
+    st.markdown('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:0 0 0.5rem">',
                 unsafe_allow_html=True)
 
-    today = date.today()
+# ── Collect date / progress info (needed for topbar) ─────────────────────────
+today = date.today()
 
-    if is_supervisor:
-        # ── Supervisor controls ──────────────────────────────────────────────
-        dia_corte = st.number_input(
-            "Día de corte",
-            min_value=1, max_value=31,
-            value=today.day - 1 if today.day > 1 else 1,
-            help="Siempre es el día de envío − 1"
-        )
-        dias_mes = st.number_input("Días del mes", min_value=28, max_value=31, value=31)
-        progreso_pct = ((dia_corte - 1) / dias_mes) * 100
-        st.metric("Progreso del mes", f"{progreso_pct:.1f}%")
+# ── Farmer auto-load (before topbar so we have updated_at) ───────────────────
+if not is_supervisor:
+    if "farmers_data" not in st.session_state:
+        latest = load_latest_state()
+        if latest:
+            st.session_state["farmers_data"] = latest["farmers_data"]
+            st.session_state["dia_corte"]    = latest["dia_corte"]
+            st.session_state["dias_mes"]     = latest["dias_mes"]
+            st.session_state["snap_date"]    = today
+            if latest.get("productividad_raw"):
+                try:
+                    import io as _io
+                    df_raw = pd.read_json(_io.StringIO(latest["productividad_raw"]))
+                    df_raw.columns = [int(c) for c in df_raw.columns]
+                    st.session_state["_productividad_raw"] = df_raw
+                except Exception:
+                    pass
+            if latest.get("att_prod_raw"):
+                st.session_state["_att_prod_raw"] = latest["att_prod_raw"]
+            if latest.get("conversion_raw"):
+                st.session_state["_conversion_raw"] = latest["conversion_raw"]
 
-        st.markdown("---")
-        st.markdown('<p style="color:rgba(255,255,255,0.6);font-size:0.72rem;text-transform:uppercase;letter-spacing:0.5px;margin:0">📂 Cargar datos</p>',
-                    unsafe_allow_html=True)
-        uploaded_file = st.file_uploader(
-            "Sheet_Maestro_Farmers.xlsx",
-            type=["xlsx"],
-            help="Sube el archivo actualizado — se guardará automáticamente para todo el equipo"
-        )
+dia_corte    = st.session_state.get("dia_corte", today.day - 1 if today.day > 1 else 1)
+dias_mes     = st.session_state.get("dias_mes", 31)
+progreso_pct = ((dia_corte - 1) / dias_mes) * 100
+latest_meta  = load_latest_state()
+updated_at   = latest_meta.get("updated_at", "")[:16].replace("T", " ") if latest_meta else ""
+
+# ── TOP BAR (replaces sidebar user panel) ─────────────────────────────────────
+render_topbar(updated_at=updated_at, dia_corte=dia_corte, progreso_pct=progreso_pct)
+
+# ── SUPERVISOR CONTROLS (top of main content) ─────────────────────────────────
+if is_supervisor:
+    with st.expander("⚙️ Cargar datos y configuración", expanded="farmers_data" not in st.session_state):
+        col_cfg1, col_cfg2, col_up = st.columns([2, 2, 5])
+        with col_cfg1:
+            dia_corte = st.number_input(
+                "Día de corte",
+                min_value=1, max_value=31,
+                value=today.day - 1 if today.day > 1 else 1,
+                help="Siempre es el día de envío − 1",
+                key="dia_corte_input"
+            )
+        with col_cfg2:
+            dias_mes = st.number_input("Días del mes", min_value=28, max_value=31,
+                                       value=31, key="dias_mes_input")
+        with col_up:
+            uploaded_file = st.file_uploader(
+                "Sheet_Maestro_Farmers.xlsx",
+                type=["xlsx"],
+                help="Sube el archivo — se comparte automáticamente con todo el equipo",
+                key="file_uploader_main"
+            )
 
         if uploaded_file:
             with st.spinner("Leyendo datos..."):
@@ -87,19 +118,14 @@ with st.sidebar:
                     st.session_state["dias_mes"]     = dias_mes
                     st.session_state["snap_date"]    = today
 
-                    # Raw sheets for sub-pages
-                    prod_raw_json       = None
-                    att_prod_raw_json   = None
-                    conversion_raw_json = None
-                    _sheet_debug        = []
-                    _att_error          = None
+                    prod_raw_json = att_prod_raw_json = conversion_raw_json = None
+                    _sheet_debug = []
+                    _att_error   = None
                     try:
-                        # Seek back — load_sheet_maestro() already read the file stream
                         uploaded_file.seek(0)
                         xl = pd.ExcelFile(uploaded_file, engine="openpyxl")
                         _sheet_debug = list(xl.sheet_names)
 
-                        # Productividad → funnel clásico
                         if "Productividad" in xl.sheet_names:
                             df_prod_raw = xl.parse("Productividad", header=0)
                             df_prod_raw.columns = range(len(df_prod_raw.columns))
@@ -112,10 +138,8 @@ with st.sidebar:
                             st.session_state["_productividad_raw"] = df_prod_raw
                             prod_raw_json = df_prod_raw.to_json()
 
-                        # ATT productividad → Follow Track tab (raw, sin transformar)
                         att_sheet = next(
-                            (s for s in xl.sheet_names
-                             if s.strip().lower() == "att productividad"), None
+                            (s for s in xl.sheet_names if s.strip().lower() == "att productividad"), None
                         )
                         if att_sheet:
                             df_att_raw = xl.parse(att_sheet, header=0)
@@ -123,15 +147,11 @@ with st.sidebar:
                             st.session_state["_att_prod_raw"] = df_att_raw.to_json()
                             att_prod_raw_json = df_att_raw.to_json()
 
-                        # Conversión → DETALLE real por store (falsa conversión)
-                        # Detecta la pestaña por nombre O por contenido (columna FARMER + MD)
-                        _conv_name_candidates = {"conversión", "conversion", "detalle", "hoja1"}
+                        _conv_candidates = {"conversión", "conversion", "detalle", "hoja1"}
                         conv_sheet = next(
-                            (s for s in xl.sheet_names
-                             if s.strip().lower() in _conv_name_candidates), None
+                            (s for s in xl.sheet_names if s.strip().lower() in _conv_candidates), None
                         )
                         if not conv_sheet:
-                            # Fallback: busca cualquier pestaña que tenga columna FARMER y MD
                             for _s in xl.sheet_names:
                                 try:
                                     _probe = xl.parse(_s, header=0, nrows=3)
@@ -143,7 +163,6 @@ with st.sidebar:
                         if conv_sheet:
                             df_conv_raw = xl.parse(conv_sheet, header=0)
                             df_conv_raw = df_conv_raw.dropna(how="all")
-                            # Normalize farmer email column
                             if "FARMER" in df_conv_raw.columns:
                                 df_conv_raw["FARMER"] = df_conv_raw["FARMER"].astype(str).str.strip().str.lower()
                             st.session_state["_conversion_raw"] = df_conv_raw.to_json()
@@ -153,7 +172,6 @@ with st.sidebar:
                     except Exception as _e:
                         _att_error = str(_e)
 
-                    # ── Auto-save for team ─────────────────────────────────
                     save_latest_state(
                         farmers_data           = farmers_data,
                         dia_corte              = dia_corte,
@@ -163,7 +181,8 @@ with st.sidebar:
                         conversion_raw_json    = conversion_raw_json,
                         updated_by             = email,
                     )
-
+                    # Refresh progreso after load
+                    progreso_pct = ((dia_corte - 1) / dias_mes) * 100
                     n = len(farmers_data)
                     extras = []
                     if att_prod_raw_json:   extras.append("Follow Track ✓")
@@ -171,95 +190,30 @@ with st.sidebar:
                     extra_str = " · ".join(extras)
                     if _att_error:
                         sheets_found = ", ".join(_sheet_debug) if _sheet_debug else "ninguna"
-                        st.warning(f"⚠️ Error leyendo pestañas extra: {_att_error}\nPestañas: {sheets_found}")
+                        st.warning(f"⚠️ Error leyendo pestañas extra: {_att_error} · Pestañas: {sheets_found}")
                     st.success(f"✅ {n} farmers cargados" + (f" · {extra_str}" if extra_str else " para el equipo"))
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-        st.markdown("---")
-        if "farmers_data" in st.session_state:
-            if st.button("💾 Guardar snapshot histórico", use_container_width=True):
-                save_snapshot(
-                    snap_date   = st.session_state["snap_date"],
-                    dia_corte   = st.session_state["dia_corte"],
-                    farmers_data = st.session_state["farmers_data"],
-                )
-                st.success("Guardado en histórico ✅")
+        col_snap, col_hist = st.columns(2)
+        with col_snap:
+            if "farmers_data" in st.session_state:
+                if st.button("💾 Guardar snapshot histórico", use_container_width=True):
+                    save_snapshot(
+                        snap_date    = st.session_state["snap_date"],
+                        dia_corte    = st.session_state["dia_corte"],
+                        farmers_data = st.session_state["farmers_data"],
+                    )
+                    st.success("Guardado ✅")
+        with col_hist:
+            available_dates = get_available_dates()
+            if available_dates:
+                st.info(f"📅 {len(available_dates)} snapshots históricos")
 
-        available_dates = get_available_dates()
-        if available_dates:
-            st.markdown(f'<p style="color:rgba(255,255,255,0.6);font-size:0.75rem">📅 {len(available_dates)} corridas históricas</p>',
-                        unsafe_allow_html=True)
-
-    else:
-        # ── Farmer view: auto-load latest state ──────────────────────────────
-        if "farmers_data" not in st.session_state:
-            latest = load_latest_state()
-            if latest:
-                st.session_state["farmers_data"]  = latest["farmers_data"]
-                st.session_state["dia_corte"]     = latest["dia_corte"]
-                st.session_state["dias_mes"]      = latest["dias_mes"]
-                st.session_state["snap_date"]     = today
-                # Restore raw productividad for Conversión tab
-                if latest.get("productividad_raw"):
-                    try:
-                        import io as _io
-                        df_raw = pd.read_json(_io.StringIO(latest["productividad_raw"]))
-                        df_raw.columns = [int(c) for c in df_raw.columns]
-                        st.session_state["_productividad_raw"] = df_raw
-                    except Exception:
-                        pass
-                # Restore ATT productividad for Follow Track tab
-                if latest.get("att_prod_raw"):
-                    st.session_state["_att_prod_raw"] = latest["att_prod_raw"]
-                # Restore Conversión DETALLE for real conversion analysis
-                if latest.get("conversion_raw"):
-                    st.session_state["_conversion_raw"] = latest["conversion_raw"]
-
-        dia_corte    = st.session_state.get("dia_corte", today.day - 1)
-        dias_mes     = st.session_state.get("dias_mes", 31)
-        progreso_pct = ((dia_corte - 1) / dias_mes) * 100
-
-        st.metric("Progreso del mes", f"{progreso_pct:.1f}%")
-        st.metric("Día de corte", dia_corte)
-
-        # Show last updated info
-        latest_meta = load_latest_state()
-        if latest_meta:
-            updated_at = latest_meta.get("updated_at", "")[:16].replace("T", " ")
-            st.markdown(f"""
-            <div style="background:rgba(0,0,0,0.15);border-radius:8px;padding:0.6rem 0.8rem;margin-top:0.5rem">
-                <div style="font-size:0.7rem;color:rgba(255,255,255,0.6)">Última actualización</div>
-                <div style="font-size:0.8rem;color:white;font-weight:600">{updated_at}</div>
-            </div>
-            """, unsafe_allow_html=True)
-
-    st.markdown("---")
-    st.markdown(
-        '<p style="color:rgba(255,255,255,0.5);font-size:0.7rem;text-align:center">Rappi Growth · AR/UY 🇦🇷🇺🇾</p>',
-        unsafe_allow_html=True
-    )
-
-
-# ── Main Page ─────────────────────────────────────────────────────────────────
-# Header
-if is_supervisor:
-    header_sub = "Supervisor · Vista completa con carga de datos"
-else:
-    name = st.session_state.get("auth_name", "")
-    header_sub = f"Bienvenido, {name} · Vista de resultados del equipo"
-
-st.markdown(f"""
-<div class="rb-page-header">
-    <h1>🚀 Rappi Farmers Dashboard</h1>
-    <p>{header_sub} — Equipo AR/UY</p>
-</div>
-""", unsafe_allow_html=True)
-
-# No data loaded yet
+# ── No data loaded ─────────────────────────────────────────────────────────────
 if "farmers_data" not in st.session_state:
     if is_supervisor:
-        st.info("👈 **Sube el Sheet Maestro** en el panel izquierdo para comenzar. Los datos quedarán disponibles para todo el equipo automáticamente.")
+        st.info("☝️ **Expande la sección de arriba** y sube el Sheet Maestro para comenzar. Los datos quedarán disponibles para todo el equipo.")
     else:
         st.warning("⏳ **El supervisor aún no ha cargado datos para este período.** Vuelve más tarde o contacta a Oscar Pedraza.")
         st.markdown("""

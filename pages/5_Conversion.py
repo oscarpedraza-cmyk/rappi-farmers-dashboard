@@ -9,12 +9,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS
 from core.metrics import (QUARTILE_COLOR, QUARTILE_LABEL, score_farmer,
                           assign_quartiles, get_all_semaforos, calcular_compensacion_completa)
-from core.auth import require_auth
+from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 
 st.set_page_config(page_title="Conversión — Rappi Farmers", page_icon="🚀", layout="wide")
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email_auth, is_supervisor = require_auth()
+render_topbar()
+
 
 # ── Auto-load si session_state está vacío ─────────────────────────────────────
 if "farmers_data" not in st.session_state:

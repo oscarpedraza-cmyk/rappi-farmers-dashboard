@@ -10,12 +10,14 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.db import get_history, get_available_dates, get_farmer_trend, get_consecutive_red_weeks
 from core.loader import FARMER_NAMES, FARMERS_EMAILS
 from core.metrics import COLOR_HEX, EMOJI
-from core.auth import require_auth
+from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 
 st.set_page_config(page_title="Histórico — Rappi Farmers", page_icon="🚀", layout="wide")
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
+render_topbar()
+
 
 st.markdown("""
 <div class="rb-page-header">

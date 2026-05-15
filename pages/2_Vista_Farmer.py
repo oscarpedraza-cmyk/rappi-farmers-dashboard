@@ -11,7 +11,7 @@ from core.metrics import (
     calcular_compensacion_completa, generar_recomendaciones
 )
 from core.db import get_consecutive_red_weeks
-from core.auth import require_auth
+from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 
 st.set_page_config(
@@ -21,6 +21,8 @@ st.set_page_config(
 )
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email_auth, is_supervisor = require_auth()
+render_topbar()
+
 
 if "farmers_data" not in st.session_state:
     import pandas as pd

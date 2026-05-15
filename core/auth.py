@@ -183,27 +183,87 @@ def _clear_auth():
 
 
 def render_sidebar_user_badge():
-    """Renders the logged-in user chip at the top of the sidebar."""
-    email = st.session_state.get("auth_email", "")
-    name  = get_auth_name()
+    """Renders the logged-in user chip at the top of the sidebar (legacy — kept for compat)."""
+    email  = st.session_state.get("auth_email", "")
+    name   = get_auth_name()
     is_sup = st.session_state.get("auth_is_supervisor", False)
     role   = "🔑 Supervisor" if is_sup else "👤 Farmer"
-    role_color = "rgba(255,255,255,0.9)" if is_sup else "rgba(255,255,255,0.7)"
 
     st.sidebar.markdown(f"""
-    <div style="
-        background: rgba(0,0,0,0.15);
-        border-radius: 10px;
-        padding: 0.7rem 0.9rem;
-        margin-bottom: 0.5rem;
-        border-left: 3px solid rgba(255,255,255,0.5);
-    ">
-        <div style="font-size:0.7rem;color:rgba(255,255,255,0.6);margin-bottom:2px">{role}</div>
+    <div style="background:rgba(255,255,255,0.08);border-radius:10px;
+                padding:0.7rem 0.9rem;margin-bottom:0.5rem;
+                border-left:3px solid rgba(255,255,255,0.4)">
+        <div style="font-size:0.68rem;color:rgba(255,255,255,0.55);margin-bottom:2px">{role}</div>
         <div style="font-weight:700;color:white;font-size:0.9rem">{name}</div>
-        <div style="font-size:0.7rem;color:rgba(255,255,255,0.55)">{email}</div>
+        <div style="font-size:0.68rem;color:rgba(255,255,255,0.5)">{email}</div>
     </div>
     """, unsafe_allow_html=True)
 
     if st.sidebar.button("Cerrar sesión", use_container_width=True, key="logout_btn"):
         _clear_auth()
         st.rerun()
+
+
+def render_topbar(updated_at: str = "", dia_corte: int = None, progreso_pct: float = None):
+    """
+    Renders the top navigation bar in the main content area.
+    Shows: logo + brand | user info | meta chips (date, progress).
+    Logout button rendered via Streamlit columns so it actually works.
+    """
+    import base64
+    from pathlib import Path
+    from datetime import date
+
+    name   = get_auth_name()
+    email  = st.session_state.get("auth_email", "")
+    is_sup = st.session_state.get("auth_is_supervisor", False)
+    role   = "Supervisor" if is_sup else "Farmer"
+    role_icon = "🔑" if is_sup else "👤"
+    today_str = date.today().strftime("%d %b %Y")
+
+    # Logo
+    logo_path = Path(__file__).parent.parent / "assets" / "rappi_logo.png"
+    if logo_path.exists():
+        b64 = base64.b64encode(logo_path.read_bytes()).decode()
+        logo_html = f'<img src="data:image/png;base64,{b64}" height="28" style="display:block">'
+    else:
+        logo_html = '<span style="font-size:1.2rem;font-weight:900;color:#E8281F">rappi</span>'
+
+    # Meta chips
+    chips_html = f'<span class="rb-meta-chip">📅 {today_str}</span>'
+    if updated_at:
+        chips_html += f'<span class="rb-meta-chip" style="margin-left:6px">🔄 {updated_at}</span>'
+    if progreso_pct is not None:
+        chips_html += (f'<span class="rb-meta-chip" style="margin-left:6px">'
+                       f'📊 Corte día {dia_corte} · {progreso_pct:.0f}% del mes</span>')
+
+    col_bar, col_btn = st.columns([12, 1])
+    with col_bar:
+        st.markdown(f"""
+        <div class="rb-topbar">
+            <div class="rb-topbar-brand">
+                {logo_html}
+                <div>
+                    <div class="brand-name">Rappi <span>Farmers</span></div>
+                    <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);
+                                margin-top:1px;letter-spacing:0.3px">Dashboard AR / UY</div>
+                </div>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+                {chips_html}
+                <div class="rb-user-badge">
+                    <div class="rb-status-dot"></div>
+                    <div>
+                        <div class="user-name">{role_icon} {name}</div>
+                        <div class="user-role">{role} · {email.split('@')[0]}</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+    with col_btn:
+        st.markdown("<div style='margin-top:0.3rem'>", unsafe_allow_html=True)
+        if st.button("⏏", help="Cerrar sesión", key="topbar_logout"):
+            _clear_auth()
+            st.rerun()
+        st.markdown("</div>", unsafe_allow_html=True)
