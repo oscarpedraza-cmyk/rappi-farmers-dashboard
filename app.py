@@ -360,7 +360,13 @@ def fmt_netrev(val):
 
 def fmt_nc(val):
     if val is None: return "<span style='color:#9CA3AF'>S/D</span>"
-    c = "#EF4444" if val > 40 else "#F59E0B" if val > 30 else "#00B341"
+    c = "#EF4444" if val > 40 else "#F59E0B" if val > 25 else "#00B341"
+    return f"<span style='color:{c};font-weight:700'>{val:.0f}%</span>"
+
+def fmt_recurr(val):
+    """% cuentas recurrentes sin contactar (2+ semanas)"""
+    if val is None: return "<span style='color:#9CA3AF'>S/D</span>"
+    c = "#EF4444" if val > 15 else "#F59E0B" if val > 5 else "#00B341"
     return f"<span style='color:{c};font-weight:700'>{val:.0f}%</span>"
 
 def fmt_prod(val):
@@ -420,7 +426,8 @@ for farmer, data in sorted_farmers:
         <td style="padding:10px 8px;text-align:center">{fmt_att(data.get('ATT_Rev_real'))}</td>
         <td style="padding:10px 8px;text-align:center">{fmt_netrev(data.get('Net_Rev_Adj'))}</td>
         <td style="padding:10px 8px;text-align:center">{fmt_pi(data.get('Pitch_Pct'))}</td>
-        <td style="padding:10px 8px;text-align:center">{fmt_nc(data.get('pct_no_contactados'))}</td>
+        <td style="padding:10px 8px;text-align:center">{fmt_nc(data.get('pct_cuentas_no_contactadas'))}</td>
+        <td style="padding:10px 8px;text-align:center">{fmt_recurr(data.get('pct_recurrencia_no'))}</td>
         <td style="padding:10px 8px;text-align:center">{fmt_prod(data.get('productividad_pct'))}</td>
         <td style="padding:10px 8px;text-align:center;font-weight:700;
                    color:{var_color}">{var_pct:.0f}%</td>
@@ -443,6 +450,7 @@ st.markdown(f"""
             <th style="padding:11px 8px;text-align:center">Net Rev</th>
             <th style="padding:11px 8px;text-align:center">Pitch</th>
             <th style="padding:11px 8px;text-align:center">No Cont.</th>
+            <th style="padding:11px 8px;text-align:center">Recurrencia</th>
             <th style="padding:11px 8px;text-align:center">Productividad</th>
             <th style="padding:11px 8px;text-align:center">Variable</th>
         </tr>
@@ -458,6 +466,8 @@ st.markdown("""
     <span>⚠️ <b>Q3</b> Seguimiento activo</span>
     <span>🚨 <b>Q4</b> Intervención urgente</span>
     <span>⛔ = Pierde variable (productividad &lt; 90%)</span>
+    <span>No Cont. = % cuentas únicas sin contactar</span>
+    <span>Recurrencia = % cuentas sin contactar en 2+ semanas</span>
     <span style="color:#00B341">■ ≥95%</span>
     <span style="color:#00B341">■ 90-95%</span>
     <span style="color:#F59E0B">■ 80-90%</span>

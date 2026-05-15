@@ -247,18 +247,32 @@ def load_productividad(xl):
     """
     Structure: header row 0, data from row 1.
     Col 2: Medio de Contacto | Col 4: ¿Contactado?
-    Col 14: Farmer | Col 26: Markdown | Col 35: Ads | Col 40: Churn
+    Col 9: Week | Col 14: Farmer | Col 15: Code (store ID)
+    Col 26: Markdown | Col 35: Ads | Col 40: Churn
     Qualifier: only Zoho Voice, Treble, Videoconferencia count as effective contacts
+
+    New metrics:
+      pct_no_contactados_cuentas: % unique accounts (col 15) with ≥1 "NO" / total accounts
+      recurrencia_no_contacto:    % accounts that were "NO" in 2+ different weeks
+      weekly_no_contacto:         [{week, total_cuentas, no_cuentas, pct}] for sparkline
     """
     EFFECTIVE_PATTERN = r"zoho voice|treble|videoconferencia|meets|meet"
 
     try:
         df = xl.parse("Productividad", header=0)
         df.columns = range(len(df.columns))
-        farmer_col, contact_col, md_col, ads_col, churn_col, medio_col = 14, 4, 26, 35, 40, 2
+        farmer_col  = 14
+        contact_col = 4
+        medio_col   = 2
+        week_col    = 9
+        store_col   = 15   # Code (store ID)
+        md_col, ads_col, churn_col = 26, 35, 40
 
         df = df[df[farmer_col].apply(lambda v: isinstance(v, str) and "@rappi" in v.lower())].copy()
         df[farmer_col] = df[farmer_col].str.strip().str.lower()
+
+        # Parse week as isoweek number for grouping
+        df["_week"] = pd.to_datetime(df[week_col], errors="coerce").dt.isocalendar().week.astype("Int64")
 
         rows = {}
         for farmer, sub in df.groupby(farmer_col):
@@ -267,7 +281,7 @@ def load_productividad(xl):
             no_cont = int((contactado_series == "NO").sum())
             pct_no_cont = round(no_cont / total * 100, 1) if total > 0 else 0
 
-            # Qualifier: Zoho Voice + Treble + Videoconferencia only
+            # ── Qualifier: Zoho Voice + Treble + Videoconferencia only ──────────
             effective_mask = sub[medio_col].astype(str).str.lower().str.contains(
                 EFFECTIVE_PATTERN, na=False
             )
@@ -279,6 +293,7 @@ def load_productividad(xl):
             else:
                 productividad_pct = None
 
+            # ── Palanca stats ────────────────────────────────────────────────────
             def palanca_stats(mask_col):
                 p = sub[sub[mask_col].astype(str).str.upper() == "SI"]
                 total_p = len(p)
@@ -286,17 +301,61 @@ def load_productividad(xl):
                 return total_p, cont_p
 
             churn_tot, churn_cont = palanca_stats(churn_col)
-            md_tot, md_cont = palanca_stats(md_col)
-            ads_tot, ads_cont = palanca_stats(ads_col)
+            md_tot,    md_cont    = palanca_stats(md_col)
+            ads_tot,   ads_cont   = palanca_stats(ads_col)
+
+            # ── Recurrencia de no contacto (por cuenta única) ────────────────────
+            # % accounts with ≥1 NO / total unique accounts
+            all_accounts = sub[store_col].dropna().unique()
+            n_accounts   = len(all_accounts)
+
+            cuentas_con_no = int(
+                sub[sub[contact_col].astype(str).str.upper() == "NO"][store_col]
+                .dropna().nunique()
+            )
+            pct_cuentas_no = round(cuentas_con_no / n_accounts * 100, 1) if n_accounts > 0 else 0
+
+            # % accounts that were NO in 2+ distinct weeks (recurrentes)
+            recurrentes = 0
+            sub_no = sub[sub[contact_col].astype(str).str.upper() == "NO"].copy()
+            if not sub_no.empty and "_week" in sub_no.columns:
+                weeks_per_account = sub_no.groupby(store_col)["_week"].nunique()
+                recurrentes = int((weeks_per_account >= 2).sum())
+            pct_recurrencia = round(recurrentes / n_accounts * 100, 1) if n_accounts > 0 else 0
+
+            # Weekly breakdown for sparkline / detail table
+            weekly_no = []
+            if "_week" in sub.columns:
+                for wk, wg in sub.groupby("_week"):
+                    wk_accounts = wg[store_col].dropna().nunique()
+                    wk_no       = wg[wg[contact_col].astype(str).str.upper() == "NO"][store_col].dropna().nunique()
+                    wk_pct      = round(wk_no / wk_accounts * 100, 1) if wk_accounts > 0 else 0
+                    weekly_no.append({
+                        "week":           int(wk),
+                        "total_cuentas":  int(wk_accounts),
+                        "no_cuentas":     int(wk_no),
+                        "pct":            wk_pct,
+                    })
+                weekly_no.sort(key=lambda x: x["week"])
 
             rows[farmer] = {
-                "total_follows": total,
-                "no_contactados": no_cont,
-                "pct_no_contactados": pct_no_cont,
-                "productividad_pct": productividad_pct,
-                "churn_follows": churn_tot, "churn_contactados": churn_cont,
-                "md_follows": md_tot, "md_contactados": md_cont,
-                "ads_follows": ads_tot, "ads_contactados": ads_cont,
+                "total_follows":              total,
+                "no_contactados":             no_cont,
+                "pct_no_contactados":         pct_no_cont,
+                "productividad_pct":          productividad_pct,
+                "churn_follows":              churn_tot,
+                "churn_contactados":          churn_cont,
+                "md_follows":                 md_tot,
+                "md_contactados":             md_cont,
+                "ads_follows":                ads_tot,
+                "ads_contactados":            ads_cont,
+                # New — recurrencia
+                "total_cuentas":              n_accounts,
+                "cuentas_no_contactadas":     cuentas_con_no,
+                "pct_cuentas_no_contactadas": pct_cuentas_no,
+                "cuentas_recurrentes_no":     recurrentes,
+                "pct_recurrencia_no":         pct_recurrencia,
+                "weekly_no_contacto":         weekly_no,
             }
         return rows
     except Exception as e:
@@ -483,16 +542,23 @@ def load_sheet_maestro(file_obj, dia_corte: int, dias_mes: int = 30) -> dict:
 
         # Productividad
         pr = prod.get(farmer, {})
-        row["total_follows"]        = pr.get("total_follows")
-        row["no_contactados"]       = pr.get("no_contactados")
-        row["pct_no_contactados"]   = pr.get("pct_no_contactados")
-        row["productividad_pct"]    = pr.get("productividad_pct")
-        row["churn_follows"]        = pr.get("churn_follows")
-        row["churn_contactados"]    = pr.get("churn_contactados")
-        row["md_follows"]           = pr.get("md_follows")
-        row["md_contactados"]       = pr.get("md_contactados")
-        row["ads_follows"]          = pr.get("ads_follows")
-        row["ads_contactados"]      = pr.get("ads_contactados")
+        row["total_follows"]              = pr.get("total_follows")
+        row["no_contactados"]             = pr.get("no_contactados")
+        row["pct_no_contactados"]         = pr.get("pct_no_contactados")
+        row["productividad_pct"]          = pr.get("productividad_pct")
+        row["churn_follows"]              = pr.get("churn_follows")
+        row["churn_contactados"]          = pr.get("churn_contactados")
+        row["md_follows"]                 = pr.get("md_follows")
+        row["md_contactados"]             = pr.get("md_contactados")
+        row["ads_follows"]                = pr.get("ads_follows")
+        row["ads_contactados"]            = pr.get("ads_contactados")
+        # Recurrencia de no contacto (nuevas métricas)
+        row["total_cuentas"]              = pr.get("total_cuentas")
+        row["cuentas_no_contactadas"]     = pr.get("cuentas_no_contactadas")
+        row["pct_cuentas_no_contactadas"] = pr.get("pct_cuentas_no_contactadas")
+        row["cuentas_recurrentes_no"]     = pr.get("cuentas_recurrentes_no")
+        row["pct_recurrencia_no"]         = pr.get("pct_recurrencia_no")
+        row["weekly_no_contacto"]         = pr.get("weekly_no_contacto", [])
 
         # Penetración
         row["brands_riesgo"] = penetracion.get(farmer, [])

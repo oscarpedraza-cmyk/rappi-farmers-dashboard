@@ -1,6 +1,7 @@
 import streamlit as st
 import io
 import sys
+import pandas as pd
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -195,15 +196,98 @@ for col, (label, fk, ck, sk) in zip(prod_cols, palancas):
         </div>
         """, unsafe_allow_html=True)
 
-# contactabilidad general
-total_f = int(data.get("total_follows") or 0)
-no_ct   = int(data.get("no_contactados") or 0)
-pct_nc  = float(data.get("pct_no_contactados") or 0)
+# ── Contactabilidad general ───────────────────────────────────────────────────
+total_f      = int(data.get("total_follows") or 0)
+no_ct        = int(data.get("no_contactados") or 0)
+pct_nc       = float(data.get("pct_no_contactados") or 0)
 
-if pct_nc > 40:
-    st.error(f"🔴 **Contactabilidad crítica:** {no_ct} de {total_f} aliados sin contactar ({pct_nc:.0f}%). Prioridad urgente esta semana.")
-elif pct_nc > 30:
-    st.warning(f"🟡 Contactabilidad baja: {no_ct} aliados sin contactar ({pct_nc:.0f}%). Revisar agenda.")
+# Recurrencia de no contacto (nuevas métricas por cuenta única)
+total_cuentas    = int(data.get("total_cuentas") or 0)
+cuentas_no       = int(data.get("cuentas_no_contactadas") or 0)
+pct_cuentas_no   = float(data.get("pct_cuentas_no_contactadas") or 0)
+cuentas_recurr   = int(data.get("cuentas_recurrentes_no") or 0)
+pct_recurr       = float(data.get("pct_recurrencia_no") or 0)
+weekly_no        = data.get("weekly_no_contacto") or []
+
+# Alert banner
+if pct_cuentas_no > 40:
+    st.error(f"🔴 **Contactabilidad crítica:** {cuentas_no} de {total_cuentas} cuentas sin contactar ({pct_cuentas_no:.0f}%). Prioridad urgente.")
+elif pct_cuentas_no > 25:
+    st.warning(f"🟡 Contactabilidad baja: {cuentas_no} cuentas sin contactar ({pct_cuentas_no:.0f}%). Revisar agenda.")
+
+# Cards de contactabilidad
+c_nc1, c_nc2, c_nc3 = st.columns(3)
+nc_color = "#00B341" if pct_cuentas_no <= 20 else "#F59E0B" if pct_cuentas_no <= 35 else "#EF4444"
+rc_color = "#00B341" if pct_recurr <= 5    else "#F59E0B" if pct_recurr <= 15    else "#EF4444"
+
+with c_nc1:
+    st.markdown(f"""
+    <div style="background:#FFFFFF;border-radius:12px;padding:1rem 1.2rem;
+                border-top:4px solid {nc_color};border:1px solid #E5E7EB;
+                box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+        <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">
+            📵 % Cuentas sin contactar
+        </div>
+        <div style="font-size:2rem;font-weight:800;color:{nc_color};margin:0.2rem 0">
+            {pct_cuentas_no:.1f}%
+        </div>
+        <div style="font-size:0.78rem;color:#374151">
+            {cuentas_no} cuentas / {total_cuentas} totales
+        </div>
+        <div style="font-size:0.7rem;color:#9CA3AF;margin-top:2px">
+            Por cuenta única (no por fila de follow)
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+with c_nc2:
+    st.markdown(f"""
+    <div style="background:#FFFFFF;border-radius:12px;padding:1rem 1.2rem;
+                border-top:4px solid {rc_color};border:1px solid #E5E7EB;
+                box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+        <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">
+            🔁 % Recurrencia sin contactar
+        </div>
+        <div style="font-size:2rem;font-weight:800;color:{rc_color};margin:0.2rem 0">
+            {pct_recurr:.1f}%
+        </div>
+        <div style="font-size:0.78rem;color:#374151">
+            {cuentas_recurr} cuentas sin contactar en 2+ semanas
+        </div>
+        <div style="font-size:0.7rem;color:#9CA3AF;margin-top:2px">
+            Requieren seguimiento urgente
+        </div>
+    </div>""", unsafe_allow_html=True)
+
+with c_nc3:
+    # Weekly breakdown mini-table
+    if weekly_no:
+        wk_html = "".join(
+            f'<div style="display:flex;justify-content:space-between;padding:3px 0;'
+            f'border-bottom:1px solid #F3F4F6">'
+            f'<span style="color:#6B7280;font-size:0.75rem">Semana {w["week"]}</span>'
+            f'<span style="font-weight:700;font-size:0.8rem;color:{"#EF4444" if w["pct"]>35 else "#F59E0B" if w["pct"]>20 else "#00B341"}">'
+            f'{w["no_cuentas"]}/{w["total_cuentas"]} · {w["pct"]:.0f}%</span></div>'
+            for w in weekly_no
+        )
+        st.markdown(f"""
+        <div style="background:#FFFFFF;border-radius:12px;padding:1rem 1.2rem;
+                    border-top:4px solid #4A6CF7;border:1px solid #E5E7EB;
+                    box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+            <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;
+                        letter-spacing:0.5px;font-weight:600;margin-bottom:6px">
+                📅 No contactadas por semana
+            </div>
+            {wk_html}
+        </div>""", unsafe_allow_html=True)
+    else:
+        st.markdown(f"""
+        <div style="background:#FFFFFF;border-radius:12px;padding:1rem 1.2rem;
+                    border-top:4px solid #9CA3AF;border:1px solid #E5E7EB">
+            <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;font-weight:600">
+                📅 Por semana
+            </div>
+            <div style="color:#9CA3AF;font-size:0.8rem;margin-top:4px">Sin datos semanales</div>
+        </div>""", unsafe_allow_html=True)
 
 # ── Variable summary (sin gauge) ──────────────────────────────────────────────
 st.markdown("---")
