@@ -40,10 +40,29 @@ att_raw_json = st.session_state.get("_att_prod_raw")
 if att_raw_json:
     try:
         df = pd.read_json(att_raw_json)
-    except Exception:
+    except Exception as _parse_err:
         df = None
+        if is_supervisor:
+            st.error(f"❌ Error parseando ATT prod JSON: {_parse_err}")
 else:
     df = None
+
+# ── DEBUG: only visible to supervisor ────────────────────────────────────────
+if is_supervisor:
+    with st.expander("🔧 Debug — estado de datos (solo supervisores)", expanded=False):
+        st.write("**`_att_prod_raw` en session_state:**", att_raw_json is not None)
+        st.write("**`_sheet_names` en session_state:**",
+                 st.session_state.get("_sheet_names", "no disponible"))
+        if df is not None:
+            st.write(f"**DataFrame cargado:** {len(df)} filas × {len(df.columns)} cols")
+            st.write("**Columnas:**", list(df.columns))
+            st.dataframe(df.head(3))
+        from core.db import load_latest_state as _lls
+        _ls = _lls()
+        if _ls:
+            st.write("**Claves en latest_state:**", list(_ls.keys()))
+            st.write("**att_prod_raw en latest_state:**", bool(_ls.get("att_prod_raw")))
+            st.write("**Actualizado por:**", _ls.get("updated_by"), "—", _ls.get("updated_at", "")[:19])
 
 # ── FOLLOW TRACK VIEW ─────────────────────────────────────────────────────────
 if df is not None and not df.empty:

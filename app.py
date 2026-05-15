@@ -90,8 +90,13 @@ with st.sidebar:
                     # Raw sheets for sub-pages
                     prod_raw_json     = None
                     att_prod_raw_json = None
+                    _sheet_debug      = []
+                    _att_error        = None
                     try:
+                        # Seek back — load_sheet_maestro() already read the file stream
+                        uploaded_file.seek(0)
                         xl = pd.ExcelFile(uploaded_file, engine="openpyxl")
+                        _sheet_debug = list(xl.sheet_names)
                         # Productividad → Conversión tab
                         if "Productividad" in xl.sheet_names:
                             df_prod_raw = xl.parse("Productividad", header=0)
@@ -106,7 +111,8 @@ with st.sidebar:
                             prod_raw_json = df_prod_raw.to_json()
                         # ATT productividad → Follow Track tab (raw, sin transformar)
                         att_sheet = next(
-                            (s for s in xl.sheet_names if s.strip().lower() == "att productividad"), None
+                            (s for s in xl.sheet_names
+                             if s.strip().lower() == "att productividad"), None
                         )
                         if att_sheet:
                             df_att_raw = xl.parse(att_sheet, header=0)
@@ -116,7 +122,7 @@ with st.sidebar:
                             att_prod_raw_json = df_att_raw.to_json()
                         st.session_state["_sheet_names"] = xl.sheet_names
                     except Exception as _e:
-                        pass
+                        _att_error = str(_e)
 
                     # ── Auto-save for team ─────────────────────────────────
                     save_latest_state(
@@ -129,7 +135,16 @@ with st.sidebar:
                     )
 
                     n = len(farmers_data)
-                    st.success(f"✅ {n} farmers cargados y guardados para el equipo")
+                    if att_prod_raw_json:
+                        st.success(f"✅ {n} farmers cargados · Follow Track ✓")
+                    else:
+                        sheets_found = ", ".join(_sheet_debug) if _sheet_debug else "ninguna"
+                        st.success(f"✅ {n} farmers cargados para el equipo")
+                        st.warning(
+                            f"⚠️ No se encontró la pestaña **ATT productividad** en el archivo. "
+                            f"Pestañas detectadas: `{sheets_found}`"
+                            + (f"\nError: {_att_error}" if _att_error else "")
+                        )
                 except Exception as e:
                     st.error(f"Error: {e}")
 
