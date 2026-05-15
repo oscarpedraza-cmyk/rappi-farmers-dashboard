@@ -124,10 +124,22 @@ with st.sidebar:
                             att_prod_raw_json = df_att_raw.to_json()
 
                         # Conversión → DETALLE real por store (falsa conversión)
+                        # Detecta la pestaña por nombre O por contenido (columna FARMER + MD)
+                        _conv_name_candidates = {"conversión", "conversion", "detalle", "hoja1"}
                         conv_sheet = next(
                             (s for s in xl.sheet_names
-                             if s.strip().lower() in ("conversión", "conversion", "detalle")), None
+                             if s.strip().lower() in _conv_name_candidates), None
                         )
+                        if not conv_sheet:
+                            # Fallback: busca cualquier pestaña que tenga columna FARMER y MD
+                            for _s in xl.sheet_names:
+                                try:
+                                    _probe = xl.parse(_s, header=0, nrows=3)
+                                    if "FARMER" in _probe.columns and "MD" in _probe.columns:
+                                        conv_sheet = _s
+                                        break
+                                except Exception:
+                                    pass
                         if conv_sheet:
                             df_conv_raw = xl.parse(conv_sheet, header=0)
                             df_conv_raw = df_conv_raw.dropna(how="all")
