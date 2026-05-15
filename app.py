@@ -86,25 +86,37 @@ render_topbar(updated_at=updated_at, dia_corte=dia_corte, progreso_pct=progreso_
 
 # ── SUPERVISOR CONTROLS (top of main content) ─────────────────────────────────
 if is_supervisor:
-    with st.expander("⚙️ Cargar datos y configuración", expanded="farmers_data" not in st.session_state):
-        col_cfg1, col_cfg2, col_up = st.columns([2, 2, 5])
+    _has_data = "farmers_data" in st.session_state
+    with st.expander("⚙️  Cargar / actualizar datos", expanded=not _has_data):
+        # ── Row 1: Config chips + uploader ────────────────────────────────────
+        st.markdown("""
+        <div style="font-size:0.78rem;font-weight:600;color:#64748B;
+                    text-transform:uppercase;letter-spacing:0.7px;margin-bottom:0.6rem">
+            Configuración del corte
+        </div>""", unsafe_allow_html=True)
+
+        col_cfg1, col_cfg2, col_gap, col_up = st.columns([1.4, 1.4, 0.3, 6])
         with col_cfg1:
             dia_corte = st.number_input(
                 "Día de corte",
                 min_value=1, max_value=31,
                 value=today.day - 1 if today.day > 1 else 1,
-                help="Siempre es el día de envío − 1",
+                help="Día de envío − 1",
                 key="dia_corte_input"
             )
         with col_cfg2:
-            dias_mes = st.number_input("Días del mes", min_value=28, max_value=31,
-                                       value=31, key="dias_mes_input")
+            dias_mes = st.number_input(
+                "Días del mes",
+                min_value=28, max_value=31,
+                value=31, key="dias_mes_input"
+            )
         with col_up:
             uploaded_file = st.file_uploader(
-                "Sheet_Maestro_Farmers.xlsx",
+                "📂  Sheet Maestro (xlsx)",
                 type=["xlsx"],
-                help="Sube el archivo — se comparte automáticamente con todo el equipo",
-                key="file_uploader_main"
+                help="Sheet_Maestro_Farmers.xlsx — se publica automáticamente para todo el equipo",
+                key="file_uploader_main",
+                label_visibility="visible"
             )
 
         if uploaded_file:
@@ -195,10 +207,12 @@ if is_supervisor:
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-        col_snap, col_hist = st.columns(2)
+        # ── Row 2: Snapshot controls ───────────────────────────────────────────
+        st.markdown('<div style="height:0.3rem"></div>', unsafe_allow_html=True)
+        col_snap, col_hist, col_spacer = st.columns([2, 2, 5])
         with col_snap:
             if "farmers_data" in st.session_state:
-                if st.button("💾 Guardar snapshot histórico", use_container_width=True):
+                if st.button("💾 Guardar snapshot", use_container_width=True):
                     save_snapshot(
                         snap_date    = st.session_state["snap_date"],
                         dia_corte    = st.session_state["dia_corte"],
@@ -208,23 +222,57 @@ if is_supervisor:
         with col_hist:
             available_dates = get_available_dates()
             if available_dates:
-                st.info(f"📅 {len(available_dates)} snapshots históricos")
+                st.markdown(f"""
+                <div style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:8px;
+                            padding:0.55rem 0.9rem;font-size:0.83rem;color:#0369A1;font-weight:600">
+                    📅 {len(available_dates)} snapshot{"s" if len(available_dates) != 1 else ""} histórico{"s" if len(available_dates) != 1 else ""}
+                </div>""", unsafe_allow_html=True)
 
 # ── No data loaded ─────────────────────────────────────────────────────────────
 if "farmers_data" not in st.session_state:
     if is_supervisor:
-        st.info("☝️ **Expande la sección de arriba** y sube el Sheet Maestro para comenzar. Los datos quedarán disponibles para todo el equipo.")
-    else:
-        st.warning("⏳ **El supervisor aún no ha cargado datos para este período.** Vuelve más tarde o contacta a Oscar Pedraza.")
         st.markdown("""
+        <div style="background:#FFFBEB;border:1px solid #FDE68A;border-left:4px solid #F59E0B;
+                    border-radius:10px;padding:1rem 1.3rem;margin-top:0.5rem;
+                    font-size:0.88rem;color:#78350F">
+            ☝️ <b>Expande la sección de arriba</b> y sube el Sheet Maestro para comenzar.
+            Los datos quedarán disponibles automáticamente para todo el equipo.
+        </div>
+        """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div style="background:#FFF7F7;border:1px solid #FECACA;border-left:4px solid #EF4444;
+                    border-radius:10px;padding:1rem 1.3rem;margin-top:0.5rem;
+                    font-size:0.88rem;color:#7F1D1D">
+            ⏳ <b>El supervisor aún no ha cargado datos para este período.</b>
+            Vuelve más tarde o contacta a Oscar Pedraza.
+        </div>
         <div class="rb-card" style="margin-top:1rem">
-            <h4 style="color:#E8281F;margin:0 0 0.5rem">¿Qué verás aquí?</h4>
-            <ul style="color:#374151;margin:0;padding-left:1.2rem">
-                <li>📊 Semáforo de tus métricas comerciales del mes</li>
-                <li>💰 Estado de tu compensación variable</li>
-                <li>🎯 Tu conversión por palanca (MD, Ads, Churn)</li>
-                <li>📈 Tendencias históricas de tus KPIs</li>
-            </ul>
+            <div style="font-weight:700;color:#E8281F;margin-bottom:0.6rem;font-size:1rem">
+                ¿Qué verás aquí?
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem">
+                <div style="display:flex;align-items:center;gap:0.5rem;
+                            background:#F8FAFC;border-radius:8px;padding:0.6rem 0.8rem;
+                            font-size:0.84rem;color:#374151">
+                    📊 Semáforo de tus métricas del mes
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;
+                            background:#F8FAFC;border-radius:8px;padding:0.6rem 0.8rem;
+                            font-size:0.84rem;color:#374151">
+                    💰 Estado de tu compensación variable
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;
+                            background:#F8FAFC;border-radius:8px;padding:0.6rem 0.8rem;
+                            font-size:0.84rem;color:#374151">
+                    🎯 Conversión por palanca (MD, Ads, Churn)
+                </div>
+                <div style="display:flex;align-items:center;gap:0.5rem;
+                            background:#F8FAFC;border-radius:8px;padding:0.6rem 0.8rem;
+                            font-size:0.84rem;color:#374151">
+                    📈 Tendencias históricas de tus KPIs
+                </div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
     st.stop()
@@ -247,7 +295,20 @@ if not is_supervisor:
         </div>
         """, unsafe_allow_html=True)
 
-st.markdown(f"### Resumen del equipo — Corte día {dia_corte} | {progreso_pct:.1f}% del mes")
+# ── Section header ────────────────────────────────────────────────────────────
+st.markdown(f"""
+<div style="display:flex;align-items:center;justify-content:space-between;
+            margin:0.2rem 0 1rem">
+    <div>
+        <div style="font-size:1.25rem;font-weight:800;color:#0F172A;letter-spacing:-0.3px">
+            Resumen del equipo
+        </div>
+        <div style="font-size:0.8rem;color:#64748B;margin-top:2px">
+            Corte día <b>{dia_corte}</b> · <b>{progreso_pct:.1f}%</b> del mes completado
+        </div>
+    </div>
+</div>
+""", unsafe_allow_html=True)
 
 tier_counts = {"red": 0, "yellow": 0, "green": 0}
 metric_reds  = {m: 0 for m in ["Churn", "MD Total", "MD Pro", "Ads Bookings", "Ads Revenue",
@@ -261,23 +322,62 @@ for farmer, data in farmers_data.items():
         if s == "red" and metric in metric_reds:
             metric_reds[metric] += 1
 
+n_total = sum(tier_counts.values())
+
+# KPI overview cards
 col1, col2, col3, col4 = st.columns(4)
-with col1: st.metric("🔴 En rojo",     tier_counts["red"],
-                      help="Farmers con al menos 1 KPI en rojo")
-with col2: st.metric("🟡 En amarillo", tier_counts["yellow"])
-with col3: st.metric("🟢 En verde",    tier_counts["green"])
-with col4: st.metric("👥 Total farmers", sum(tier_counts.values()))
+_kpi_style = "border-radius:12px;padding:1rem 1.2rem;text-align:center;font-weight:700"
+with col1:
+    st.markdown(f"""<div style="background:#FEF2F2;border:1px solid #FECACA;{_kpi_style}">
+        <div style="font-size:2rem;color:#EF4444">{tier_counts["red"]}</div>
+        <div style="font-size:0.75rem;color:#9CA3AF;margin-top:4px;font-weight:600">🔴 EN ROJO</div>
+    </div>""", unsafe_allow_html=True)
+with col2:
+    st.markdown(f"""<div style="background:#FFFBEB;border:1px solid #FDE68A;{_kpi_style}">
+        <div style="font-size:2rem;color:#F59E0B">{tier_counts["yellow"]}</div>
+        <div style="font-size:0.75rem;color:#9CA3AF;margin-top:4px;font-weight:600">🟡 EN AMARILLO</div>
+    </div>""", unsafe_allow_html=True)
+with col3:
+    st.markdown(f"""<div style="background:#F0FDF4;border:1px solid #BBF7D0;{_kpi_style}">
+        <div style="font-size:2rem;color:#059669">{tier_counts["green"]}</div>
+        <div style="font-size:0.75rem;color:#9CA3AF;margin-top:4px;font-weight:600">🟢 EN VERDE</div>
+    </div>""", unsafe_allow_html=True)
+with col4:
+    st.markdown(f"""<div style="background:#F8FAFC;border:1px solid #E2E8F0;{_kpi_style}">
+        <div style="font-size:2rem;color:#0F172A">{n_total}</div>
+        <div style="font-size:0.75rem;color:#9CA3AF;margin-top:4px;font-weight:600">👥 TOTAL FARMERS</div>
+    </div>""", unsafe_allow_html=True)
 
-st.markdown("#### KPIs más críticos del equipo")
-metric_cols   = st.columns(4)
+# KPIs críticos
 sorted_metrics = sorted(metric_reds.items(), key=lambda x: x[1], reverse=True)
-for i, (metric, count) in enumerate(sorted_metrics[:4]):
-    with metric_cols[i]:
-        color = "🔴" if count >= 5 else "🟡" if count >= 2 else "🟢"
-        st.metric(f"{color} {metric}", f"{count} farmers en rojo")
+top_metrics    = [(m, c) for m, c in sorted_metrics if c > 0][:4]
+if top_metrics:
+    st.markdown("""
+    <div style="font-size:0.78rem;font-weight:700;color:#64748B;text-transform:uppercase;
+                letter-spacing:0.7px;margin:1.1rem 0 0.5rem">KPIs más críticos</div>
+    """, unsafe_allow_html=True)
+    metric_cols = st.columns(len(top_metrics))
+    for i, (metric, count) in enumerate(top_metrics):
+        bg = "#FEF2F2" if count >= 5 else "#FFFBEB" if count >= 2 else "#F0FDF4"
+        fc = "#EF4444" if count >= 5 else "#F59E0B" if count >= 2 else "#059669"
+        bc = "#FECACA" if count >= 5 else "#FDE68A" if count >= 2 else "#BBF7D0"
+        with metric_cols[i]:
+            st.markdown(f"""
+            <div style="background:{bg};border:1px solid {bc};border-radius:10px;
+                        padding:0.8rem 1rem;text-align:center">
+                <div style="font-size:1.5rem;font-weight:800;color:{fc}">{count}</div>
+                <div style="font-size:0.73rem;color:#6B7280;font-weight:600;margin-top:3px">{metric}</div>
+            </div>""", unsafe_allow_html=True)
 
-st.markdown("---")
-st.markdown("### Semáforo del equipo")
+st.markdown('<div style="height:0.5rem"></div>', unsafe_allow_html=True)
+
+# ── Semáforo table header ──────────────────────────────────────────────────────
+st.markdown("""
+<div style="font-size:1rem;font-weight:800;color:#0F172A;
+            letter-spacing:-0.2px;margin:0.8rem 0 0.6rem">
+    Semáforo del equipo
+</div>
+""", unsafe_allow_html=True)
 
 # ── Scores & quartiles ────────────────────────────────────────────────────────
 all_scores = {}

@@ -45,6 +45,12 @@ html, body, [class*="css"], [class*="st-"] {{
 footer    {{ visibility: hidden; }}
 header    {{ visibility: hidden; }}
 
+/* ── Hide sidebar collapse/expand toggle button ──────────────────────────── */
+[data-testid="stSidebarCollapsedControl"] {{ display: none !important; }}
+[data-testid="collapsedControl"]          {{ display: none !important; }}
+section[data-testid="stSidebar"][aria-expanded="false"] + div .main
+    .block-container {{ padding-left: 1.8rem !important; }}
+
 /* ── Sidebar — dark navy ─────────────────────────────────────────────────── */
 [data-testid="stSidebar"] > div:first-child {{
     background: {BG_SIDEBAR} !important;
