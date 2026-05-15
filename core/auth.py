@@ -1,5 +1,6 @@
 """
 Authentication & authorization for Rappi Farmers Dashboard.
+v2 — includes render_topbar() for the top navigation bar.
 
 Flow:
   1. User enters @rappi.com email → validated against allowed list
