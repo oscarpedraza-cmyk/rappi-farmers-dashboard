@@ -1,31 +1,72 @@
 """
 Authentication & authorization for Rappi Farmers Dashboard.
-v2 — includes render_topbar() for the top navigation bar.
+v3 — persistent 6-hour sessions via server-side token + query param.
 
 Flow:
   1. User enters @rappi.com email → validated against allowed list
   2. If supervisor email → additional PIN required (from st.secrets or default)
-  3. Session state stores auth info → persists during the session
-  4. Every page calls require_auth() at top → redirects to login if needed
+  3. On success → session token created, stored in ?_s=TOKEN in the URL
+  4. Every page calls require_auth() → restores auth from token if session_state is empty
+  5. Token expires after 6 hours → forces re-login
 
 Roles:
   - supervisor (oscar.pedraza@rappi.com) → can upload Sheet Maestro, sees admin panel
   - farmer (everyone in FARMERS_EMAILS) → read-only view of latest saved state
 """
+import time
+import secrets
 import streamlit as st
 from core.loader import FARMERS_EMAILS, EXCLUDED_EMAILS, FARMER_NAMES
 
 SUPERVISOR_EMAIL = "oscar.pedraza@rappi.com"
 SUPERVISOR_NAME  = "Oscar Pedraza"
+SESSION_TTL      = 6 * 3600   # seconds — 6 hours
 
+
+# ── Server-side token store (survives browser refresh, cleared on server restart) ──
+@st.cache_resource
+def _token_store() -> dict:
+    return {}
+
+
+def _create_token(email: str, is_supervisor: bool) -> str:
+    token = secrets.token_urlsafe(32)
+    _token_store()[token] = {
+        "email":         email,
+        "is_supervisor": is_supervisor,
+        "created":       time.time(),
+    }
+    return token
+
+
+def _validate_token(token: str) -> dict | None:
+    entry = _token_store().get(token)
+    if not entry:
+        return None
+    if time.time() - entry["created"] > SESSION_TTL:
+        _token_store().pop(token, None)
+        return None
+    return entry
+
+
+def _purge_expired_tokens():
+    """Remove expired tokens to avoid unbounded growth."""
+    now = time.time()
+    expired = [k for k, v in _token_store().items()
+               if now - v["created"] > SESSION_TTL]
+    for k in expired:
+        _token_store().pop(k, None)
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
 def _logo_html(width: int = 120) -> str:
-    """Returns an <img> tag with the Rappi logo embedded as base64, or a text fallback."""
     import base64
     from pathlib import Path
     logo_path = Path(__file__).parent.parent / "assets" / "rappi_logo.png"
     if logo_path.exists():
         b64 = base64.b64encode(logo_path.read_bytes()).decode()
-        return f'<img src="data:image/png;base64,{b64}" width="{width}" style="display:block;margin:0 auto 0.8rem">'
+        return (f'<img src="data:image/png;base64,{b64}" width="{width}" '
+                f'style="display:block;margin:0 auto 0.8rem">')
     return '<div style="font-size:1.8rem;font-weight:900;color:#E8281F;text-align:center;margin-bottom:0.8rem">rappi</div>'
 
 
@@ -37,17 +78,49 @@ def _supervisor_pin() -> str:
     try:
         return st.secrets["SUPERVISOR_PIN"]
     except Exception:
-        return "Rappi2026"   # Oscar debe cambiar esto en Streamlit Cloud → Settings → Secrets
+        return "Rappi2026"
+
+
+# ── Set / clear auth ──────────────────────────────────────────────────────────
+def _set_auth(email: str, is_supervisor: bool, persist: bool = True):
+    """Write auth to session_state. If persist=True, also create a URL token."""
+    name = FARMER_NAMES.get(email, email.split("@")[0].replace(".", " ").title())
+    if email == SUPERVISOR_EMAIL:
+        name = SUPERVISOR_NAME
+    st.session_state["auth_email"]         = email
+    st.session_state["auth_is_supervisor"] = is_supervisor
+    st.session_state["auth_name"]          = name
+
+    if persist:
+        _purge_expired_tokens()
+        token = _create_token(email, is_supervisor)
+        # Store in URL so it survives browser refresh / tab reopen
+        try:
+            st.query_params["_s"] = token
+        except Exception:
+            pass
+
+
+def _clear_auth():
+    # Invalidate the stored token
+    try:
+        token = st.query_params.get("_s")
+        if token:
+            _token_store().pop(token, None)
+            del st.query_params["_s"]
+    except Exception:
+        pass
+    for k in ["auth_email", "auth_is_supervisor", "auth_name",
+              "_auth_step", "_auth_pending_email"]:
+        st.session_state.pop(k, None)
 
 
 # ── Login page ────────────────────────────────────────────────────────────────
 def render_login():
-    """Renders the Rappi-branded login page. Call before st.stop()."""
-
-    # Hide sidebar and toolbar on login screen
     st.markdown("""
     <style>
     [data-testid="stSidebar"] { display: none !important; }
+    [data-testid="stSidebarCollapsedControl"] { display: none !important; }
     header[data-testid="stHeader"] { background: transparent; }
     #MainMenu { visibility: hidden; }
     footer { visibility: hidden; }
@@ -55,7 +128,6 @@ def render_login():
     </style>
     """, unsafe_allow_html=True)
 
-    # Center login card
     _, col, _ = st.columns([1, 1.4, 1])
     with col:
         st.markdown(_logo_html(130), unsafe_allow_html=True)
@@ -76,18 +148,19 @@ def render_login():
             </p>
         """, unsafe_allow_html=True)
 
-        # ── Pending supervisor PIN flow ────────────────────────────────────────
+        # ── Supervisor PIN step ────────────────────────────────────────────────
         if st.session_state.get("_auth_step") == "pin":
             pending = st.session_state.get("_auth_pending_email", "")
-            st.markdown(f'<p style="color:#555;font-size:0.85rem">Supervisor detectado: <b>{pending}</b></p>',
-                        unsafe_allow_html=True)
+            st.markdown(
+                f'<p style="color:#555;font-size:0.85rem">Supervisor detectado: <b>{pending}</b></p>',
+                unsafe_allow_html=True
+            )
             pin = st.text_input("🔒 PIN de supervisor", type="password",
-                                placeholder="Ingresa tu PIN",
-                                key="pin_input")
+                                placeholder="Ingresa tu PIN", key="pin_input")
             c1, c2 = st.columns(2)
             if c1.button("✅ Confirmar", use_container_width=True, type="primary"):
                 if pin == _supervisor_pin():
-                    _set_auth(pending, is_supervisor=True)
+                    _set_auth(pending, is_supervisor=True, persist=True)
                     st.session_state.pop("_auth_step", None)
                     st.session_state.pop("_auth_pending_email", None)
                     st.rerun()
@@ -98,7 +171,7 @@ def render_login():
                 st.session_state.pop("_auth_pending_email", None)
                 st.rerun()
 
-        # ── Email login flow ───────────────────────────────────────────────────
+        # ── Email step ────────────────────────────────────────────────────────
         else:
             email_raw = st.text_input(
                 "📧 Tu correo @rappi.com",
@@ -109,7 +182,6 @@ def render_login():
                 _handle_login(email_raw)
 
         st.markdown("</div>", unsafe_allow_html=True)
-
         st.markdown("""
         <p style="text-align:center;color:#AAA;font-size:0.75rem;margin-top:1rem">
             Solo accesible con correos autorizados del equipo Rappi AR/UY
@@ -119,72 +191,68 @@ def render_login():
 
 def _handle_login(email_raw: str):
     email = email_raw.strip().lower()
-
     if not email:
         st.warning("Ingresa tu correo.")
         return
-
     if not email.endswith("@rappi.com"):
         st.error("❌ Solo se permiten correos @rappi.com.")
         return
-
-    allowed = _allowed_emails()
-    if email not in allowed:
-        st.error("❌ Tu correo no está habilitado para acceder al dashboard. Contacta a tu supervisor.")
+    if email not in _allowed_emails():
+        st.error("❌ Tu correo no está habilitado. Contacta a tu supervisor.")
         return
-
     if email == SUPERVISOR_EMAIL:
         st.session_state["_auth_step"] = "pin"
         st.session_state["_auth_pending_email"] = email
         st.rerun()
     else:
-        _set_auth(email, is_supervisor=False)
+        _set_auth(email, is_supervisor=False, persist=True)
         st.rerun()
 
 
-def _set_auth(email: str, is_supervisor: bool):
-    name = FARMER_NAMES.get(email, email.split("@")[0].replace(".", " ").title())
-    if email == SUPERVISOR_EMAIL:
-        name = SUPERVISOR_NAME
-    st.session_state["auth_email"]         = email
-    st.session_state["auth_is_supervisor"] = is_supervisor
-    st.session_state["auth_name"]          = name
-
-
-# ── Auth gate (call at top of every page) ─────────────────────────────────────
+# ── Auth gate ─────────────────────────────────────────────────────────────────
 def require_auth() -> tuple[str, bool]:
     """
-    Returns (email, is_supervisor). Shows login page and stops if not authenticated.
-    Place this at the very top of every Streamlit page/app.
+    Returns (email, is_supervisor).
+    Priority: session_state → URL token → login page.
     """
-    if "auth_email" not in st.session_state:
-        render_login()
-        st.stop()
+    # 1. Already authenticated this WebSocket session
+    if "auth_email" in st.session_state:
+        email        = st.session_state["auth_email"]
+        is_supervisor = st.session_state.get("auth_is_supervisor", False)
+        if email in _allowed_emails():
+            return email, is_supervisor
+        _clear_auth()   # email removed from allowed list → force re-login
 
-    email        = st.session_state["auth_email"]
-    is_supervisor = st.session_state.get("auth_is_supervisor", False)
+    # 2. Try to restore from persistent token in URL (?_s=TOKEN)
+    try:
+        token = st.query_params.get("_s")
+    except Exception:
+        token = None
 
-    # Re-validate (in case allowed list changed)
-    if email not in _allowed_emails():
-        _clear_auth()
-        render_login()
-        st.stop()
+    if token:
+        entry = _validate_token(token)
+        if entry and entry["email"] in _allowed_emails():
+            # Restore session without creating a new token (avoid rerun loop)
+            _set_auth(entry["email"], entry["is_supervisor"], persist=False)
+            return entry["email"], entry["is_supervisor"]
+        else:
+            # Token expired or invalid → remove it
+            try:
+                del st.query_params["_s"]
+            except Exception:
+                pass
 
-    return email, is_supervisor
+    # 3. Must log in
+    render_login()
+    st.stop()
 
 
 def get_auth_name() -> str:
     return st.session_state.get("auth_name", "Usuario")
 
 
-def _clear_auth():
-    for k in ["auth_email", "auth_is_supervisor", "auth_name",
-              "_auth_step", "_auth_pending_email"]:
-        st.session_state.pop(k, None)
-
-
 def render_sidebar_user_badge():
-    """Renders the logged-in user chip at the top of the sidebar (legacy — kept for compat)."""
+    """Legacy — kept for compat."""
     email  = st.session_state.get("auth_email", "")
     name   = get_auth_name()
     is_sup = st.session_state.get("auth_is_supervisor", False)
@@ -209,20 +277,18 @@ def render_topbar(updated_at: str = "", dia_corte: int = None, progreso_pct: flo
     """
     Renders the top navigation bar in the main content area.
     Shows: logo + brand | user info | meta chips (date, progress).
-    Logout button rendered via Streamlit columns so it actually works.
     """
     import base64
     from pathlib import Path
     from datetime import date
 
-    name   = get_auth_name()
-    email  = st.session_state.get("auth_email", "")
-    is_sup = st.session_state.get("auth_is_supervisor", False)
-    role   = "Supervisor" if is_sup else "Farmer"
+    name      = get_auth_name()
+    email     = st.session_state.get("auth_email", "")
+    is_sup    = st.session_state.get("auth_is_supervisor", False)
+    role      = "Supervisor" if is_sup else "Farmer"
     role_icon = "🔑" if is_sup else "👤"
     today_str = date.today().strftime("%d %b %Y")
 
-    # Logo
     logo_path = Path(__file__).parent.parent / "assets" / "rappi_logo.png"
     if logo_path.exists():
         b64 = base64.b64encode(logo_path.read_bytes()).decode()
@@ -230,7 +296,6 @@ def render_topbar(updated_at: str = "", dia_corte: int = None, progreso_pct: flo
     else:
         logo_html = '<span style="font-size:1.2rem;font-weight:900;color:#E8281F">rappi</span>'
 
-    # Meta chips
     chips_html = f'<span class="rb-meta-chip">📅 {today_str}</span>'
     if updated_at:
         chips_html += f'<span class="rb-meta-chip" style="margin-left:6px">🔄 {updated_at}</span>'

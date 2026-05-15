@@ -291,6 +291,17 @@ section[data-testid="stSidebar"][aria-expanded="false"] + div .main
     border-radius: 12px !important;
     padding: 0.5rem !important;
 }}
+/* Fix overlapping "uploadUpload" duplicate text on the button */
+[data-testid="stFileUploaderDropzone"] button span:first-child {{
+    display: none !important;
+}}
+[data-testid="stFileUploaderDropzone"] button {{
+    min-width: 90px !important;
+}}
+/* Hide the redundant small-print label that duplicates the button text */
+[data-testid="stFileUploaderDropzoneInstructions"] > div > span:last-child {{
+    display: none !important;
+}}
 
 /* ── Tabs ────────────────────────────────────────────────────────────────── */
 [data-testid="stTab"] {{ font-weight: 600 !important; font-size: 0.88rem !important; }}
