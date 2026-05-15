@@ -130,30 +130,65 @@ with col4:
     st.metric("💯 Variable ≥ 90%", int(full_var))
 
 # ── Revenue Share ADS distribution ───────────────────────────────────────────
-st.markdown("---")
-st.markdown("## Distribución Revenue Share ADS")
+st.markdown('<div style="height:0.5rem"></div>', unsafe_allow_html=True)
+st.markdown("""
+<div style="font-size:1rem;font-weight:800;color:#0F172A;letter-spacing:-0.2px;margin-bottom:0.3rem">
+    Revenue Share ADS — Distribución del equipo
+</div>
+<div style="font-size:0.8rem;color:#64748B;margin-bottom:1rem">
+    Comisión adicional sobre ADS Revenue según el % de cumplimiento del objetivo.
+    Requiere superar el <b>90% del ATT de ADS Revenue</b> para activarse.
+</div>
+""", unsafe_allow_html=True)
 
-rs_counts = df["RS ADS"].value_counts().reset_index()
-rs_counts.columns = ["RS %", "Farmers"]
-rs_label_map = {0: "No aplica (< 90%)", 10: "10% (90–100%)", 20: "20% (100–120%)", 30: "30% (> 120%)"}
-rs_color_map = {0: "#EF4444", 10: "#F59E0B", 20: "#00C9A7", 30: "#00B341"}
+RS_TIERS = [
+    {"pct": 0,  "label": "Sin RS",     "range": "< 90% ATT",      "bg": "#FEF2F2", "border": "#FECACA", "color": "#EF4444", "icon": "✗"},
+    {"pct": 10, "label": "10% RS",     "range": "90 – 100% ATT",  "bg": "#FFFBEB", "border": "#FDE68A", "color": "#F59E0B", "icon": "●"},
+    {"pct": 20, "label": "20% RS",     "range": "100 – 120% ATT", "bg": "#ECFDF5", "border": "#A7F3D0", "color": "#059669", "icon": "●"},
+    {"pct": 30, "label": "30% RS 🔥",  "range": "> 120% ATT",     "bg": "#F0FDF4", "border": "#86EFAC", "color": "#16A34A", "icon": "★"},
+]
 
-fig_rs = go.Figure(go.Bar(
-    x=[rs_label_map.get(r, str(r)) for r in rs_counts["RS %"]],
-    y=rs_counts["Farmers"],
-    marker_color=[rs_color_map.get(r, "#9CA3AF") for r in rs_counts["RS %"]],
-    text=rs_counts["Farmers"],
-    textposition="outside",
-))
-fig_rs.update_layout(
-    height=300,
-    margin=dict(l=10, r=10, t=30, b=10),
-    plot_bgcolor="rgba(0,0,0,0)",
-    paper_bgcolor="rgba(0,0,0,0)",
-    showlegend=False,
-    yaxis_title="# Farmers",
-)
-st.plotly_chart(fig_rs, use_container_width=True)
+# Group farmers by tier
+tier_farmers = {t["pct"]: [] for t in RS_TIERS}
+for _, row in df.iterrows():
+    rs_val = row["RS ADS"]
+    if rs_val in tier_farmers:
+        tier_farmers[rs_val].append(row["Farmer"])
+    else:
+        tier_farmers[0].append(row["Farmer"])
+
+n_total_rs = len(df)
+cols_rs = st.columns(4)
+for col, tier in zip(cols_rs, RS_TIERS):
+    farmers_in_tier = tier_farmers[tier["pct"]]
+    count = len(farmers_in_tier)
+    pct_of_team = count / n_total_rs * 100 if n_total_rs else 0
+    names_html = "".join(
+        f'<div style="font-size:0.75rem;color:#374151;padding:2px 0;'
+        f'border-bottom:1px solid {tier["border"]}66;white-space:nowrap;'
+        f'overflow:hidden;text-overflow:ellipsis">{n}</div>'
+        for n in farmers_in_tier
+    ) if farmers_in_tier else f'<div style="font-size:0.75rem;color:#9CA3AF;font-style:italic">Ninguno</div>'
+
+    with col:
+        st.markdown(f"""
+        <div style="background:{tier["bg"]};border:1px solid {tier["border"]};
+                    border-top:3px solid {tier["color"]};border-radius:12px;
+                    padding:1rem 1rem 0.8rem;height:100%">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:0.4rem">
+                <div style="font-size:1.4rem;font-weight:800;color:{tier["color"]}">{count}</div>
+                <div style="font-size:0.68rem;color:{tier["color"]};font-weight:700;
+                            background:white;border-radius:20px;padding:2px 8px;
+                            border:1px solid {tier["border"]}">{tier["label"]}</div>
+            </div>
+            <div style="font-size:0.72rem;color:#6B7280;margin-bottom:0.6rem;font-weight:500">
+                {tier["range"]} · {pct_of_team:.0f}% del equipo
+            </div>
+            <div style="border-top:1px solid {tier["border"]};padding-top:0.5rem">
+                {names_html}
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
 
 # ── Variable waterfall per farmer ─────────────────────────────────────────────
 st.markdown("---")
