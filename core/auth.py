@@ -13,8 +13,10 @@ Roles:
   - supervisor (oscar.pedraza@rappi.com) → can upload Sheet Maestro, sees admin panel
   - farmer (everyone in FARMERS_EMAILS) → read-only view of latest saved state
 """
+from __future__ import annotations   # enables X | Y type hints on Python 3.9
 import time
 import secrets
+from typing import Optional
 import streamlit as st
 from core.loader import FARMERS_EMAILS, EXCLUDED_EMAILS, FARMER_NAMES
 
@@ -39,7 +41,7 @@ def _create_token(email: str, is_supervisor: bool) -> str:
     return token
 
 
-def _validate_token(token: str) -> dict | None:
+def _validate_token(token: str) -> Optional[dict]:
     entry = _token_store().get(token)
     if not entry:
         return None

@@ -1,9 +1,11 @@
+from __future__ import annotations
 import streamlit as st
 import io
 import pandas as pd
 import plotly.graph_objects as go
 import sys
 from pathlib import Path
+from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS
@@ -44,7 +46,7 @@ ACTIVE_FARMERS = set(FARMERS_EMAILS) - EXCLUDED_EMAILS
 # ─────────────────────────────────────────────────────────────────────────────
 # Helper: load Conversión DETALLE from session
 # ─────────────────────────────────────────────────────────────────────────────
-def load_detalle() -> pd.DataFrame | None:
+def load_detalle() -> Optional[pd.DataFrame]:
     raw = st.session_state.get("_conversion_raw")
     if not raw:
         # Try to restore from latest_state
