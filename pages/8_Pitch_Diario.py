@@ -298,22 +298,47 @@ if is_supervisor and len(selected_emails) > 1:
                 st.info(f"Sin pitches de {p['name']} para el período.")
                 continue
             heat_pivot = heat_df.pivot(index="Farmer", columns="_dia", values="Pitches").fillna(0)
-            fig_heat = px.imshow(
-                heat_pivot,
-                color_continuous_scale=[[0, "#F8FAFC"], [0.001, "#EFF6FF"],
-                                        [0.3, p["fill"]], [1, p["color"]]],
-                labels=dict(color="Pitches", x="Fecha", y="Farmer"),
-                aspect="auto",
-            )
+
+            # Format column labels as "dd mmm"
+            col_labels = [
+                pd.Timestamp(c).strftime("%d %b") if not isinstance(c, str) else c
+                for c in heat_pivot.columns
+            ]
+
+            # Build text matrix: show number if > 0, blank if 0
+            text_matrix = heat_pivot.values.astype(int).astype(str)
+            text_matrix[heat_pivot.values == 0] = ""
+
+            cell_h = max(38, min(55, 420 // max(len(heat_pivot), 1)))
+            fig_heat = go.Figure(go.Heatmap(
+                z=heat_pivot.values,
+                x=col_labels,
+                y=list(heat_pivot.index),
+                text=text_matrix,
+                texttemplate="%{text}",
+                textfont=dict(
+                    size=max(9, min(13, 120 // max(len(col_labels), 1))),
+                    color="white",
+                ),
+                colorscale=[
+                    [0,    "#F1F5F9"],
+                    [0.01, "#EEF2FF"],
+                    [0.3,  p["fill"]],
+                    [1,    p["color"]],
+                ],
+                showscale=False,
+                hovertemplate="<b>%{y}</b><br>%{x}<br>%{z} pitches<extra></extra>",
+                xgap=2,
+                ygap=2,
+            ))
             fig_heat.update_layout(
-                height=max(200, len(heat_pivot) * 35 + 80),
+                height=max(180, len(heat_pivot) * cell_h + 80),
                 margin=dict(l=10, r=10, t=10, b=60),
                 plot_bgcolor="rgba(0,0,0,0)",
                 paper_bgcolor="rgba(0,0,0,0)",
-                coloraxis_showscale=False,
-                xaxis=dict(tickformat="%d %b", tickangle=-30),
+                xaxis=dict(tickangle=-30, side="bottom"),
+                yaxis=dict(autorange="reversed"),
             )
-            fig_heat.update_traces(hovertemplate="<b>%{y}</b><br>%{x|%d %b}<br>%{z} pitches<extra></extra>")
             st.plotly_chart(fig_heat, use_container_width=True)
 
 # ── Tabla detalle diario ──────────────────────────────────────────────────────
