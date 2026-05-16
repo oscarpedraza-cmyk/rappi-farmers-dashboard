@@ -32,9 +32,9 @@ ACTIVE_FARMERS = set(FARMERS_EMAILS) - EXCLUDED_EMAILS
 
 # ── Palanca config ────────────────────────────────────────────────────────────
 PALANCAS = [
-    {"name": "MD",    "tip_col": "MARKDOWN", "real_col": "MD",  "color": "#4A6CF7", "icon": "💰"},
-    {"name": "ADS",   "tip_col": "ADS",      "real_col": "BN",  "color": "#9333EA", "icon": "📢"},
-    {"name": "Churn", "tip_col": "CHURN",    "real_col": "ORD", "color": "#F59E0B", "icon": "🔄"},
+    {"name": "MD",    "tip_col": "MARKDOWN", "real_col": "MD",  "color": "#4A6CF7", "fill": "rgba(74,108,247,0.09)",  "icon": "💰"},
+    {"name": "ADS",   "tip_col": "ADS",      "real_col": "BN",  "color": "#9333EA", "fill": "rgba(147,51,234,0.09)", "icon": "📢"},
+    {"name": "Churn", "tip_col": "CHURN",    "real_col": "ORD", "color": "#F59E0B", "fill": "rgba(245,158,11,0.09)", "icon": "🔄"},
 ]
 
 # ── Auto-load ─────────────────────────────────────────────────────────────────
@@ -209,7 +209,7 @@ for p in PALANCAS:
         line=dict(color=p["color"], width=2.5),
         marker=dict(size=6, color=p["color"]),
         fill="tozeroy",
-        fillcolor=p["color"] + "18",
+        fillcolor=p["fill"],
         hovertemplate=f"<b>{p['name']}</b><br>%{{x|%d %b}}<br>%{{y}} pitches<extra></extra>",
     ))
 
@@ -301,7 +301,7 @@ if is_supervisor and len(selected_emails) > 1:
             fig_heat = px.imshow(
                 heat_pivot,
                 color_continuous_scale=[[0, "#F8FAFC"], [0.001, "#EFF6FF"],
-                                        [0.3, p["color"] + "66"], [1, p["color"]]],
+                                        [0.3, p["fill"]], [1, p["color"]]],
                 labels=dict(color="Pitches", x="Fecha", y="Farmer"),
                 aspect="auto",
             )
