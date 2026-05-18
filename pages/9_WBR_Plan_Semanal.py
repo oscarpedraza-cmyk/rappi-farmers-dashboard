@@ -750,7 +750,9 @@ active_farmer_names = {
 }
 
 # ── Load persisted doc for this week ─────────────────────────────────────────
-wbr_doc = load_wbr_doc(week_key)
+wbr_doc = st.session_state.get("_wbr_doc_cache") or load_wbr_doc(week_key)
+if wbr_doc and "_wbr_doc_cache" not in st.session_state:
+    st.session_state["_wbr_doc_cache"] = wbr_doc
 
 # ── Upload widget (supervisor only) ──────────────────────────────────────────
 with st.expander(
@@ -764,14 +766,22 @@ with st.expander(
         key="wbr_docx_upload",
         label_visibility="collapsed",
     )
-    if uploaded:
-        parsed = _parse_wbr_docx(uploaded.read())
-        if "error" in parsed:
-            st.error(f"Error al leer el documento: {parsed['error']}")
+    if uploaded is not None:
+        # Use file name + size as signature to process only once per file
+        file_sig = f"{uploaded.name}_{uploaded.size}"
+        if st.session_state.get("_wbr_last_sig") != file_sig:
+            with st.spinner("Procesando documento..."):
+                parsed = _parse_wbr_docx(uploaded.read())
+            if "error" in parsed:
+                st.error(f"Error al leer el documento: {parsed['error']}")
+            else:
+                save_wbr_doc(week_key, parsed)
+                st.session_state["_wbr_last_sig"]   = file_sig
+                st.session_state["_wbr_doc_cache"]  = parsed
+                wbr_doc = parsed
+                st.success(f"WBR cargado: **{parsed['title']}** ✅")
         else:
-            save_wbr_doc(week_key, parsed)
-            st.success(f"WBR cargado: **{parsed['title']}** ✅")
-            st.rerun()
+            st.success(f"WBR activo: **{wbr_doc.get('title','')}** ✅")
 
 # ── Display parsed doc ────────────────────────────────────────────────────────
 if not wbr_doc:
