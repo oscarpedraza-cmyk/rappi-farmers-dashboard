@@ -21,7 +21,24 @@ def inject_global_css() -> str:
     return f"""
 <style>
 /* ── Fonts ──────────────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@20,400,0,0&family=Inter:wght@400;500;600;700;800;900&display=swap');
+
+/* Activate Material Symbols so Streamlit's expander arrows render as icons */
+.material-symbols-rounded {{
+    font-family: 'Material Symbols Rounded' !important;
+    font-weight: normal !important;
+    font-style: normal !important;
+    font-size: 1.1em !important;
+    line-height: 1;
+    letter-spacing: normal;
+    text-transform: none;
+    display: inline-block;
+    white-space: nowrap;
+    -webkit-font-feature-settings: 'liga';
+    font-feature-settings: 'liga';
+    -webkit-font-smoothing: antialiased;
+    vertical-align: middle;
+}}
 html, body, [class*="css"], [class*="st-"] {{
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
     font-size: 15px;
@@ -333,6 +350,35 @@ section[data-testid="stSidebar"][aria-expanded="false"] + div .main
     border: 1px solid {C_BORDER} !important;
     border-radius: 12px !important;
     box-shadow: 0 2px 8px rgba(15,23,42,0.05) !important;
+}}
+/* Fix: expander toggle arrow renders as _arrow_ text when icon font isn't cached */
+[data-testid="stExpander"] details summary {{
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    list-style: none;
+    cursor: pointer;
+    padding: 0.55rem 0.8rem;
+    border-radius: 10px;
+    user-select: none;
+}}
+[data-testid="stExpander"] details summary::-webkit-details-marker {{
+    display: none;
+}}
+/* The first span inside summary is Streamlit's toggle icon — keep it small/icon-sized */
+[data-testid="stExpander"] details summary > span:first-child {{
+    font-size: 1rem !important;
+    line-height: 1 !important;
+    color: {C_MUTED} !important;
+    flex-shrink: 0;
+    width: 1.1rem;
+    overflow: hidden;
+    text-indent: 0;
+}}
+/* SVG arrows (when font loaded as SVG fallback) */
+[data-testid="stExpander"] details summary > span:first-child svg {{
+    width: 1rem !important;
+    height: 1rem !important;
 }}
 
 /* ── Plotly chart container ──────────────────────────────────────────────── */
