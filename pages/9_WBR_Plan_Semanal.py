@@ -797,7 +797,8 @@ else:
     # Metadata bar
     uploaded_dt = wbr_doc.get("uploaded_at", "")
     try:
-        uploaded_dt = datetime.fromisoformat(uploaded_dt).strftime("%-d %b %Y, %H:%M")
+        dt_obj = datetime.fromisoformat(uploaded_dt)
+        uploaded_dt = dt_obj.strftime("%d %b %Y, %H:%M").lstrip("0")
     except Exception:
         pass
 

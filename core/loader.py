@@ -530,10 +530,13 @@ def load_sheet_maestro(file_obj, dia_corte: int, dias_mes: int = 30) -> dict:
         row["ATT_Rev_real"] = a.get("ATT_Rev_real")
 
         # Net Revenue ajustado
-        if row["ATT_Rev_real"] is not None and not (isinstance(row["ATT_Rev_real"], float) and np.isnan(row["ATT_Rev_real"])):
-            row["Net_Rev_Adj"] = row["ATT_Rev_real"] * 100 - progreso_pct
+        # Use pd.isna() to catch both None and np.nan (returned by pd.to_numeric)
+        _ads_rev = row["ATT_Rev_real"]
+        if _ads_rev is not None and not pd.isna(_ads_rev):
+            row["Net_Rev_Adj"] = float(_ads_rev) * 100 - progreso_pct
         else:
-            row["Net_Rev_Adj"] = None
+            row["ATT_Rev_real"] = None   # normalise NaN → None for downstream code
+            row["Net_Rev_Adj"]  = None
 
         # PI
         p = pi.get(farmer, {})

@@ -25,7 +25,6 @@ render_topbar()
 
 
 if "farmers_data" not in st.session_state:
-    import pandas as pd
     from core.db import load_latest_state
     latest = load_latest_state()
     if latest:
