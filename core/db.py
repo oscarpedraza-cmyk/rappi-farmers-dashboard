@@ -448,3 +448,49 @@ def delete_disciplinario(farmer_email: str):
             con.execute("DELETE FROM wbr_disciplinario WHERE farmer_email=?", (farmer_email,))
     except Exception as e:
         print(f"[db] disciplinario delete error: {e}")
+
+
+# ── WBR: Documento semanal persistente ───────────────────────────────────────
+def _init_wbr_doc_table():
+    init_db()
+    with _conn() as con:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS wbr_docs (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                week_key   TEXT NOT NULL UNIQUE,
+                doc_json   TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+
+
+def save_wbr_doc(week_key: str, doc_data: dict):
+    """Persist parsed WBR document for the given ISO week."""
+    try:
+        _init_wbr_doc_table()
+        with _conn() as con:
+            con.execute("""
+                INSERT INTO wbr_docs (week_key, doc_json, updated_at)
+                VALUES (?, ?, ?)
+                ON CONFLICT(week_key) DO UPDATE SET
+                    doc_json=excluded.doc_json,
+                    updated_at=excluded.updated_at
+            """, (week_key, json.dumps(doc_data, default=str), datetime.now().isoformat()))
+    except Exception as e:
+        print(f"[db] save_wbr_doc error: {e}")
+
+
+def load_wbr_doc(week_key: str) -> dict:
+    """Load parsed WBR document for the given ISO week. Returns {} if none."""
+    try:
+        _init_wbr_doc_table()
+        with _conn() as con:
+            row = con.execute(
+                "SELECT doc_json FROM wbr_docs WHERE week_key=?", (week_key,)
+            ).fetchone()
+        if not row:
+            return {}
+        return json.loads(row[0])
+    except Exception as e:
+        print(f"[db] load_wbr_doc error: {e}")
+        return {}

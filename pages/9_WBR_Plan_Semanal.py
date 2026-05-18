@@ -23,7 +23,8 @@ from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 from core.db import (
     get_history, get_checklist_state, save_checklist_task,
-    get_all_disciplinarios, save_disciplinario, delete_disciplinario
+    get_all_disciplinarios, save_disciplinario, delete_disciplinario,
+    save_wbr_doc, load_wbr_doc,
 )
 
 st.set_page_config(page_title="WBR Plan Semanal — Rappi Farmers", page_icon="🚀", layout="wide")
@@ -627,3 +628,228 @@ with st.expander("➕ Registrar nuevo proceso disciplinario", expanded=False):
             save_disciplinario(email_sel, sel_estado, sel_fi, sel_pp, sel_fl, sel_notas)
             st.success(f"Proceso registrado para {sel_name} ✅")
             st.rerun()
+
+# ════════════════════════════════════════════════════════════════════════════
+# BLOQUE 5 — DOCUMENTO WBR SEMANAL
+# ════════════════════════════════════════════════════════════════════════════
+st.markdown("---")
+st.markdown(
+    '<div style="font-size:1rem;font-weight:800;color:#0F172A;margin-bottom:0.3rem">'
+    '📄 Documento WBR — Foco Semanal</div>'
+    '<div style="font-size:0.78rem;color:#64748B;margin-bottom:0.8rem">'
+    'Cargá aquí tu WBR actualizado cada semana. El dashboard extrae automáticamente '
+    'el plan de acción de cada KPI y lo vincula con los datos del equipo.</div>',
+    unsafe_allow_html=True
+)
+
+# ── Parser ────────────────────────────────────────────────────────────────────
+def _parse_wbr_docx(file_bytes: bytes) -> dict:
+    """Parse a WBR .docx and return structured section data."""
+    try:
+        import io as _io
+        from docx import Document as _Doc
+        doc = _Doc(_io.BytesIO(file_bytes))
+        paragraphs = [p.text.strip() for p in doc.paragraphs if p.text.strip()]
+    except Exception as e:
+        return {"error": str(e), "sections": {}}
+
+    SECTION_MARKERS = [
+        ("productividad", ["PERFORMANCE", "Productividad"]),
+        ("pitch",         ["PITCH INTEGRAL"]),
+        ("churn",         ["ASSORTMENT", "Churn"]),
+        ("ads",           ["PROFITABILITY", "Ads"]),
+        ("md",            ["AFFORDABILITY", "MD"]),
+        ("catalog",       ["CATALOG SCORE"]),
+    ]
+
+    result = {
+        "title":       paragraphs[0] if paragraphs else "",
+        "uploaded_at": datetime.now().isoformat(),
+        "week_key":    week_key,
+        "sections":    {},
+    }
+
+    current_sec   = None
+    plan_lines    = []
+    update_lines  = []  # "→ Para semana" paragraphs
+    in_plan       = False
+
+    def _flush():
+        if current_sec and (plan_lines or update_lines):
+            result["sections"][current_sec] = {
+                "plan":    "\n".join(plan_lines).strip(),
+                "updates": "\n".join(update_lines).strip(),
+            }
+
+    for para in paragraphs:
+        p_up = para.upper()
+
+        # Detect section header
+        matched_sec = None
+        for sec_key, markers in SECTION_MARKERS:
+            if any(m.upper() in p_up for m in markers) and "PLAN DE ACCIÓN" not in p_up:
+                matched_sec = sec_key
+                break
+
+        if matched_sec:
+            _flush()
+            current_sec  = matched_sec
+            plan_lines   = []
+            update_lines = []
+            in_plan      = False
+            continue
+
+        # Detect plan de acción start
+        if "PLAN DE ACCIÓN" in p_up and current_sec:
+            in_plan = True
+            rest = para.split(":", 1)[-1].strip()
+            if rest:
+                plan_lines.append(rest)
+            continue
+
+        if not in_plan or not current_sec:
+            continue
+
+        # "→ Para semana" updates go into separate bucket
+        if para.startswith("→"):
+            update_lines.append(para)
+        else:
+            plan_lines.append(para)
+
+    _flush()
+    return result
+
+
+def _highlight_farmers(text: str, active_names: set) -> str:
+    """Wrap known farmer first names in bold orange spans."""
+    import re
+    for name in sorted(active_names, key=len, reverse=True):
+        first = name.split()[0]
+        if len(first) < 3:
+            continue
+        pattern = re.compile(re.escape(first), re.IGNORECASE)
+        text = pattern.sub(
+            f'<b style="color:#F59E0B">{first}</b>', text, count=5
+        )
+    return text
+
+
+# ── Section config ────────────────────────────────────────────────────────────
+WBR_SECTIONS = [
+    {"key": "productividad", "icon": "📞", "label": "Productividad",    "color": "#4A6CF7"},
+    {"key": "pitch",         "icon": "🎯", "label": "Pitch Integral",   "color": "#9333EA"},
+    {"key": "churn",         "icon": "🔄", "label": "Churn / Assortment","color": "#059669"},
+    {"key": "ads",           "icon": "📢", "label": "ADS / Profitability","color": "#F59E0B"},
+    {"key": "md",            "icon": "💰", "label": "MD / Affordability", "color": "#EF4444"},
+    {"key": "catalog",       "icon": "📦", "label": "Catalog Score",    "color": "#64748B"},
+]
+
+active_farmer_names = {
+    FARMER_NAMES.get(e, e.split("@")[0].title())
+    for e in ACTIVE_FARMERS
+}
+
+# ── Load persisted doc for this week ─────────────────────────────────────────
+wbr_doc = load_wbr_doc(week_key)
+
+# ── Upload widget (supervisor only) ──────────────────────────────────────────
+with st.expander(
+    "📤 Cargar nuevo WBR (.docx)" if not wbr_doc else
+    f"📤 Reemplazar WBR ({wbr_doc.get('title','')[:60]}…)",
+    expanded=not bool(wbr_doc)
+):
+    uploaded = st.file_uploader(
+        "Seleccioná el archivo WBR actualizado de esta semana",
+        type=["docx"],
+        key="wbr_docx_upload",
+        label_visibility="collapsed",
+    )
+    if uploaded:
+        parsed = _parse_wbr_docx(uploaded.read())
+        if "error" in parsed:
+            st.error(f"Error al leer el documento: {parsed['error']}")
+        else:
+            save_wbr_doc(week_key, parsed)
+            st.success(f"WBR cargado: **{parsed['title']}** ✅")
+            st.rerun()
+
+# ── Display parsed doc ────────────────────────────────────────────────────────
+if not wbr_doc:
+    st.markdown(
+        '<div style="background:#F8FAFC;border:1px dashed #CBD5E1;border-radius:12px;'
+        'padding:1.5rem;text-align:center;color:#94A3B8;font-size:0.85rem">'
+        '📄 Aún no hay documento WBR cargado para esta semana.<br>'
+        '<span style="font-size:0.75rem">Cargá el .docx actualizado usando el panel de arriba.</span>'
+        '</div>',
+        unsafe_allow_html=True
+    )
+else:
+    # Metadata bar
+    uploaded_dt = wbr_doc.get("uploaded_at", "")
+    try:
+        uploaded_dt = datetime.fromisoformat(uploaded_dt).strftime("%-d %b %Y, %H:%M")
+    except Exception:
+        pass
+
+    st.markdown(
+        '<div style="background:#F0F9FF;border:1px solid #BAE6FD;border-radius:10px;'
+        'padding:0.6rem 1rem;margin-bottom:0.8rem;display:flex;align-items:center;gap:10px">'
+        '<span style="font-size:1.1rem">📄</span>'
+        f'<div><div style="font-weight:700;color:#0F172A;font-size:0.85rem">'
+        f'{wbr_doc.get("title","Documento WBR")}</div>'
+        f'<div style="font-size:0.72rem;color:#64748B">Semana {week_key} · '
+        f'Cargado: {uploaded_dt}</div></div>'
+        '</div>',
+        unsafe_allow_html=True
+    )
+
+    sections = wbr_doc.get("sections", {})
+
+    for cfg in WBR_SECTIONS:
+        sec = sections.get(cfg["key"])
+        if not sec:
+            continue
+
+        plan_text    = sec.get("plan", "").strip()
+        update_text  = sec.get("updates", "").strip()
+
+        if not plan_text and not update_text:
+            continue
+
+        color = cfg["color"]
+        label = cfg["label"]
+        icon  = cfg["icon"]
+
+        with st.expander(f"{icon} {label}", expanded=(cfg["key"] in ("productividad","pitch","churn"))):
+
+            # "→ Para semana" updates shown first as the most recent focus
+            if update_text:
+                for line in update_text.split("\n"):
+                    line = line.strip()
+                    if not line:
+                        continue
+                    line_hl = _highlight_farmers(line, active_farmer_names)
+                    st.markdown(
+                        f'<div style="background:{color}0D;border-left:3px solid {color};'
+                        'border-radius:0 8px 8px 0;padding:0.65rem 1rem;margin-bottom:0.4rem;'
+                        'font-size:0.82rem;color:#1E293B;line-height:1.6">'
+                        f'<span style="font-weight:700;color:{color}">Foco actual →</span> '
+                        f'{line_hl}</div>',
+                        unsafe_allow_html=True
+                    )
+
+            # Original plan de acción
+            if plan_text:
+                plan_hl = _highlight_farmers(
+                    plan_text.replace("\n", "<br>"), active_farmer_names
+                )
+                st.markdown(
+                    '<div style="background:#F8FAFC;border-radius:8px;padding:0.75rem 1rem;'
+                    'margin-top:0.4rem;font-size:0.8rem;color:#374151;line-height:1.7;'
+                    'border:1px solid #E5E7EB">'
+                    f'<div style="font-size:0.67rem;font-weight:700;color:#9CA3AF;'
+                    'text-transform:uppercase;letter-spacing:0.5px;margin-bottom:6px">'
+                    'Plan de acción</div>'
+                    f'{plan_hl}</div>',
+                    unsafe_allow_html=True
+                )
