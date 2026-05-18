@@ -9,7 +9,7 @@ Bloques:
 """
 from __future__ import annotations
 import streamlit as st
-import io, json
+import io, json, math
 import pandas as pd
 from datetime import date, datetime, timedelta
 from typing import Optional
@@ -56,6 +56,15 @@ week_key     = today.strftime("%G-W%V")           # ISO week for checklist
 dias_restantes = max(dias_mes - dia_corte, 0)
 progreso_pct   = round(dia_corte / dias_mes * 100, 1)
 
+# ── Value helpers ─────────────────────────────────────────────────────────────
+def _clean(v):
+    """Return None if v is None or NaN."""
+    if v is None: return None
+    try:
+        return None if math.isnan(float(v)) else v
+    except (TypeError, ValueError):
+        return None
+
 # ── Color helpers ─────────────────────────────────────────────────────────────
 def _semaforo_color(att: Optional[float], verde=0.90, amarillo=0.80) -> str:
     if att is None: return "#9CA3AF"
@@ -87,11 +96,11 @@ for email, data in farmers_data.items():
     sems  = get_all_semaforos(data)
     tier  = tier_farmer(sems)
 
-    prod  = data.get("productividad_pct")
-    pitch = data.get("Pitch_Pct")
-    churn = data.get("ATT_Churn")
-    ads   = data.get("ATT_Rev_real")
-    md    = data.get("ATT_MD_Total")
+    prod  = _clean(data.get("productividad_pct"))
+    pitch = _clean(data.get("Pitch_Pct"))
+    churn = _clean(data.get("ATT_Churn"))
+    ads   = _clean(data.get("ATT_Rev_real"))
+    md    = _clean(data.get("ATT_MD_Total"))
 
     for key, val in [("prod", prod), ("pitch", pitch), ("churn", churn),
                      ("ads", ads), ("md", md)]:
@@ -229,39 +238,43 @@ red_farmers = [f for f in farmer_statuses if f["tier"] == "red"]
 yellow_farmers = [f for f in farmer_statuses if f["tier"] == "yellow"]
 
 if red_farmers or yellow_farmers:
+    def _farmer_row(f, border_color, name_color, val_color):
+        prod_str  = f"Prod {f['prod']*100:.0f}%"  if f['prod']  else ""
+        pitch_str = f" · Pitch {f['pitch']*100:.0f}%" if f['pitch'] else ""
+        return (
+            '<div style="display:flex;align-items:center;justify-content:space-between;'
+            f'padding:4px 0;border-bottom:1px solid {border_color}">'
+            f'<span style="font-size:0.83rem;font-weight:600;color:{name_color}">{f["name"]}</span>'
+            f'<span style="font-size:0.72rem;color:{val_color}">{prod_str}{pitch_str}</span>'
+            '</div>'
+        )
+
+    red_rows    = "".join(_farmer_row(f, "#FEE2E2", "#7F1D1D", "#EF4444") for f in red_farmers) \
+                  if red_farmers else '<div style="color:#9CA3AF;font-size:0.8rem">Ninguno 🎉</div>'
+    yellow_rows = "".join(_farmer_row(f, "#FEF3C7", "#78350F", "#D97706") for f in yellow_farmers) \
+                  if yellow_farmers else '<div style="color:#9CA3AF;font-size:0.8rem">Ninguno 🎉</div>'
+
     col_r, col_y = st.columns(2)
     with col_r:
-        st.markdown(f"""
-        <div style="background:#FEF2F2;border:1px solid #FECACA;border-left:4px solid #EF4444;
-                    border-radius:12px;padding:0.9rem 1.1rem">
-            <div style="font-size:0.75rem;font-weight:700;color:#EF4444;text-transform:uppercase;
-                        letter-spacing:0.5px;margin-bottom:0.5rem">🔴 Requieren atención urgente ({len(red_farmers)})</div>
-            {''.join(f"""
-            <div style="display:flex;align-items:center;justify-content:space-between;
-                        padding:4px 0;border-bottom:1px solid #FEE2E2">
-                <span style="font-size:0.83rem;font-weight:600;color:#7F1D1D">{f['name']}</span>
-                <span style="font-size:0.72rem;color:#EF4444">
-                    {f"Prod {f['prod']*100:.0f}%" if f['prod'] else ""}
-                    {f" · Pitch {f['pitch']*100:.0f}%" if f['pitch'] else ""}
-                </span>
-            </div>""" for f in red_farmers) if red_farmers else '<div style="color:#9CA3AF;font-size:0.8rem">Ninguno 🎉</div>'}
-        </div>""", unsafe_allow_html=True)
+        st.markdown(
+            '<div style="background:#FEF2F2;border:1px solid #FECACA;border-left:4px solid #EF4444;'
+            'border-radius:12px;padding:0.9rem 1.1rem">'
+            f'<div style="font-size:0.75rem;font-weight:700;color:#EF4444;text-transform:uppercase;'
+            f'letter-spacing:0.5px;margin-bottom:0.5rem">🔴 Requieren atención urgente ({len(red_farmers)})</div>'
+            f'{red_rows}'
+            '</div>',
+            unsafe_allow_html=True
+        )
     with col_y:
-        st.markdown(f"""
-        <div style="background:#FFFBEB;border:1px solid #FDE68A;border-left:4px solid #F59E0B;
-                    border-radius:12px;padding:0.9rem 1.1rem">
-            <div style="font-size:0.75rem;font-weight:700;color:#F59E0B;text-transform:uppercase;
-                        letter-spacing:0.5px;margin-bottom:0.5rem">🟡 En seguimiento ({len(yellow_farmers)})</div>
-            {''.join(f"""
-            <div style="display:flex;align-items:center;justify-content:space-between;
-                        padding:4px 0;border-bottom:1px solid #FEF3C7">
-                <span style="font-size:0.83rem;font-weight:600;color:#78350F">{f['name']}</span>
-                <span style="font-size:0.72rem;color:#D97706">
-                    {f"Prod {f['prod']*100:.0f}%" if f['prod'] else ""}
-                    {f" · Pitch {f['pitch']*100:.0f}%" if f['pitch'] else ""}
-                </span>
-            </div>""" for f in yellow_farmers) if yellow_farmers else '<div style="color:#9CA3AF;font-size:0.8rem">Ninguno 🎉</div>'}
-        </div>""", unsafe_allow_html=True)
+        st.markdown(
+            '<div style="background:#FFFBEB;border:1px solid #FDE68A;border-left:4px solid #F59E0B;'
+            'border-radius:12px;padding:0.9rem 1.1rem">'
+            f'<div style="font-size:0.75rem;font-weight:700;color:#F59E0B;text-transform:uppercase;'
+            f'letter-spacing:0.5px;margin-bottom:0.5rem">🟡 En seguimiento ({len(yellow_farmers)})</div>'
+            f'{yellow_rows}'
+            '</div>',
+            unsafe_allow_html=True
+        )
 
 st.markdown('<div style="height:0.5rem"></div>', unsafe_allow_html=True)
 
