@@ -399,18 +399,22 @@ def save_checklist_task(week_key: str, task_id: str, done: bool):
         print(f"[db] checklist save error: {e}")
 
 
-def get_all_disciplinarios() -> list[dict]:
+def get_all_disciplinarios() -> list:
     """Returns all active disciplinary process records."""
     try:
         _init_wbr_tables()
+        _init_llamados_table()   # ensure tipo_contrato column exists
         with _conn() as con:
             rows = con.execute(
-                "SELECT farmer_email, estado, fecha_inicio, proximo_paso, fecha_limite, notas, updated_at "
+                "SELECT farmer_email, estado, fecha_inicio, proximo_paso, "
+                "fecha_limite, notas, updated_at, "
+                "COALESCE(tipo_contrato, 'Manpower') AS tipo_contrato "
                 "FROM wbr_disciplinario ORDER BY updated_at DESC"
             ).fetchall()
         return [
             {"farmer_email": r[0], "estado": r[1], "fecha_inicio": r[2],
-             "proximo_paso": r[3], "fecha_limite": r[4], "notas": r[5], "updated_at": r[6]}
+             "proximo_paso": r[3], "fecha_limite": r[4], "notas": r[5],
+             "updated_at": r[6], "tipo_contrato": r[7]}
             for r in rows
         ]
     except Exception:
@@ -418,24 +422,28 @@ def get_all_disciplinarios() -> list[dict]:
 
 
 def save_disciplinario(farmer_email: str, estado: str, fecha_inicio: str,
-                       proximo_paso: str, fecha_limite: str, notas: str):
+                       proximo_paso: str, fecha_limite: str, notas: str,
+                       tipo_contrato: str = "Manpower"):
     """Upsert a disciplinary process record."""
     try:
         _init_wbr_tables()
+        _init_llamados_table()   # ensure tipo_contrato column exists
         with _conn() as con:
             con.execute("""
                 INSERT INTO wbr_disciplinario
-                    (farmer_email, estado, fecha_inicio, proximo_paso, fecha_limite, notas, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                    (farmer_email, estado, fecha_inicio, proximo_paso,
+                     fecha_limite, notas, tipo_contrato, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(farmer_email) DO UPDATE SET
                     estado=excluded.estado,
                     fecha_inicio=excluded.fecha_inicio,
                     proximo_paso=excluded.proximo_paso,
                     fecha_limite=excluded.fecha_limite,
                     notas=excluded.notas,
+                    tipo_contrato=excluded.tipo_contrato,
                     updated_at=excluded.updated_at
             """, (farmer_email, estado, fecha_inicio, proximo_paso,
-                  fecha_limite, notas, datetime.now().isoformat()))
+                  fecha_limite, notas, tipo_contrato, datetime.now().isoformat()))
     except Exception as e:
         print(f"[db] disciplinario save error: {e}")
 
@@ -448,6 +456,75 @@ def delete_disciplinario(farmer_email: str):
             con.execute("DELETE FROM wbr_disciplinario WHERE farmer_email=?", (farmer_email,))
     except Exception as e:
         print(f"[db] disciplinario delete error: {e}")
+
+
+# ── WBR: Llamados de atención ─────────────────────────────────────────────────
+def _init_llamados_table():
+    init_db()
+    with _conn() as con:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS wbr_llamados (
+                id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                farmer_email  TEXT NOT NULL,
+                numero        INTEGER NOT NULL,
+                fecha         TEXT NOT NULL,
+                motivo        TEXT,
+                tipo_contrato TEXT NOT NULL DEFAULT 'Manpower',
+                updated_at    TEXT NOT NULL
+            )
+        """)
+        # Migrate: add tipo_contrato column to disciplinario if missing
+        try:
+            con.execute(
+                "ALTER TABLE wbr_disciplinario ADD COLUMN tipo_contrato TEXT DEFAULT 'Manpower'"
+            )
+        except Exception:
+            pass  # Already exists
+
+
+def get_all_llamados() -> list:
+    """Return all llamados de atención records, ordered by farmer + number."""
+    try:
+        _init_llamados_table()
+        with _conn() as con:
+            rows = con.execute(
+                "SELECT id, farmer_email, numero, fecha, motivo, tipo_contrato, updated_at "
+                "FROM wbr_llamados ORDER BY farmer_email, numero"
+            ).fetchall()
+        return [
+            {"id": r[0], "farmer_email": r[1], "numero": r[2], "fecha": r[3],
+             "motivo": r[4], "tipo_contrato": r[5] or "Manpower", "updated_at": r[6]}
+            for r in rows
+        ]
+    except Exception:
+        return []
+
+
+def save_llamado(farmer_email: str, numero: int, fecha: str,
+                 motivo: str, tipo_contrato: str):
+    """Insert a new llamado de atención record."""
+    try:
+        _init_llamados_table()
+        with _conn() as con:
+            con.execute(
+                "INSERT INTO wbr_llamados "
+                "(farmer_email, numero, fecha, motivo, tipo_contrato, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?)",
+                (farmer_email, numero, fecha, motivo or "",
+                 tipo_contrato, datetime.now().isoformat())
+            )
+    except Exception as e:
+        print(f"[db] save_llamado error: {e}")
+
+
+def delete_llamado(llamado_id: int):
+    """Remove a specific llamado record by id."""
+    try:
+        _init_llamados_table()
+        with _conn() as con:
+            con.execute("DELETE FROM wbr_llamados WHERE id=?", (llamado_id,))
+    except Exception as e:
+        print(f"[db] delete_llamado error: {e}")
 
 
 # ── WBR: Documento semanal persistente ───────────────────────────────────────

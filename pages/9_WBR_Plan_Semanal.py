@@ -24,6 +24,7 @@ from core.style import inject_global_css
 from core.db import (
     get_history, get_checklist_state, save_checklist_task,
     get_all_disciplinarios, save_disciplinario, delete_disciplinario,
+    get_all_llamados, save_llamado, delete_llamado,
     save_wbr_doc, load_wbr_doc,
 )
 
@@ -524,108 +525,344 @@ for task in auto_tasks:
 st.markdown('<div style="height:0.5rem"></div>', unsafe_allow_html=True)
 
 # ════════════════════════════════════════════════════════════════════════════
-# BLOQUE 4 — TRACKER DISCIPLINARIO (solo supervisor)
+# BLOQUE 4 — ADVERTENCIAS Y DISCIPLINARIO (solo supervisor)
 # ════════════════════════════════════════════════════════════════════════════
 if not is_supervisor:
     st.stop()
 
 st.markdown("---")
-st.markdown('<div style="font-size:1rem;font-weight:800;color:#0F172A;margin-bottom:0.6rem">🔒 Procesos disciplinarios activos</div>', unsafe_allow_html=True)
+
+# ── Shared helpers ────────────────────────────────────────────────────────────
+TIPO_COLORS = {
+    "Manpower":      ("#EFF6FF", "#2563EB"),
+    "Rappi directo": ("#FFF7ED", "#EA580C"),
+}
+
+def _tipo_badge(tipo: str) -> str:
+    bg, fg = TIPO_COLORS.get(tipo, ("#F1F5F9", "#64748B"))
+    return (
+        f'<span style="font-size:0.62rem;font-weight:700;color:{fg};background:{bg};'
+        f'border:1px solid {fg}33;padding:1px 7px;border-radius:4px">{tipo}</span>'
+    )
+
+def _warning_dots(count: int) -> str:
+    """3 dots: yellow for 1-2, red for 3, gray for unused."""
+    dots = []
+    for i in range(1, 4):
+        if i < count:
+            c = "#F59E0B"
+        elif i == count:
+            c = "#EF4444" if count == 3 else "#F59E0B"
+        else:
+            c = "#D1D5DB"
+        dots.append(
+            f'<span style="font-size:1.05rem;color:{c}">●</span>'
+        )
+    return "".join(dots)
+
+ESTADO_COLOR = {
+    "Recolectando evidencia": ("#FEF3C7", "#D97706", "#92400E"),
+    "Enviado a Manpower":     ("#EDE9FE", "#7C3AED", "#4C1D95"),
+    "En espera de respuesta": ("#DBEAFE", "#2563EB", "#1E3A8A"),
+    "Cerrado — favorable":    ("#D1FAE5", "#059669", "#064E3B"),
+    "Cerrado — desfavorable": ("#FEE2E2", "#DC2626", "#7F1D1D"),
+}
+TIPOS_CONTRATO = ["Manpower", "Rappi directo"]
+
+# ════════════════════════════════════════════════════════════════════════════
+# 4a — LLAMADOS DE ATENCIÓN
+# ════════════════════════════════════════════════════════════════════════════
+st.markdown(
+    '<div style="font-size:1rem;font-weight:800;color:#0F172A;margin-bottom:0.3rem">'
+    '⚠️ Llamados de atención</div>'
+    '<div style="font-size:0.77rem;color:#64748B;margin-bottom:0.8rem">'
+    'Al tercer llamado se inicia proceso disciplinario formal. '
+    'El flujo varía según el tipo de contrato del farmer.</div>',
+    unsafe_allow_html=True
+)
+
+all_llamados = get_all_llamados()
+
+# Group by farmer
+from collections import defaultdict
+llamados_by_farmer: dict = defaultdict(list)
+for ll in all_llamados:
+    llamados_by_farmer[ll["farmer_email"]].append(ll)
+
+if llamados_by_farmer:
+    disc_emails = {r["farmer_email"] for r in get_all_disciplinarios()}
+
+    for fem, lls in sorted(llamados_by_farmer.items(),
+                            key=lambda x: -len(x[1])):
+        fname     = FARMER_NAMES.get(fem, fem.split("@")[0].title())
+        count     = len(lls)
+        tipo      = lls[0]["tipo_contrato"]
+        tipo_html = _tipo_badge(tipo)
+        dots_html = _warning_dots(count)
+        border    = "#EF4444" if count >= 3 else "#F59E0B" if count == 2 else "#E5E7EB"
+        bg_card   = "#FEF2F2" if count >= 3 else "#FFFBEB" if count == 2 else "#FFFFFF"
+
+        with st.expander(f"{fname} — {count}/3 llamados", expanded=(count >= 2)):
+            # Header card
+            st.markdown(
+                f'<div style="background:{bg_card};border:1px solid {border};'
+                f'border-radius:10px;padding:0.75rem 1rem;margin-bottom:0.6rem;'
+                f'display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">'
+                f'<div style="display:flex;align-items:center;gap:10px">'
+                f'<span style="font-weight:700;color:#0F172A;font-size:0.9rem">{fname}</span>'
+                f'{tipo_html}'
+                f'</div>'
+                f'<div style="display:flex;align-items:center;gap:6px">'
+                f'{dots_html}'
+                f'<span style="font-size:0.72rem;color:#6B7280;margin-left:4px">'
+                f'{count} de 3 llamados</span>'
+                f'</div>'
+                f'</div>',
+                unsafe_allow_html=True
+            )
+
+            # Alerta 3 llamados
+            if count >= 3 and fem not in disc_emails:
+                st.markdown(
+                    '<div style="background:#FEF2F2;border:1px solid #FECACA;border-left:4px solid #EF4444;'
+                    'border-radius:8px;padding:0.65rem 1rem;margin-bottom:0.6rem;font-size:0.82rem;color:#7F1D1D">'
+                    '<b>🔴 Tercer llamado alcanzado.</b> Corresponde iniciar proceso disciplinario formal.'
+                    '</div>',
+                    unsafe_allow_html=True
+                )
+                if st.button("Iniciar proceso disciplinario formal →",
+                             key=f"inic_{fem}", type="primary"):
+                    st.session_state[f"_prefill_disc_{fem}"] = True
+                    st.rerun()
+
+            # Tipo contrato hint
+            if tipo == "Manpower":
+                st.caption("🔵 Manpower: escalar a través del coordinador Manpower asignado al equipo.")
+            else:
+                st.caption("🟠 Rappi directo: escalar a través de HRBP de Rappi Colombia/UY.")
+
+            # List of warnings
+            for ll in sorted(lls, key=lambda x: x["numero"]):
+                num   = ll["numero"]
+                fecha = ll["fecha"]
+                motiv = ll["motivo"] or "Sin motivo registrado"
+                dot_c = "#EF4444" if num == 3 else "#F59E0B"
+                st.markdown(
+                    f'<div style="display:flex;align-items:flex-start;gap:10px;'
+                    f'padding:6px 0;border-bottom:1px solid #F1F5F9">'
+                    f'<span style="font-size:1rem;color:{dot_c};flex-shrink:0">●</span>'
+                    f'<div>'
+                    f'<div style="font-size:0.82rem;font-weight:600;color:#374151">'
+                    f'Llamado #{num} — {fecha}</div>'
+                    f'<div style="font-size:0.76rem;color:#6B7280">{motiv}</div>'
+                    f'</div>'
+                    f'<div style="margin-left:auto;flex-shrink:0">'
+                    f'</div></div>',
+                    unsafe_allow_html=True
+                )
+                if st.button("✕", key=f"del_ll_{ll['id']}", help="Eliminar este llamado"):
+                    delete_llamado(ll["id"])
+                    st.rerun()
+
+else:
+    st.markdown(
+        '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;'
+        'padding:0.9rem 1.2rem;color:#065F46;font-size:0.85rem">'
+        '✅ No hay llamados de atención registrados.</div>',
+        unsafe_allow_html=True
+    )
+
+# ── Registrar nuevo llamado ───────────────────────────────────────────────────
+st.markdown('<div style="height:0.4rem"></div>', unsafe_allow_html=True)
+with st.expander("➕ Registrar llamado de atención", expanded=False):
+    all_farmers_sorted = sorted(
+        {FARMER_NAMES.get(e, e): e for e in ACTIVE_FARMERS}.items()
+    )
+    nl_c1, nl_c2 = st.columns(2)
+    nl_name = nl_c1.selectbox(
+        "Farmer", [n for n, _ in all_farmers_sorted], key="nl_farmer"
+    )
+    nl_tipo = nl_c2.selectbox("Tipo de contrato", TIPOS_CONTRATO, key="nl_tipo")
+
+    nl_email = dict(all_farmers_sorted)[nl_name]
+    farmer_llamados = llamados_by_farmer.get(nl_email, [])
+    next_num = len(farmer_llamados) + 1
+
+    nl_c3, nl_c4 = st.columns(2)
+    nl_num  = nl_c3.selectbox(
+        "Número de llamado", [1, 2, 3],
+        index=min(next_num - 1, 2), key="nl_num"
+    )
+    nl_fecha = nl_c4.text_input(
+        "Fecha (AAAA-MM-DD)", value=today.isoformat(), key="nl_fecha"
+    )
+    nl_motivo = st.text_area(
+        "Motivo del llamado", height=80, key="nl_motivo",
+        placeholder="Describe brevemente la causa (ej: ATT < 90% por 2 semanas consecutivas)"
+    )
+
+    if st.button("✅ Registrar llamado", type="primary", key="nl_save"):
+        save_llamado(nl_email, nl_num, nl_fecha, nl_motivo, nl_tipo)
+        st.success(f"Llamado #{nl_num} registrado para {nl_name} ✅")
+        st.rerun()
+
+# ════════════════════════════════════════════════════════════════════════════
+# 4b — PROCESOS DISCIPLINARIOS FORMALES
+# ════════════════════════════════════════════════════════════════════════════
+st.markdown("---")
+st.markdown(
+    '<div style="font-size:1rem;font-weight:800;color:#0F172A;margin-bottom:0.6rem">'
+    '🔒 Procesos disciplinarios formales</div>',
+    unsafe_allow_html=True
+)
 
 disciplinarios = get_all_disciplinarios()
 
-# ── Show existing records ─────────────────────────────────────────────────────
 if disciplinarios:
-    ESTADO_COLOR = {
-        "Recolectando evidencia": ("#FEF3C7", "#D97706", "#92400E"),
-        "Enviado a Manpower":     ("#EDE9FE", "#7C3AED", "#4C1D95"),
-        "En espera de respuesta": ("#DBEAFE", "#2563EB", "#1E3A8A"),
-        "Cerrado — favorable":    ("#D1FAE5", "#059669", "#064E3B"),
-        "Cerrado — desfavorable": ("#FEE2E2", "#DC2626", "#7F1D1D"),
-    }
-
     for rec in disciplinarios:
         fname  = FARMER_NAMES.get(rec["farmer_email"], rec["farmer_email"])
         estado = rec["estado"]
+        tipo   = rec.get("tipo_contrato", "Manpower")
         bg, fc, tc = ESTADO_COLOR.get(estado, ("#F1F5F9", "#64748B", "#0F172A"))
+
         vencimiento = ""
         if rec.get("fecha_limite"):
             try:
-                fl = date.fromisoformat(rec["fecha_limite"])
+                fl     = date.fromisoformat(rec["fecha_limite"])
                 dias_v = (fl - today).days
-                venc_color = "#EF4444" if dias_v <= 2 else "#F59E0B" if dias_v <= 5 else "#059669"
-                vencimiento = f'<span style="font-size:0.72rem;color:{venc_color};font-weight:600">⏰ Vence en {dias_v}d ({fl.strftime("%d/%m")})</span>'
+                vc     = "#EF4444" if dias_v <= 2 else "#F59E0B" if dias_v <= 5 else "#059669"
+                vencimiento = (
+                    f'<span style="font-size:0.72rem;color:{vc};font-weight:600">'
+                    f'⏰ Vence en {dias_v}d ({fl.strftime("%d/%m")})</span>'
+                )
             except Exception:
                 pass
 
         with st.expander(f"{fname} — {estado}", expanded=False):
-            st.markdown(f"""
-            <div style="background:{bg};border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.8rem">
-                <div style="font-weight:700;color:{tc};font-size:0.95rem">{fname}</div>
-                <div style="display:flex;gap:12px;margin-top:4px;flex-wrap:wrap">
-                    <span style="font-size:0.78rem;color:{fc};background:white;
-                                 border-radius:6px;padding:2px 8px;font-weight:600">{estado}</span>
-                    {f'<span style="font-size:0.78rem;color:#6B7280">Inicio: {rec["fecha_inicio"]}</span>' if rec.get("fecha_inicio") else ""}
-                    {vencimiento}
-                </div>
-                {f'<div style="font-size:0.8rem;color:#374151;margin-top:8px"><b>Próximo paso:</b> {rec["proximo_paso"]}</div>' if rec.get("proximo_paso") else ""}
-                {f'<div style="font-size:0.78rem;color:#6B7280;margin-top:4px;font-style:italic">{rec["notas"]}</div>' if rec.get("notas") else ""}
-            </div>
-            """, unsafe_allow_html=True)
+            tipo_html = _tipo_badge(tipo)
+            inicio_html = (
+                f'<span style="font-size:0.78rem;color:#6B7280">Inicio: {rec["fecha_inicio"]}</span>'
+                if rec.get("fecha_inicio") else ""
+            )
+            pp_html = (
+                f'<div style="font-size:0.8rem;color:#374151;margin-top:8px">'
+                f'<b>Próximo paso:</b> {rec["proximo_paso"]}</div>'
+                if rec.get("proximo_paso") else ""
+            )
+            notas_html = (
+                f'<div style="font-size:0.78rem;color:#6B7280;margin-top:4px;font-style:italic">'
+                f'{rec["notas"]}</div>'
+                if rec.get("notas") else ""
+            )
+            st.markdown(
+                f'<div style="background:{bg};border-radius:8px;padding:0.8rem 1rem;margin-bottom:0.8rem">'
+                f'<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">'
+                f'<span style="font-weight:700;color:{tc};font-size:0.95rem">{fname}</span>'
+                f'{tipo_html}'
+                f'</div>'
+                f'<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:4px">'
+                f'<span style="font-size:0.78rem;color:{fc};background:white;'
+                f'border-radius:6px;padding:2px 8px;font-weight:600">{estado}</span>'
+                f'{inicio_html}{vencimiento}'
+                f'</div>'
+                f'{pp_html}{notas_html}'
+                f'</div>',
+                unsafe_allow_html=True
+            )
 
-            # Inline edit
-            col_e1, col_e2 = st.columns(2)
-            new_estado = col_e1.selectbox("Estado", list(ESTADO_COLOR.keys()),
-                                          index=list(ESTADO_COLOR.keys()).index(estado) if estado in ESTADO_COLOR else 0,
-                                          key=f"est_{rec['farmer_email']}")
-            new_fl = col_e2.text_input("Fecha límite (AAAA-MM-DD)",
-                                        value=rec.get("fecha_limite", ""),
-                                        key=f"fl_{rec['farmer_email']}")
-            new_pp = st.text_input("Próximo paso", value=rec.get("proximo_paso", ""),
-                                    key=f"pp_{rec['farmer_email']}")
+            # Tipo contrato hint
+            if tipo == "Manpower":
+                st.caption("🔵 Proceso a través del coordinador Manpower.")
+            else:
+                st.caption("🟠 Proceso a través de HRBP Rappi.")
+
+            col_e1, col_e2, col_e3 = st.columns(3)
+            new_estado = col_e1.selectbox(
+                "Estado", list(ESTADO_COLOR.keys()),
+                index=list(ESTADO_COLOR.keys()).index(estado) if estado in ESTADO_COLOR else 0,
+                key=f"est_{rec['farmer_email']}"
+            )
+            new_tipo = col_e2.selectbox(
+                "Tipo contrato", TIPOS_CONTRATO,
+                index=TIPOS_CONTRATO.index(tipo) if tipo in TIPOS_CONTRATO else 0,
+                key=f"tipo_{rec['farmer_email']}"
+            )
+            new_fl = col_e3.text_input(
+                "Fecha límite (AAAA-MM-DD)", value=rec.get("fecha_limite", ""),
+                key=f"fl_{rec['farmer_email']}"
+            )
+            new_pp    = st.text_input("Próximo paso", value=rec.get("proximo_paso", ""),
+                                      key=f"pp_{rec['farmer_email']}")
             new_notas = st.text_area("Notas", value=rec.get("notas", ""), height=80,
-                                      key=f"nt_{rec['farmer_email']}")
+                                     key=f"nt_{rec['farmer_email']}")
 
             col_s, col_d = st.columns([3, 1])
-            if col_s.button("💾 Guardar cambios", key=f"sv_{rec['farmer_email']}", use_container_width=True):
-                save_disciplinario(rec["farmer_email"], new_estado, rec.get("fecha_inicio", ""),
-                                   new_pp, new_fl, new_notas)
+            if col_s.button("💾 Guardar cambios", key=f"sv_{rec['farmer_email']}",
+                            use_container_width=True):
+                save_disciplinario(rec["farmer_email"], new_estado,
+                                   rec.get("fecha_inicio", ""),
+                                   new_pp, new_fl, new_notas, new_tipo)
                 st.success("Guardado ✅")
                 st.rerun()
-            if col_d.button("🗑 Cerrar proceso", key=f"dl_{rec['farmer_email']}", use_container_width=True):
+            if col_d.button("🗑 Cerrar proceso", key=f"dl_{rec['farmer_email']}",
+                            use_container_width=True):
                 delete_disciplinario(rec["farmer_email"])
                 st.rerun()
 else:
-    st.markdown("""
-    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;
-                padding:0.9rem 1.2rem;color:#065F46;font-size:0.85rem">
-        ✅ No hay procesos disciplinarios activos registrados.
-    </div>""", unsafe_allow_html=True)
+    st.markdown(
+        '<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;'
+        'padding:0.9rem 1.2rem;color:#065F46;font-size:0.85rem">'
+        '✅ No hay procesos disciplinarios formales activos.</div>',
+        unsafe_allow_html=True
+    )
 
-# ── Nuevo proceso ─────────────────────────────────────────────────────────────
+# ── Nuevo proceso formal ──────────────────────────────────────────────────────
 st.markdown('<div style="height:0.5rem"></div>', unsafe_allow_html=True)
-with st.expander("➕ Registrar nuevo proceso disciplinario", expanded=False):
+
+# Check if pre-filled from llamados "iniciar proceso" button
+_prefill_email = next(
+    (em for em in ACTIVE_FARMERS
+     if st.session_state.get(f"_prefill_disc_{em}")), None
+)
+_prefill_open = _prefill_email is not None
+
+with st.expander("➕ Registrar nuevo proceso disciplinario formal",
+                 expanded=_prefill_open):
     existing_emails = {r["farmer_email"] for r in disciplinarios}
-    available = {FARMER_NAMES.get(e, e): e for e in sorted(ACTIVE_FARMERS) if e not in existing_emails}
+    available       = {FARMER_NAMES.get(e, e): e
+                       for e in sorted(ACTIVE_FARMERS) if e not in existing_emails}
 
     if not available:
         st.info("Todos los farmers activos ya tienen proceso registrado.")
     else:
-        col_n1, col_n2 = st.columns(2)
-        sel_name   = col_n1.selectbox("Farmer", list(available.keys()), key="new_disc_farmer")
-        sel_estado = col_n2.selectbox("Estado inicial", list({
-            "Recolectando evidencia": None, "Enviado a Manpower": None
-        }.keys()), key="new_disc_estado")
-        col_n3, col_n4 = st.columns(2)
-        sel_fi     = col_n3.text_input("Fecha de inicio (AAAA-MM-DD)",
-                                        value=today.isoformat(), key="new_disc_fi")
-        sel_fl     = col_n4.text_input("Fecha límite (AAAA-MM-DD)", key="new_disc_fl")
-        sel_pp     = st.text_input("Próximo paso", key="new_disc_pp")
-        sel_notas  = st.text_area("Notas iniciales", height=80, key="new_disc_notas")
+        # If opened from llamados alert, pre-select that farmer
+        _prefill_name = (FARMER_NAMES.get(_prefill_email, _prefill_email)
+                         if _prefill_email and _prefill_email in ACTIVE_FARMERS else None)
+        _avail_names  = list(available.keys())
+        _default_idx  = (_avail_names.index(_prefill_name)
+                         if _prefill_name and _prefill_name in _avail_names else 0)
 
-        if st.button("✅ Registrar proceso", type="primary", key="new_disc_save"):
+        col_n1, col_n2, col_n3 = st.columns(3)
+        sel_name   = col_n1.selectbox("Farmer", _avail_names,
+                                       index=_default_idx, key="new_disc_farmer")
+        sel_tipo   = col_n2.selectbox("Tipo de contrato", TIPOS_CONTRATO,
+                                       key="new_disc_tipo")
+        sel_estado = col_n3.selectbox("Estado inicial",
+                                       ["Recolectando evidencia", "Enviado a Manpower"],
+                                       key="new_disc_estado")
+        col_n4, col_n5 = st.columns(2)
+        sel_fi = col_n4.text_input("Fecha de inicio (AAAA-MM-DD)",
+                                    value=today.isoformat(), key="new_disc_fi")
+        sel_fl = col_n5.text_input("Fecha límite (AAAA-MM-DD)", key="new_disc_fl")
+        sel_pp    = st.text_input("Próximo paso", key="new_disc_pp")
+        sel_notas = st.text_area("Notas iniciales", height=80, key="new_disc_notas")
+
+        if st.button("✅ Registrar proceso formal", type="primary", key="new_disc_save"):
             email_sel = available[sel_name]
-            save_disciplinario(email_sel, sel_estado, sel_fi, sel_pp, sel_fl, sel_notas)
+            save_disciplinario(email_sel, sel_estado, sel_fi, sel_pp,
+                               sel_fl, sel_notas, sel_tipo)
+            # Clear prefill flag
+            st.session_state.pop(f"_prefill_disc_{email_sel}", None)
             st.success(f"Proceso registrado para {sel_name} ✅")
             st.rerun()
 
