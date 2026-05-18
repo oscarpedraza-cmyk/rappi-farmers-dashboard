@@ -351,34 +351,52 @@ section[data-testid="stSidebar"][aria-expanded="false"] + div .main
     border-radius: 12px !important;
     box-shadow: 0 2px 8px rgba(15,23,42,0.05) !important;
 }}
-/* Fix: expander toggle arrow renders as _arrow_ text when icon font isn't cached */
-[data-testid="stExpander"] details summary {{
-    display: flex;
-    align-items: center;
-    gap: 4px;
+/* Summary layout */
+[data-testid="stExpander"] details > summary {{
     list-style: none;
     cursor: pointer;
+    display: flex;
+    align-items: center;
     padding: 0.55rem 0.8rem;
     border-radius: 10px;
     user-select: none;
+    gap: 6px;
 }}
-[data-testid="stExpander"] details summary::-webkit-details-marker {{
-    display: none;
-}}
-/* The first span inside summary is Streamlit's toggle icon — keep it small/icon-sized */
-[data-testid="stExpander"] details summary > span:first-child {{
-    font-size: 1rem !important;
-    line-height: 1 !important;
-    color: {C_MUTED} !important;
+[data-testid="stExpander"] details > summary::-webkit-details-marker {{ display: none; }}
+
+/* ── KEY FIX: _arrow_ text appears when Streamlit's icon font isn't loaded.
+   Set font-size:0 on the Streamlit icon element (first child of summary) so
+   the text disappears regardless of whether the font loads.
+   SVG children inside it (if any) are explicitly sized back to visible. ── */
+[data-testid="stExpander"] details > summary > :first-child {{
+    font-size: 0 !important;
+    line-height: 0 !important;
+    width: 14px !important;
+    min-width: 14px !important;
+    height: 14px !important;
     flex-shrink: 0;
-    width: 1.1rem;
     overflow: hidden;
-    text-indent: 0;
 }}
-/* SVG arrows (when font loaded as SVG fallback) */
-[data-testid="stExpander"] details summary > span:first-child svg {{
-    width: 1rem !important;
-    height: 1rem !important;
+[data-testid="stExpander"] details > summary > :first-child svg {{
+    width: 14px !important;
+    height: 14px !important;
+    display: block;
+}}
+
+/* CSS-only chevron so the expander still has a visual indicator */
+[data-testid="stExpander"] details > summary::before {{
+    content: '';
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    border-right: 1.8px solid {C_MUTED};
+    border-bottom: 1.8px solid {C_MUTED};
+    transform: rotate(-45deg);
+    flex-shrink: 0;
+    transition: transform 0.15s ease;
+}}
+[data-testid="stExpander"] details[open] > summary::before {{
+    transform: rotate(45deg);
 }}
 
 /* ── Plotly chart container ──────────────────────────────────────────────── */
