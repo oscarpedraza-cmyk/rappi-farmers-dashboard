@@ -417,4 +417,39 @@ section[data-testid="stSidebar"][aria-expanded="false"] + div .main
 ::-webkit-scrollbar-thumb {{ background: #CBD5E1; border-radius: 3px; }}
 ::-webkit-scrollbar-thumb:hover {{ background: #94A3B8; }}
 </style>
+
+<script>
+(function() {{
+    // Streamlit injects _arrow_right / _arrow_drop_down as raw text nodes inside
+    // expander <summary> elements when the icon font is not loaded.
+    // This script walks those text nodes and clears them, leaving only the
+    // CSS ::before chevron as the visual expand/collapse indicator.
+    function fixArrows() {{
+        document.querySelectorAll(
+            '[data-testid="stExpander"] details > summary'
+        ).forEach(function(summary) {{
+            var walker = document.createTreeWalker(
+                summary, NodeFilter.SHOW_TEXT, null, false
+            );
+            var node;
+            while ((node = walker.nextNode())) {{
+                if (/_?arrow_/.test(node.textContent)) {{
+                    node.textContent = '';
+                }}
+            }}
+        }});
+    }}
+
+    // Run immediately, after load, and watch for dynamic Streamlit re-renders
+    fixArrows();
+    window.addEventListener('load', fixArrows);
+    [300, 800, 1500, 3000].forEach(function(ms) {{
+        setTimeout(fixArrows, ms);
+    }});
+    var mo = new MutationObserver(function() {{ fixArrows(); }});
+    document.addEventListener('DOMContentLoaded', function() {{
+        mo.observe(document.body, {{ childList: true, subtree: true }});
+    }});
+}})();
+</script>
 """
