@@ -563,11 +563,22 @@ def _warning_dots(count: int) -> str:
 ESTADO_COLOR = {
     "Recolectando evidencia": ("#FEF3C7", "#D97706", "#92400E"),
     "Enviado a Manpower":     ("#EDE9FE", "#7C3AED", "#4C1D95"),
+    "Enviado a HRBP":         ("#FCE7F3", "#DB2777", "#831843"),
     "En espera de respuesta": ("#DBEAFE", "#2563EB", "#1E3A8A"),
     "Cerrado — favorable":    ("#D1FAE5", "#059669", "#064E3B"),
     "Cerrado — desfavorable": ("#FEE2E2", "#DC2626", "#7F1D1D"),
 }
 TIPOS_CONTRATO = ["Manpower", "Rappi directo"]
+
+ESTADOS_POR_TIPO = {
+    "Manpower":      ["Recolectando evidencia", "Enviado a Manpower",
+                      "En espera de respuesta", "Cerrado — favorable", "Cerrado — desfavorable"],
+    "Rappi directo": ["Recolectando evidencia", "Enviado a HRBP",
+                      "En espera de respuesta", "Cerrado — favorable", "Cerrado — desfavorable"],
+}
+
+def _estados(tipo: str) -> list:
+    return ESTADOS_POR_TIPO.get(tipo, ESTADOS_POR_TIPO["Manpower"])
 
 # ════════════════════════════════════════════════════════════════════════════
 # 4a — LLAMADOS DE ATENCIÓN
@@ -777,15 +788,19 @@ if disciplinarios:
                 st.caption("🟠 Proceso a través de HRBP Rappi.")
 
             col_e1, col_e2, col_e3 = st.columns(3)
-            new_estado = col_e1.selectbox(
-                "Estado", list(ESTADO_COLOR.keys()),
-                index=list(ESTADO_COLOR.keys()).index(estado) if estado in ESTADO_COLOR else 0,
-                key=f"est_{rec['farmer_email']}"
-            )
-            new_tipo = col_e2.selectbox(
+            # Tipo must be selected first — its value drives the valid estado list
+            new_tipo = col_e1.selectbox(
                 "Tipo contrato", TIPOS_CONTRATO,
                 index=TIPOS_CONTRATO.index(tipo) if tipo in TIPOS_CONTRATO else 0,
                 key=f"tipo_{rec['farmer_email']}"
+            )
+            _estados_edit = _estados(new_tipo)
+            _est_idx = (_estados_edit.index(estado)
+                        if estado in _estados_edit else 0)
+            new_estado = col_e2.selectbox(
+                "Estado", _estados_edit,
+                index=_est_idx,
+                key=f"est_{rec['farmer_email']}"
             )
             new_fl = col_e3.text_input(
                 "Fecha límite (AAAA-MM-DD)", value=rec.get("fecha_limite", ""),
@@ -843,13 +858,14 @@ with st.expander("➕ Registrar nuevo proceso disciplinario formal",
                          if _prefill_name and _prefill_name in _avail_names else 0)
 
         col_n1, col_n2, col_n3 = st.columns(3)
-        sel_name   = col_n1.selectbox("Farmer", _avail_names,
-                                       index=_default_idx, key="new_disc_farmer")
-        sel_tipo   = col_n2.selectbox("Tipo de contrato", TIPOS_CONTRATO,
-                                       key="new_disc_tipo")
-        sel_estado = col_n3.selectbox("Estado inicial",
-                                       ["Recolectando evidencia", "Enviado a Manpower"],
-                                       key="new_disc_estado")
+        sel_name = col_n1.selectbox("Farmer", _avail_names,
+                                    index=_default_idx, key="new_disc_farmer")
+        sel_tipo = col_n2.selectbox("Tipo de contrato", TIPOS_CONTRATO,
+                                    key="new_disc_tipo")
+        # Estado options are filtered by tipo — no "Enviado a Manpower" for Rappi directo
+        _estados_init = _estados(sel_tipo)
+        sel_estado = col_n3.selectbox("Estado inicial", _estados_init,
+                                      key="new_disc_estado")
         col_n4, col_n5 = st.columns(2)
         sel_fi = col_n4.text_input("Fecha de inicio (AAAA-MM-DD)",
                                     value=today.isoformat(), key="new_disc_fi")
