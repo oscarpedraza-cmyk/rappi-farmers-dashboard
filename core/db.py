@@ -7,6 +7,7 @@ Latest state sharing:
   - Uses st.cache_resource (process-level, shared across ALL user sessions)
   - Falls back to SQLite for persistence across server restarts
 """
+from __future__ import annotations
 import os
 import json
 import sqlite3
@@ -340,3 +341,110 @@ def get_consecutive_red_weeks(farmer: str, metric_key: str, red_threshold: float
         else:
             break
     return count
+
+
+# ── WBR: Checklist semanal persistente ───────────────────────────────────────
+def _init_wbr_tables():
+    init_db()
+    with _conn() as con:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS wbr_checklist (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                week_key    TEXT NOT NULL,
+                task_id     TEXT NOT NULL,
+                done        INTEGER NOT NULL DEFAULT 0,
+                updated_at  TEXT NOT NULL,
+                UNIQUE(week_key, task_id)
+            )
+        """)
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS wbr_disciplinario (
+                id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                farmer_email TEXT NOT NULL UNIQUE,
+                estado      TEXT NOT NULL DEFAULT 'Recolectando evidencia',
+                fecha_inicio TEXT,
+                proximo_paso TEXT,
+                fecha_limite TEXT,
+                notas       TEXT,
+                updated_at  TEXT NOT NULL
+            )
+        """)
+
+
+def get_checklist_state(week_key: str) -> dict[str, bool]:
+    """Returns {task_id: done} for the given ISO week key (e.g. '2026-W20')."""
+    try:
+        _init_wbr_tables()
+        with _conn() as con:
+            rows = con.execute(
+                "SELECT task_id, done FROM wbr_checklist WHERE week_key=?",
+                (week_key,)
+            ).fetchall()
+        return {r[0]: bool(r[1]) for r in rows}
+    except Exception:
+        return {}
+
+
+def save_checklist_task(week_key: str, task_id: str, done: bool):
+    """Upsert a single checklist task completion."""
+    try:
+        _init_wbr_tables()
+        with _conn() as con:
+            con.execute("""
+                INSERT INTO wbr_checklist (week_key, task_id, done, updated_at)
+                VALUES (?, ?, ?, ?)
+                ON CONFLICT(week_key, task_id) DO UPDATE SET done=excluded.done, updated_at=excluded.updated_at
+            """, (week_key, task_id, int(done), datetime.now().isoformat()))
+    except Exception as e:
+        print(f"[db] checklist save error: {e}")
+
+
+def get_all_disciplinarios() -> list[dict]:
+    """Returns all active disciplinary process records."""
+    try:
+        _init_wbr_tables()
+        with _conn() as con:
+            rows = con.execute(
+                "SELECT farmer_email, estado, fecha_inicio, proximo_paso, fecha_limite, notas, updated_at "
+                "FROM wbr_disciplinario ORDER BY updated_at DESC"
+            ).fetchall()
+        return [
+            {"farmer_email": r[0], "estado": r[1], "fecha_inicio": r[2],
+             "proximo_paso": r[3], "fecha_limite": r[4], "notas": r[5], "updated_at": r[6]}
+            for r in rows
+        ]
+    except Exception:
+        return []
+
+
+def save_disciplinario(farmer_email: str, estado: str, fecha_inicio: str,
+                       proximo_paso: str, fecha_limite: str, notas: str):
+    """Upsert a disciplinary process record."""
+    try:
+        _init_wbr_tables()
+        with _conn() as con:
+            con.execute("""
+                INSERT INTO wbr_disciplinario
+                    (farmer_email, estado, fecha_inicio, proximo_paso, fecha_limite, notas, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(farmer_email) DO UPDATE SET
+                    estado=excluded.estado,
+                    fecha_inicio=excluded.fecha_inicio,
+                    proximo_paso=excluded.proximo_paso,
+                    fecha_limite=excluded.fecha_limite,
+                    notas=excluded.notas,
+                    updated_at=excluded.updated_at
+            """, (farmer_email, estado, fecha_inicio, proximo_paso,
+                  fecha_limite, notas, datetime.now().isoformat()))
+    except Exception as e:
+        print(f"[db] disciplinario save error: {e}")
+
+
+def delete_disciplinario(farmer_email: str):
+    """Remove a disciplinary record (process closed)."""
+    try:
+        _init_wbr_tables()
+        with _conn() as con:
+            con.execute("DELETE FROM wbr_disciplinario WHERE farmer_email=?", (farmer_email,))
+    except Exception as e:
+        print(f"[db] disciplinario delete error: {e}")
