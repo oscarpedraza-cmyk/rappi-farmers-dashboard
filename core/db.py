@@ -17,8 +17,9 @@ from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
 DB_PATH = Path(__file__).parent.parent / "data" / "history.db"
-GSHEET_ID = os.environ.get("GSHEET_ID")          # set in Render env vars
-GSHEET_TAB = os.environ.get("GSHEET_TAB", "Historial_Dashboard")
+GSHEET_ID         = os.environ.get("GSHEET_ID")          # set in Render env vars
+GSHEET_TAB        = os.environ.get("GSHEET_TAB", "Historial_Dashboard")
+GSHEET_LATEST_TAB = os.environ.get("GSHEET_LATEST_TAB", "Latest_State")
 
 
 # ── SQLite backend (local dev) ────────────────────────────────────────────────
@@ -232,6 +233,74 @@ def get_farmer_trend(farmer: str, metric_keys: list) -> list:
     return trend
 
 
+# ── Google Sheets: Latest_State tab ──────────────────────────────────────────
+def _get_or_create_latest_sheet(client):
+    """Return (or create) the Latest_State worksheet."""
+    try:
+        sh = client.open_by_key(GSHEET_ID)
+        try:
+            ws = sh.worksheet(GSHEET_LATEST_TAB)
+        except Exception:
+            ws = sh.add_worksheet(title=GSHEET_LATEST_TAB, rows=5, cols=2)
+            ws.append_row(["key", "value"])
+        return ws
+    except Exception:
+        return None
+
+
+def _save_latest_gsheet(payload: dict) -> bool:
+    """
+    Saves the latest_state payload to GSheet Latest_State tab.
+    Stores the full payload as JSON; if it exceeds GSheet's cell limit (~50K chars)
+    falls back to a compact payload (drops raw strings which are optional).
+    """
+    client = _gsheet_client()
+    if not client:
+        return False
+    ws = _get_or_create_latest_sheet(client)
+    if not ws:
+        return False
+    try:
+        # Try full payload first
+        full_json = json.dumps(payload, default=str)
+        # GSheet cell limit is ~50 000 chars; split off raw strings if needed
+        if len(full_json) > 49_000:
+            compact = {k: v for k, v in payload.items()
+                       if k not in ("productividad_raw", "att_prod_raw", "conversion_raw")}
+            payload_json = json.dumps(compact, default=str)
+        else:
+            payload_json = full_json
+
+        # Overwrite the sheet: header row + single data row
+        ws.clear()
+        ws.append_row(["key", "value"])
+        ws.append_row(["latest_state", payload_json])
+        return True
+    except Exception as e:
+        print(f"[db] _save_latest_gsheet error: {e}")
+        return False
+
+
+def _load_latest_gsheet() -> dict | None:
+    """Load the latest_state payload from GSheet Latest_State tab."""
+    client = _gsheet_client()
+    if not client:
+        return None
+    ws = _get_or_create_latest_sheet(client)
+    if not ws:
+        return None
+    try:
+        all_rows = ws.get_all_values()
+        # Rows: [header, data]
+        for row in all_rows[1:]:
+            if len(row) >= 2 and row[0] == "latest_state" and row[1]:
+                return json.loads(row[1])
+        return None
+    except Exception as e:
+        print(f"[db] _load_latest_gsheet error: {e}")
+        return None
+
+
 # ── Process-level shared cache (survives across user sessions in same process) ──
 @st.cache_resource
 def _process_cache() -> dict:
@@ -251,7 +320,8 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
     Persists the most recent upload so all farmer sessions can read it.
     Saves to:
       1. st.cache_resource (instant — shared across all sessions in same process)
-      2. SQLite (backup — survives process restarts)
+      2. Google Sheets (survives Streamlit Cloud redeploys — primary persistent store)
+      3. SQLite (backup — survives local process restarts)
     """
     payload = {
         "farmers_data":      farmers_data,
@@ -268,7 +338,14 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
     cache = _process_cache()
     cache["latest"] = payload
 
-    # 2. Persist to SQLite as backup
+    # 2. Persist to Google Sheets (survives Streamlit Cloud redeploys)
+    if _use_gsheet():
+        try:
+            _save_latest_gsheet(payload)
+        except Exception as e:
+            print(f"[db] save_latest_state gsheet error: {e}")
+
+    # 3. Persist to SQLite as backup
     try:
         init_db()
         payload_json = json.dumps(payload, default=str)
@@ -296,7 +373,8 @@ def load_latest_state() -> dict | None:
     Returns the dict saved by save_latest_state, or None if nothing saved yet.
     Reads from:
       1. st.cache_resource (instant, always current within the process)
-      2. SQLite fallback (if process restarted since last upload)
+      2. Google Sheets (survives Streamlit Cloud redeploys)
+      3. SQLite fallback (local dev, survives process restarts)
     Keys: farmers_data, dia_corte, dias_mes, productividad_raw, updated_by, updated_at
     """
     # 1. Try process-level cache first (fastest, most current)
@@ -304,7 +382,17 @@ def load_latest_state() -> dict | None:
     if cache.get("latest"):
         return cache["latest"]
 
-    # 2. Fall back to SQLite (survives restarts)
+    # 2. Try Google Sheets (survives Streamlit Cloud redeploys)
+    if _use_gsheet():
+        try:
+            result = _load_latest_gsheet()
+            if result:
+                cache["latest"] = result   # warm up process cache
+                return result
+        except Exception as e:
+            print(f"[db] load_latest_state gsheet error: {e}")
+
+    # 3. Fall back to SQLite (survives process restarts, local dev)
     try:
         init_db()
         with _conn() as con:
