@@ -226,145 +226,87 @@ for tab, (metric, (key, fmt)) in zip(metric_tabs, METRICS_DISPLAY.items()):
         )
         st.plotly_chart(fig2, use_container_width=True)
 
-# ── 🚨 Acción inmediata: Q4 farmers ─────────────────────────────────────────
+# ── 🧠 Diagnóstico + acción inmediata (sección unificada) ────────────────────
 st.markdown("---")
-st.markdown("## 🚨 Farmers que requieren acción inmediata")
-st.caption(
-    "Criterio: **Q4** (peor cuartil del equipo por score compuesto KPIs + variable). "
-    "El cuartil refleja posición relativa — no solo quién va en rojo, "
-    "sino quién está más rezagado respecto al equipo."
-)
-
-q4_rows = df[df["quartile"] == "Q4"].sort_values("score")
-
-if q4_rows.empty:
-    st.success("✅ Sin farmers en Q4 esta corrida — equipo parejo.")
-else:
-    for _, row in q4_rows.iterrows():
-        farmer_email = row["email"]
-        farmer_data  = farmers_data.get(farmer_email, {})
-        sems_f       = get_all_semaforos(farmer_data)
-        comp_f       = calcular_compensacion_completa(farmer_data)
-
-        # KPIs en rojo
-        kpis_rojos = [m for m in metrics_list if row.get(f"sem_{m}") == "red"]
-        kpis_amarillos = [m for m in metrics_list if row.get(f"sem_{m}") == "yellow"]
-
-        # Net Rev Adj
-        net_rev = farmer_data.get("Net_Rev_Adj")
-        net_rev_str = f"{net_rev:+.1f}pp" if net_rev is not None else "S/D"
-        net_rev_color = "#EF4444" if (net_rev or 0) < -5 else "#F59E0B" if (net_rev or 0) < 0 else "#00B341"
-
-        # Variable
-        var_pct   = row["variable_pct"]
-        qualifies = row["qualifies"]
-        var_color = "#EF4444" if var_pct < 50 else "#F59E0B" if var_pct < 80 else "#00B341"
-
-        # Recommendations
-        recs = generar_recomendaciones(farmer_data, sems_f)
-
-        with st.expander(
-            f"🚨 {row['name']} — Q4 · Score {row['score']:.0f}/100 · "
-            f"Variable {var_pct:.0f}%{'  ⛔ SIN QUALIFIER' if not qualifies else ''}",
-            expanded=False,
-        ):
-            diag_c1, diag_c2, diag_c3 = st.columns(3)
-
-            with diag_c1:
-                st.markdown(f"""
-                <div style="background:#FFF1F1;border-radius:10px;padding:0.9rem 1rem;
-                            border-left:4px solid #EF4444">
-                    <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;
-                                font-weight:700;letter-spacing:0.5px">KPIs en 🔴</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:#EF4444;margin:4px 0">
-                        {len(kpis_rojos)}</div>
-                    <div style="font-size:0.78rem;color:#374151">
-                        {', '.join(kpis_rojos) if kpis_rojos else '—'}</div>
-                    <div style="font-size:0.72rem;color:#F59E0B;margin-top:4px">
-                        🟡 {', '.join(kpis_amarillos) if kpis_amarillos else 'ninguno'}</div>
-                </div>""", unsafe_allow_html=True)
-
-            with diag_c2:
-                st.markdown(f"""
-                <div style="background:#FFFBEB;border-radius:10px;padding:0.9rem 1rem;
-                            border-left:4px solid {var_color}">
-                    <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;
-                                font-weight:700;letter-spacing:0.5px">Variable ganado</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:{var_color};margin:4px 0">
-                        {var_pct:.0f}%</div>
-                    <div style="font-size:0.78rem;color:#374151">
-                        {'⛔ Pierde variable (sin qualifier)' if not qualifies else
-                         '⚠️ En riesgo de no llegar al 80%' if var_pct < 80 else
-                         '✅ Qualifier OK'}
-                    </div>
-                </div>""", unsafe_allow_html=True)
-
-            with diag_c3:
-                st.markdown(f"""
-                <div style="background:#F0F9FF;border-radius:10px;padding:0.9rem 1rem;
-                            border-left:4px solid {net_rev_color}">
-                    <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;
-                                font-weight:700;letter-spacing:0.5px">Net Rev Adj</div>
-                    <div style="font-size:1.4rem;font-weight:800;color:{net_rev_color};margin:4px 0">
-                        {net_rev_str}</div>
-                    <div style="font-size:0.78rem;color:#374151">
-                        {'🔴 No llegaría al 100% a fin de mes' if (net_rev or 0) < -5 else
-                         '🟡 Justo al ritmo' if (net_rev or 0) < 0 else
-                         '🟢 Por encima del pace'}
-                    </div>
-                </div>""", unsafe_allow_html=True)
-
-            # Recommendations
-            st.markdown("**Acciones concretas:**")
-            for rec in recs[:4]:
-                urgente = any(w in rec.lower() for w in
-                              ["urgente", "crítico", "priorizar", "sin follows", "pierde"])
-                if urgente:
-                    st.error(rec)
-                else:
-                    st.info(rec)
-
-# ── Diagnóstico comercial gerencial ──────────────────────────────────────────
-st.markdown("---")
-st.markdown("## 🧠 Diagnóstico gerencial")
+st.markdown("## 🧠 Diagnóstico gerencial y acción inmediata")
 
 metric_reds_count = {m: int((df[f"sem_{m}"] == "red").sum()) for m in metrics_list}
 worst_metric = max(metric_reds_count, key=metric_reds_count.get)
 worst_count  = metric_reds_count[worst_metric]
 total_f      = len(df)
 
-# Q3+Q4 summary
-q34 = df[df["quartile"].isin(["Q3", "Q4"])]
 q4_names = df[df["quartile"] == "Q4"]["name"].tolist()
+q4_rows  = df[df["quartile"] == "Q4"].sort_values("score")
 
-st.markdown(f"""
-**Palanca más crítica:** `{worst_metric}` — **{worst_count}/{total_f} farmers en rojo**
+# ── Contexto macro ────────────────────────────────────────────────────────────
+st.markdown(
+    f"**Progreso del mes:** {progreso_pct:.1f}% · día {dia_corte}/{dias_mes} &nbsp;|&nbsp; "
+    f"**Palanca más crítica:** {worst_metric} ({worst_count}/{total_f} en 🔴) &nbsp;|&nbsp; "
+    f"**Cuartiles:** 🏆 Q1 {(df['quartile']=='Q1').sum()} · "
+    f"✅ Q2 {(df['quartile']=='Q2').sum()} · "
+    f"⚠️ Q3 {(df['quartile']=='Q3').sum()} · "
+    f"🚨 Q4 {(df['quartile']=='Q4').sum()}"
+)
 
-**Progreso del mes:** {progreso_pct:.1f}% (día {dia_corte}/{dias_mes})
+st.markdown("---")
 
-**Distribución por cuartil:** Q4 🚨 {(df['quartile']=='Q4').sum()} | Q3 ⚠️ {(df['quartile']=='Q3').sum()} | Q2 ✅ {(df['quartile']=='Q2').sum()} | Q1 🏆 {(df['quartile']=='Q1').sum()}
-""")
-
-# Farmers with ADS Revenue behind pace
-behind_pace = df[df["net_rev_adj"].notna() & (df["net_rev_adj"] < -5)]
-if not behind_pace.empty:
-    names_str = ", ".join(behind_pace["name"].tolist())
-    st.error(f"📉 **ADS Revenue por debajo del pace (>5pp):** {names_str} — No llegarían al 100% a fin de mes si mantienen ritmo actual.")
-
+# ── Señales a nivel equipo ────────────────────────────────────────────────────
 signals = []
 if metric_reds_count.get("No Contactados", 0) >= total_f * 0.4:
-    signals.append("⚠️ Más del 40% del equipo tiene contactabilidad crítica — posible problema estructural de gestión de tiempo o calidad de base de aliados.")
+    signals.append("⚠️ Más del 40% del equipo con contactabilidad crítica — posible problema estructural de gestión de tiempo o calidad de base de aliados.")
 if metric_reds_count.get("Churn", 0) >= total_f * 0.5:
     signals.append("⚠️ Churn crítico en más de la mitad del equipo — revisar si es problema de mercado o de seguimiento de retención.")
 if metric_reds_count.get("Ads Revenue", 0) >= total_f * 0.5:
     signals.append("⚠️ ADS Revenue por debajo del pace en la mayoría — evaluar pipeline de inversión y calidad del pitch ADS.")
 if no_qualifier >= 3:
     signals.append(f"🚨 {no_qualifier} farmers sin qualifier de productividad — en riesgo de perder variable completo. Intervención urgente.")
-if q4_names:
-    signals.append(f"🚨 Farmers en Q4 (peor cuartil): **{', '.join(q4_names)}** — seguimiento 1:1 esta semana.")
+
+behind_pace = df[df["net_rev_adj"].notna() & (df["net_rev_adj"] < -5)]
+if not behind_pace.empty:
+    signals.append(f"📉 ADS Revenue crítico (>5pp bajo pace): {', '.join(behind_pace['name'].tolist())} — no llegarían al 100% a fin de mes.")
 
 if signals:
+    st.markdown("**Señales a nivel equipo:**")
     for s in signals:
-        st.markdown(s)
+        st.markdown(f"- {s}")
 else:
     st.markdown("✅ No hay señales de alerta críticas a nivel equipo esta semana.")
+
+# ── Farmers Q4: diagnóstico individual en texto ───────────────────────────────
+st.markdown("---")
+st.markdown("**🚨 Farmers en Q4 — acción inmediata esta semana:**")
+st.caption("Peor cuartil del equipo por score compuesto KPIs + variable. Requieren seguimiento 1:1.")
+
+if q4_rows.empty:
+    st.markdown("✅ Ningún farmer en Q4 esta corrida.")
+else:
+    for _, row in q4_rows.iterrows():
+        farmer_email = row["email"]
+        farmer_data  = farmers_data.get(farmer_email, {})
+        sems_f       = get_all_semaforos(farmer_data)
+
+        var_pct   = row["variable_pct"]
+        qualifies = row["qualifies"]
+        net_rev   = farmer_data.get("Net_Rev_Adj")
+        net_rev_str = f"{net_rev:+.1f}pp" if net_rev is not None else "S/D"
+
+        kpis_rojos     = [m for m in metrics_list if row.get(f"sem_{m}") == "red"]
+        kpis_amarillos = [m for m in metrics_list if row.get(f"sem_{m}") == "yellow"]
+
+        recs = generar_recomendaciones(farmer_data, sems_f)
+        rec_txt = " · ".join(
+            r.split("—")[0].strip().lstrip("🎯📞💰⭐📢🎤📵📉⚠️✅").strip()
+            for r in recs[:3]
+        )
+
+        qualifier_txt = "⛔ SIN QUALIFIER (pierde variable)" if not qualifies else f"Variable {var_pct:.0f}%"
+        rojos_txt  = ", ".join(kpis_rojos)  if kpis_rojos  else "ninguno"
+        amarillos_txt = ", ".join(kpis_amarillos) if kpis_amarillos else "—"
+
+        st.markdown(
+            f"**{row['name']}** — Score {row['score']:.0f}/100 · {qualifier_txt} · "
+            f"Net Rev {net_rev_str}  \n"
+            f"🔴 {rojos_txt}  ·  🟡 {amarillos_txt}  \n"
+            f"_Acciones: {rec_txt}_"
+        )
+        st.markdown("")   # blank line between farmers
