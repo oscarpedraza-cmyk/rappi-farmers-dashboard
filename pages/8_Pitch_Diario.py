@@ -93,6 +93,23 @@ if df.empty:
     st.warning("No hay filas con fechas válidas en el DETALLE.")
     st.stop()
 
+# ── Deduplicación de calidad ─────────────────────────────────────────────────
+# Drop exact duplicate rows (misma fila repetida en el Sheet)
+_rows_antes = len(df)
+df = df.drop_duplicates()
+_rows_despues = len(df)
+_duplicados_exactos = _rows_antes - _rows_despues
+
+# Check for suspicious daily pitch counts per farmer:
+# If a farmer has more pitches/day than their typical follow capacity, flag it
+_pitch_cols = [p["tip_col"] for p in PALANCAS if p["tip_col"] in df.columns]
+
+if _duplicados_exactos > 0:
+    st.caption(
+        f"ℹ️ Se removieron **{_duplicados_exactos} filas duplicadas exactas** del DETALLE "
+        f"(misma fila repetida). Los conteos a continuación ya usan datos limpios."
+    )
+
 # Normalize boolean / numeric cols
 def _is_si(series):
     return series.astype(str).str.upper().str.strip() == "SI"
@@ -184,6 +201,30 @@ df_daily = (df_sel.groupby("_dia")
             .reset_index()
             .sort_values("_dia"))
 df_daily["_dia_ts"] = pd.to_datetime(df_daily["_dia"])
+
+# ── Calidad de datos: alertar si pitches diarios parecen anómalos ─────────────
+# Get typical follow capacity from farmers_data for cross-check
+_farmers_data = st.session_state.get("farmers_data", {})
+_anomalous_days = []
+for p in PALANCAS:
+    _col = f"tip_{p['name']}"
+    _max_day = df_daily[_col].max() if not df_daily.empty else 0
+    # Flag if any single day exceeds 30 pitches of a given type for a single farmer
+    if sel_farmer != "Todo el equipo" and _max_day > 30:
+        _bad_days = df_daily[df_daily[_col] > 30]["_dia"].tolist()
+        for _d in _bad_days:
+            _anomalous_days.append(f"{p['name']} — {_max_day:.0f} pitches el {_d}")
+
+if _anomalous_days:
+    with st.expander("⚠️ Posibles anomalías en el DETALLE — revisar", expanded=False):
+        st.warning(
+            "Se detectaron días con un número muy alto de pitches para un solo farmer. "
+            "Esto puede indicar **filas duplicadas** en el Sheet Maestro (mismo aliado "
+            "cargado varias veces el mismo día) o **error de tipificación**. "
+            "Verifica en el Sheet Maestro que no haya filas repetidas por fecha y aliado."
+        )
+        for msg in _anomalous_days:
+            st.markdown(f"- {msg}")
 
 # Conversion rates
 for p in PALANCAS:

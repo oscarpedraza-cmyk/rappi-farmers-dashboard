@@ -219,7 +219,8 @@ elif pct_cuentas_no > 25:
 # Cards de contactabilidad
 c_nc1, c_nc2, c_nc3 = st.columns(3)
 nc_color = "#00B341" if pct_cuentas_no <= 20 else "#F59E0B" if pct_cuentas_no <= 35 else "#EF4444"
-rc_color = "#00B341" if pct_recurr <= 5    else "#F59E0B" if pct_recurr <= 15    else "#EF4444"
+# Recurrencia: MAYOR ES MEJOR — identifica marcas candidatas a limpiar del portafolio
+rc_color = "#EF4444" if pct_recurr < 10 else "#F59E0B" if pct_recurr < 20 else "#00B341"
 
 with c_nc1:
     st.markdown(f"""
@@ -254,8 +255,8 @@ with c_nc2:
         <div style="font-size:0.78rem;color:#374151">
             {cuentas_recurr} cuentas sin contactar en 2+ semanas
         </div>
-        <div style="font-size:0.7rem;color:#9CA3AF;margin-top:2px">
-            Requieren seguimiento urgente
+        <div style="font-size:0.7rem;color:#00B341;margin-top:2px;font-weight:600">
+            ↑ Mayor = mejor — candidatas a salir del portafolio
         </div>
     </div>""", unsafe_allow_html=True)
 
@@ -433,3 +434,100 @@ if not gaps:
 else:
     for g in gaps:
         st.markdown(f"- {g}")
+
+# ── Conversión y falsa conversión ─────────────────────────────────────────────
+st.markdown("---")
+st.markdown("### 📊 Actividad de pitches y conversión real")
+st.caption("Fuente: pestaña Conversión del Maestro. Falsa conversión = pitch marcado como hecho pero sin cierre real.")
+
+import io as _io
+_conv_raw = st.session_state.get("_conversion_raw")
+
+if not _conv_raw:
+    st.info("📂 Sin datos de Conversión disponibles. Asegúrate de que el Maestro incluya la pestaña **Conversión** con las columnas FARMER, DATE, MARKDOWN, MD, ADS, BN, CHURN, ORD.")
+else:
+    try:
+        import pandas as _pd
+        _df_conv = _pd.read_json(_io.StringIO(_conv_raw))
+
+        if "FARMER" not in _df_conv.columns:
+            st.info("La hoja Conversión no tiene columna FARMER.")
+        else:
+            _df_conv["FARMER"] = _df_conv["FARMER"].astype(str).str.strip().str.lower()
+            _df_me = _df_conv[_df_conv["FARMER"] == farmer_email].copy()
+
+            if _df_me.empty:
+                st.info("Sin datos de pitches para este farmer en el período.")
+            else:
+                # Drop exact duplicates (safety net)
+                _before = len(_df_me)
+                _df_me = _df_me.drop_duplicates()
+                _after = len(_df_me)
+                if _before > _after:
+                    st.caption(f"ℹ️ Se descartaron {_before - _after} filas duplicadas exactas del DETALLE.")
+
+                PALANCAS_CONV = [
+                    ("MD",    "MARKDOWN", "MD",  "💰", "#4A6CF7"),
+                    ("ADS",   "ADS",      "BN",  "📢", "#9333EA"),
+                    ("Churn", "CHURN",    "ORD", "🔄", "#F59E0B"),
+                ]
+
+                def _is_si(s):
+                    return s.astype(str).str.strip().str.upper() == "SI"
+                def _is_one(s):
+                    return _pd.to_numeric(s, errors="coerce") == 1
+
+                conv_cols = st.columns(3)
+                for col_idx, (name, tip_col, real_col, icon, color) in enumerate(PALANCAS_CONV):
+                    tip_vals  = _is_si(_df_me[tip_col])  if tip_col  in _df_me.columns else _pd.Series(False, index=_df_me.index)
+                    real_vals = _is_one(_df_me[real_col]) if real_col in _df_me.columns else _pd.Series(False, index=_df_me.index)
+
+                    pitches_hechos = int(tip_vals.sum())
+                    cierres_reales = int(real_vals.sum())
+
+                    # Falsa conversión: pitch hecho pero sin cierre
+                    falsos = int((tip_vals & ~real_vals).sum())
+                    conv_rate = round(cierres_reales / pitches_hechos * 100, 1) if pitches_hechos > 0 else 0
+                    falsa_rate = round(falsos / pitches_hechos * 100, 1) if pitches_hechos > 0 else 0
+
+                    c_real = "#00B341" if conv_rate >= 30 else "#F59E0B" if conv_rate >= 15 else "#EF4444"
+                    c_falsa = "#EF4444" if falsa_rate > 60 else "#F59E0B" if falsa_rate > 30 else "#9CA3AF"
+
+                    with conv_cols[col_idx]:
+                        st.markdown(f"""
+                        <div style="background:#FFFFFF;border-radius:12px;padding:1rem 1.1rem;
+                                    border-top:4px solid {color};border:1px solid #E5E7EB;
+                                    box-shadow:0 2px 8px rgba(0,0,0,0.05)">
+                            <div style="font-weight:700;color:#1A1A1A;margin-bottom:0.5rem">
+                                {icon} {name}</div>
+                            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+                                <span style="color:#6B7280;font-size:0.8rem">Pitches hechos</span>
+                                <span style="font-weight:700">{pitches_hechos}</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+                                <span style="color:#6B7280;font-size:0.8rem">Cierres reales</span>
+                                <span style="font-weight:700;color:{c_real}">{cierres_reales} ({conv_rate}%)</span>
+                            </div>
+                            <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                                <span style="color:#6B7280;font-size:0.8rem">Falsa conversión</span>
+                                <span style="font-weight:700;color:{c_falsa}">{falsos} ({falsa_rate}%)</span>
+                            </div>
+                            <div style="font-size:0.68rem;color:#9CA3AF">
+                                Falsa conv. = pitch sin cierre real
+                            </div>
+                        </div>""", unsafe_allow_html=True)
+
+                # Summary alert on high false conversion
+                high_falsa = [(n, real_col, int((_is_si(_df_me[tc]) & ~_is_one(_df_me[rc])).sum()),
+                               int(_is_si(_df_me[tc]).sum()))
+                              for n, tc, rc, _, _ in PALANCAS_CONV
+                              if tc in _df_me.columns and rc in _df_me.columns]
+                for name, _, falsos, total in high_falsa:
+                    if total > 0 and falsos / total > 0.6:
+                        st.warning(
+                            f"⚠️ **{name}:** {falsos/total*100:.0f}% de falsa conversión — "
+                            f"la mayoría de los pitches no se convirtieron en cierre real. "
+                            f"Revisar calidad del pitch y objeciones frecuentes."
+                        )
+    except Exception as _e:
+        st.caption(f"ℹ️ No se pudieron cargar datos de conversión: {_e}")

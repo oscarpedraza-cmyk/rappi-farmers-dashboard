@@ -41,7 +41,14 @@ if not dates:
     """)
     st.stop()
 
-st.success(f"📅 {len(dates)} corridas disponibles — desde {dates[-1]} hasta {dates[0]}")
+if len(dates) == 1:
+    st.info(
+        f"📅 Solo hay **1 corrida** disponible (del {dates[0]}). "
+        "Para ver tendencias y evolución necesitas guardar más snapshots históricos: "
+        "carga el Maestro → haz clic en **💾 Guardar snapshot histórico** en la página principal cada semana."
+    )
+else:
+    st.success(f"📅 {len(dates)} corridas disponibles — desde {dates[-1]} hasta {dates[0]}")
 
 # ── Filtros ───────────────────────────────────────────────────────────────────
 col1, col2 = st.columns(2)
@@ -136,6 +143,10 @@ if mode == "Por farmer":
         paper_bgcolor="rgba(0,0,0,0)",
         legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="left", x=0),
         hovermode="x unified",
+        xaxis=dict(
+            tickformat="%d %b %Y",
+            dtick="D7",   # weekly ticks
+        ),
     )
     st.plotly_chart(fig, use_container_width=True)
 

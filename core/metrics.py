@@ -94,6 +94,21 @@ def semaforo_reactivaciones(val):
     return "red" if val == 0 else "green"
 
 
+def semaforo_recurrencia_no(pct):
+    """
+    % cuentas con ≥2 semanas sin contactar.
+    HIGHER IS BETTER — identifica marcas candidatas a salir del portafolio.
+    Green ≥ 30%, yellow 15–30%, red < 15%.
+    """
+    if pct is None:
+        return "gray"
+    if pct >= 30:
+        return "green"
+    if pct >= 15:
+        return "yellow"
+    return "red"
+
+
 EMOJI = {"red": "🔴", "yellow": "🟡", "green": "🟢", "gray": "⚪"}
 COLOR_HEX = {"red": "#EF4444", "yellow": "#F59E0B", "green": "#00B341", "gray": "#9CA3AF"}
 
@@ -104,7 +119,8 @@ def get_all_semaforos(farmer: dict) -> dict:
         "MD Total":       semaforo_att(farmer.get("ATT_MD_Total")),
         "MD Pro":         semaforo_att(farmer.get("ATT_MD_Pro")),
         "Ads Bookings":   semaforo_att(farmer.get("ATT_Book")),
-        "Ads Revenue":    semaforo_att(farmer.get("ATT_Rev_real")),
+        # ADS Revenue: green only if pace will reach 100% by month-end (Net_Rev_Adj ≥ 0)
+        "Ads Revenue":    semaforo_net_rev(farmer.get("Net_Rev_Adj")),
         "Net Rev Adj":    semaforo_net_rev(farmer.get("Net_Rev_Adj")),
         "Pitch Integral": semaforo_pitch(farmer.get("Pitch_Pct")),
         "No Contactados": semaforo_no_contactados(farmer.get("pct_no_contactados")),
