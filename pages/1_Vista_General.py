@@ -142,13 +142,20 @@ for _, row in df.iterrows():
     z.append(z_row)
     text.append(t_row)
 
+# Discrete colorscale for z in {-1=gray, 0=red, 1=yellow, 2=green}.
+# With zmin=-1, zmax=2 (range=3) the normalised positions of the midpoints
+# between adjacent z-values are: (-1,0)→0.167, (0,1)→0.500, (1,2)→0.833.
+# The old scale had the yellow→green boundary at 0.66/0.67 but z=1 maps to
+# exactly 0.667 → it fell in the green band. Fixed below with exact midpoints.
 colorscale = [
-    [0.0,  "#EF4444"],
-    [0.33, "#EF4444"],
-    [0.34, "#F59E0B"],
-    [0.66, "#F59E0B"],
-    [0.67, "#00B341"],
-    [1.0,  "#00B341"],
+    [0.000, "#9CA3AF"],  # z=-1 → gray  (no data)
+    [0.166, "#9CA3AF"],
+    [0.167, "#EF4444"],  # z=0  → red
+    [0.499, "#EF4444"],
+    [0.500, "#F59E0B"],  # z=1  → yellow  (≥ 0.500, safely covers 0.667)
+    [0.832, "#F59E0B"],
+    [0.833, "#00B341"],  # z=2  → green
+    [1.000, "#00B341"],
 ]
 
 fig = go.Figure(data=go.Heatmap(
