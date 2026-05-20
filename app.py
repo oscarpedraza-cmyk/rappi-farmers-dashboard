@@ -418,9 +418,9 @@ def fmt_nc(val):
     return f"<span style='color:{c};font-weight:700'>{val:.0f}%</span>"
 
 def fmt_recurr(val):
-    """% cuentas recurrentes sin contactar (2+ semanas)"""
+    """% cuentas recurrentes sin contactar (2+ semanas). MAYOR = MEJOR (identifica candidatos a limpiar portafolio)."""
     if val is None: return "<span style='color:#9CA3AF'>S/D</span>"
-    c = "#EF4444" if val > 15 else "#F59E0B" if val > 5 else "#00B341"
+    c = "#EF4444" if val < 10 else "#F59E0B" if val < 20 else "#00B341"
     return f"<span style='color:{c};font-weight:700'>{val:.0f}%</span>"
 
 def fmt_prod(val):
@@ -521,7 +521,7 @@ st.markdown("""
     <span>🚨 <b>Q4</b> Intervención urgente</span>
     <span>⛔ = Pierde variable (productividad &lt; 90%)</span>
     <span>No Cont. = % cuentas únicas sin contactar</span>
-    <span>Recurrencia = % cuentas sin contactar en 2+ semanas</span>
+    <span>Recurrencia = % cuentas sin contactar 2+ semanas · <b style="color:#00B341">↑ mayor = mejor</b></span>
     <span style="color:#00B341">■ ≥95%</span>
     <span style="color:#00B341">■ 90-95%</span>
     <span style="color:#F59E0B">■ 80-90%</span>
