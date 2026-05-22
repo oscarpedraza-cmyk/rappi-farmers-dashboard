@@ -467,6 +467,30 @@ def load_att_productividad(xl):
         return {}
 
 
+def refresh_net_rev_adj(farmers_data: dict, dias_mes: int = 31) -> None:
+    """
+    Recalculate Net_Rev_Adj for every farmer using TODAY's date as the pace denominator.
+    Call this after loading farmers_data so the metric is always current (not frozen at
+    upload date).
+
+    Safe: each farmer wrapped in try/except; uses math.isnan (no pd.NA ambiguity).
+    """
+    import math
+    from datetime import date
+    today_dia    = date.today().day
+    progreso_hoy = ((today_dia - 1) / max(dias_mes, 1)) * 100
+    for fdata in farmers_data.values():
+        try:
+            att = fdata.get("ATT_Rev_real")
+            if att is None:
+                fdata["Net_Rev_Adj"] = None
+            else:
+                att_f = float(att)
+                fdata["Net_Rev_Adj"] = None if math.isnan(att_f) else round(att_f * 100 - progreso_hoy, 2)
+        except Exception:
+            fdata["Net_Rev_Adj"] = None
+
+
 def load_sheet_maestro(file_obj, dia_corte: int, dias_mes: int = 30) -> dict:
     xl = pd.ExcelFile(file_obj, engine="openpyxl")
     sheets = xl.sheet_names

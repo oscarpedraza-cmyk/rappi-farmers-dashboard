@@ -6,6 +6,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
+from core.loader import refresh_net_rev_adj
 from core.metrics import (
     get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX,
     calcular_compensacion_completa, generar_recomendaciones
@@ -46,6 +47,10 @@ farmers_data = st.session_state["farmers_data"]
 dia_corte    = st.session_state.get("dia_corte", 13)
 dias_mes     = st.session_state.get("dias_mes", 31)
 progreso_pct = ((dia_corte - 1) / dias_mes) * 100
+try:
+    refresh_net_rev_adj(farmers_data, dias_mes)
+except Exception:
+    pass
 
 # ── Farmer selector ───────────────────────────────────────────────────────────
 names        = {data.get("name", em): em for em, data in farmers_data.items()}

@@ -17,7 +17,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS
+from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS, refresh_net_rev_adj
 from core.metrics import get_all_semaforos, tier_farmer
 from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
@@ -50,6 +50,10 @@ if "farmers_data" not in st.session_state:
 farmers_data = st.session_state["farmers_data"]
 dia_corte    = st.session_state.get("dia_corte", date.today().day)
 dias_mes     = st.session_state.get("dias_mes", 31)
+try:
+    refresh_net_rev_adj(farmers_data, dias_mes)
+except Exception:
+    pass
 today        = date.today()
 
 # ── Semana del mes y clave ISO ─────────────────────────────────────────────────
