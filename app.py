@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from core.loader import load_sheet_maestro, refresh_net_rev_adj
+from core.loader import load_sheet_maestro
 from core.metrics import (get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX,
                           calcular_compensacion_completa, score_farmer,
                           assign_quartiles, QUARTILE_COLOR, QUARTILE_LABEL)
@@ -282,9 +282,6 @@ farmers_data = st.session_state["farmers_data"]
 dia_corte    = st.session_state.get("dia_corte", today.day - 1)
 dias_mes     = st.session_state.get("dias_mes", 31)
 progreso_pct = ((dia_corte - 1) / dias_mes) * 100
-
-# Always recalculate Net_Rev_Adj with today's date so the pace is current
-refresh_net_rev_adj(farmers_data, dias_mes)
 
 # Last update banner (for farmers)
 if not is_supervisor:

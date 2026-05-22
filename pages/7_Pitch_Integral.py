@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from core.loader import refresh_net_rev_adj
 from core.auth import require_auth, render_topbar
 from core.metrics import COLOR_HEX, EMOJI
 from core.style import inject_global_css
@@ -57,9 +56,6 @@ farmers_data = st.session_state["farmers_data"]
 dia_corte    = st.session_state.get("dia_corte", 13)
 dias_mes     = st.session_state.get("dias_mes", 31)
 progreso_pct = ((dia_corte - 1) / dias_mes) * 100
-
-# Recalculate Net_Rev_Adj with today's date (not the upload date)
-refresh_net_rev_adj(farmers_data, dias_mes)
 
 # ── Build PI table ────────────────────────────────────────────────────────────
 rows = []

@@ -7,7 +7,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from core.loader import refresh_net_rev_adj
 from core.metrics import (
     calcular_compensacion_completa, calcular_variable_score,
     calcular_revenue_share_ads, EMOJI, COLOR_HEX, REVENUE_SHARE_CAP_MONTHLY
@@ -47,10 +46,6 @@ if "farmers_data" not in st.session_state:
         st.stop()
 
 farmers_data = st.session_state["farmers_data"]
-dias_mes     = st.session_state.get("dias_mes", 31)
-
-# Recalculate Net_Rev_Adj with today's date (not the upload date)
-refresh_net_rev_adj(farmers_data, dias_mes)
 
 # ── Build compensation table ──────────────────────────────────────────────────
 st.markdown("## Ranking de compensación del equipo")
