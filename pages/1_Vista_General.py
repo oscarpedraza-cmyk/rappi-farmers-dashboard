@@ -11,6 +11,7 @@ from core.metrics import (get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX,
                           calcular_compensacion_completa, score_farmer,
                           assign_quartiles, QUARTILE_COLOR, QUARTILE_LABEL,
                           generar_recomendaciones)
+from core.loader import refresh_net_rev_adj
 from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 
@@ -47,8 +48,11 @@ if "farmers_data" not in st.session_state:
 
 farmers_data = st.session_state["farmers_data"]
 dia_corte = st.session_state.get("dia_corte", 15)
-dias_mes = st.session_state.get("dias_mes", 30)
+dias_mes  = st.session_state.get("dias_mes", 30)
 progreso_pct = ((dia_corte - 1) / dias_mes) * 100
+
+# Recalculate Net_Rev_Adj with today's date (not the upload date)
+refresh_net_rev_adj(farmers_data, dias_mes)
 
 # Heatmap shows: ADS Revenue colored by Net_Rev_Adj pace (not raw ATT)
 # Net Rev Adj colum shows same value but labeled differently

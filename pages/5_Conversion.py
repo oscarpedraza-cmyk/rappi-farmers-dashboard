@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Optional
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
-from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS
+from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS, refresh_net_rev_adj
 from core.metrics import (QUARTILE_COLOR, QUARTILE_LABEL, score_farmer,
                           assign_quartiles, get_all_semaforos, calcular_compensacion_completa)
 from core.auth import require_auth, render_topbar
@@ -70,6 +70,11 @@ df_det = load_detalle()
 # Quartiles from session
 # ─────────────────────────────────────────────────────────────────────────────
 farmers_data = st.session_state["farmers_data"]
+dias_mes     = st.session_state.get("dias_mes", 31)
+
+# Recalculate Net_Rev_Adj with today's date (not the upload date)
+refresh_net_rev_adj(farmers_data, dias_mes)
+
 all_scores = {}
 for f, d in farmers_data.items():
     sems = get_all_semaforos(d)

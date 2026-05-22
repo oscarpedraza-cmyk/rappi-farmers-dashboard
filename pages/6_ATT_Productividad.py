@@ -5,6 +5,7 @@ import sys
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
+from core.loader import refresh_net_rev_adj
 from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 
@@ -36,6 +37,10 @@ if "farmers_data" not in st.session_state:
         st.stop()
 
 farmers_data = st.session_state["farmers_data"]
+dias_mes     = st.session_state.get("dias_mes", 31)
+
+# Recalculate Net_Rev_Adj with today's date (not the upload date)
+refresh_net_rev_adj(farmers_data, dias_mes)
 
 # ── Try to load Follow Track raw table ───────────────────────────────────────
 att_raw_json = st.session_state.get("_att_prod_raw")
