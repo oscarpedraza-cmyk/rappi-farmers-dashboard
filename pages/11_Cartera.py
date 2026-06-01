@@ -1,5 +1,7 @@
 import streamlit as st
+import streamlit.components.v1 as components
 import io
+import html as _html
 import pandas as pd
 import plotly.graph_objects as go
 import sys
@@ -438,19 +440,26 @@ st.download_button(
 st.markdown('<div style="height:0.4rem"></div>', unsafe_allow_html=True)
 
 # ── Table ─────────────────────────────────────────────────────────────────────
+# Note: st.components.v1.html() is used instead of st.markdown() to avoid
+# the Markdown parser mangling large HTML or choking on special chars (&, <, >)
+# in brand names.  All user-supplied text is passed through html.escape().
+
 rows_html = ""
 for i, (_, row) in enumerate(df_filtered.head(500).iterrows()):
-    bg      = "#FFFFFF" if i % 2 == 0 else "#FAFBFC"
-    bucket  = row["bucket"]
-    cfg     = BUCKET_CONFIG.get(bucket, {"color": "#9CA3AF", "bg": "#F3F4F6", "emoji": "⚪"})
-    clr     = cfg["color"]
-    bg_bdg  = cfg["bg"]
+    bg     = "#FFFFFF" if i % 2 == 0 else "#FAFBFC"
+    bucket = row["bucket"]
+    cfg    = BUCKET_CONFIG.get(bucket, {"color": "#9CA3AF", "bg": "#F3F4F6", "emoji": "⚪"})
+    clr    = cfg["color"]
+    bg_bdg = cfg["bg"]
 
     days     = row.get("days_since")
-    days_str = f"{int(days)}d" if days is not None and not (isinstance(days, float) and pd.isna(days)) else "—"
+    days_str = (f"{int(days)}d"
+                if days is not None and not (isinstance(days, float) and pd.isna(days))
+                else "—")
 
-    brand  = str(row.get(NAME_COL, "—")).strip() if NAME_COL else "—"
-    country = str(row.get(COUNTRY_COL, "—")).strip() if COUNTRY_COL else "—"
+    # Escape all user-supplied text to prevent HTML injection / broken table
+    brand   = _html.escape(str(row.get(NAME_COL,    "—")).strip()) if NAME_COL else "—"
+    country = _html.escape(str(row.get(COUNTRY_COL, "—")).strip()) if COUNTRY_COL else "—"
 
     try:
         gmv_raw = row.get(GMV_COL) if GMV_COL else None
@@ -470,7 +479,7 @@ for i, (_, row) in enumerate(df_filtered.head(500).iterrows()):
         cambio_badge = (
             f'<span style="background:#EFF6FF;color:#3B82F6;border-radius:14px;'
             f'padding:2px 8px;font-size:0.7rem;font-weight:600;margin-left:4px">'
-            f'🔄 {cambio}</span>'
+            f'🔄 {_html.escape(cambio)}</span>'
         )
 
     badge = (
@@ -480,55 +489,66 @@ for i, (_, row) in enumerate(df_filtered.head(500).iterrows()):
     )
 
     farmer_em   = row.get(FARMER_COL, "")
-    farmer_name = FARMER_NAMES.get(str(farmer_em), str(farmer_em).split("@")[0].title()) \
-                  if is_supervisor and view_email is None else ""
-    farmer_td   = (f'<td style="padding:10px 12px;color:#6B7280;font-size:0.78rem">{farmer_name}</td>'
-                   if is_supervisor and view_email is None else "")
+    farmer_name = _html.escape(
+        FARMER_NAMES.get(str(farmer_em), str(farmer_em).split("@")[0].title())
+    ) if is_supervisor and view_email is None else ""
+    farmer_td = (
+        f'<td style="padding:10px 12px;color:#6B7280;font-size:0.78rem">{farmer_name}</td>'
+        if is_supervisor and view_email is None else ""
+    )
 
-    rows_html += f"""
-    <tr style="background:{bg};border-bottom:1px solid #F3F4F6">
-        <td style="padding:10px 14px;font-weight:600;color:#1A1A1A;font-size:0.85rem">
-            {brand}{cambio_badge}
-        </td>
-        <td style="padding:10px 10px;color:#6B7280;font-size:0.82rem;text-align:center">{country}</td>
-        {farmer_td}
-        <td style="padding:10px 10px;text-align:center">{badge}</td>
-        <td style="padding:10px 10px;text-align:center;font-weight:700;color:{clr};font-size:0.92rem">{days_str}</td>
-        <td style="padding:10px 10px;text-align:right;color:#374151;font-size:0.82rem">{gmv_str}</td>
-        <td style="padding:10px 10px;text-align:right;color:#374151;font-size:0.82rem">{ord_str}</td>
-    </tr>"""
+    rows_html += (
+        f'<tr style="background:{bg};border-bottom:1px solid #F3F4F6">'
+        f'<td style="padding:10px 14px;font-weight:600;color:#1A1A1A;font-size:0.85rem">{brand}{cambio_badge}</td>'
+        f'<td style="padding:10px;color:#6B7280;font-size:0.82rem;text-align:center">{country}</td>'
+        f'{farmer_td}'
+        f'<td style="padding:10px;text-align:center">{badge}</td>'
+        f'<td style="padding:10px;text-align:center;font-weight:700;color:{clr};font-size:0.92rem">{days_str}</td>'
+        f'<td style="padding:10px;text-align:right;color:#374151;font-size:0.82rem">{gmv_str}</td>'
+        f'<td style="padding:10px;text-align:right;color:#374151;font-size:0.82rem">{ord_str}</td>'
+        f'</tr>'
+    )
 
 farmer_th_html = (
-    '<th style="padding:10px 12px;text-align:left;color:#6B7280;font-size:0.68rem;'
-    'text-transform:uppercase;letter-spacing:0.8px">Farmer</th>'
+    '<th style="padding:10px 12px;text-align:left">Farmer</th>'
     if is_supervisor and view_email is None else ""
 )
 
-st.markdown(f"""
-<div style="overflow-x:auto;border-radius:12px;border:1px solid #E5E7EB;
-            box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:2rem">
-<table style="width:100%;border-collapse:collapse;font-size:0.84rem;background:#FFF">
-  <thead>
-    <tr style="background:#F9FAFB;border-bottom:2px solid #E5E7EB">
-      <th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:0.68rem;
-                 text-transform:uppercase;letter-spacing:0.8px">Marca</th>
-      <th style="padding:10px;text-align:center;color:#6B7280;font-size:0.68rem;
-                 text-transform:uppercase;letter-spacing:0.8px">País</th>
-      {farmer_th_html}
-      <th style="padding:10px;text-align:center;color:#6B7280;font-size:0.68rem;
-                 text-transform:uppercase;letter-spacing:0.8px">Estado</th>
-      <th style="padding:10px;text-align:center;color:#6B7280;font-size:0.68rem;
-                 text-transform:uppercase;letter-spacing:0.8px">Días sin contacto</th>
-      <th style="padding:10px;text-align:right;color:#6B7280;font-size:0.68rem;
-                 text-transform:uppercase;letter-spacing:0.8px">GMV L28D</th>
-      <th style="padding:10px;text-align:right;color:#6B7280;font-size:0.68rem;
-                 text-transform:uppercase;letter-spacing:0.8px">Orders L28D</th>
-    </tr>
-  </thead>
-  <tbody>{rows_html}</tbody>
+# Render via components.html to bypass Markdown parser completely
+_table_html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>
+*{{box-sizing:border-box;margin:0;padding:0}}
+body{{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:transparent}}
+.wrap{{border-radius:12px;border:1px solid #E5E7EB;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.06);overflow-x:auto}}
+table{{width:100%;border-collapse:collapse;font-size:0.84rem;background:#FFF}}
+thead tr{{background:#F9FAFB;border-bottom:2px solid #E5E7EB}}
+th{{padding:10px;color:#6B7280;font-size:0.68rem;text-transform:uppercase;letter-spacing:.8px;font-weight:600;white-space:nowrap}}
+th:first-child{{padding-left:14px;text-align:left}}
+</style></head>
+<body>
+<div class="wrap">
+<table>
+<thead><tr>
+<th style="text-align:left;padding-left:14px">Marca</th>
+<th>País</th>
+{farmer_th_html}
+<th>Estado</th>
+<th>Días</th>
+<th style="text-align:right">GMV L28D</th>
+<th style="text-align:right">Orders L28D</th>
+</tr></thead>
+<tbody>{rows_html}</tbody>
 </table>
 </div>
-""", unsafe_allow_html=True)
+</body></html>"""
+
+_n_rows  = min(len(df_filtered), 500)
+_row_px  = 46   # approximate row height in pixels
+_head_px = 54   # header height
+_pad_px  = 4
+_height  = _head_px + _n_rows * _row_px + _pad_px
+components.html(_table_html, height=_height, scrolling=False)
 
 # ── Imposible contacto callout ─────────────────────────────────────────────────
 df_impos = df_view[df_view["bucket"] == "Imposible contacto"].copy()
