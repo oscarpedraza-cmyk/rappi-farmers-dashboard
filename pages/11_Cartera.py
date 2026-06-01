@@ -607,18 +607,14 @@ if is_supervisor and view_email is None:
 # Estado con emoji para jerarquía visual (coincide con las opciones del SelectboxColumn)
 _display["Estado"] = _rows["bucket"].map(lambda b: f"{_emoji.get(b, '⚪')} {b}")
 
-# Días: Int64 nullable → NaN se muestra como celda vacía
-_display["Días sin contacto"] = (
-    pd.to_numeric(_rows["days_since"], errors="coerce").astype("Int64")
-)
+# Días: float64 con NaN → celda vacía; NumberColumn format="%d días" muestra entero
+_display["Días sin contacto"] = pd.to_numeric(_rows["days_since"], errors="coerce")
 
 if GMV_COL:
     _display["GMV L28D"] = _rows[GMV_COL]
 
 if ORDERS_COL:
-    _display["Orders L28D"] = (
-        pd.to_numeric(_rows[ORDERS_COL], errors="coerce").astype("Int64")
-    )
+    _display["Orders L28D"] = pd.to_numeric(_rows[ORDERS_COL], errors="coerce")
 
 if CAMBIO_COL:
     _display["Cambio cartera"] = _rows[CAMBIO_COL].fillna("").astype(str)
