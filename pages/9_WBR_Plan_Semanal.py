@@ -33,6 +33,23 @@ st.markdown(inject_global_css(), unsafe_allow_html=True)
 email_auth, is_supervisor = require_auth()
 render_topbar()
 
+# ── Acceso restringido al supervisor ─────────────────────────────────────────
+if not is_supervisor:
+    st.markdown("""
+    <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-left:4px solid #EF4444;
+                border-radius:12px;padding:1.5rem 1.8rem;margin-top:2rem;text-align:center">
+        <div style="font-size:2rem;margin-bottom:0.5rem">🔒</div>
+        <div style="font-size:1.1rem;font-weight:700;color:#991B1B;margin-bottom:0.3rem">
+            Acceso restringido
+        </div>
+        <div style="color:#7F1D1D;font-size:0.88rem">
+            Esta sección es exclusiva del supervisor.<br>
+            Si crees que esto es un error, contacta a Oscar Pedraza.
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
 ACTIVE_FARMERS = set(FARMERS_EMAILS) - EXCLUDED_EMAILS
 
 # ── Auto-load ─────────────────────────────────────────────────────────────────
