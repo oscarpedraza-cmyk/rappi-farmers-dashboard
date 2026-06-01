@@ -266,7 +266,7 @@ def _save_latest_gsheet(payload: dict) -> bool:
         # GSheet cell limit is ~50 000 chars; split off raw strings if needed
         if len(full_json) > 49_000:
             compact = {k: v for k, v in payload.items()
-                       if k not in ("productividad_raw", "att_prod_raw", "conversion_raw")}
+                       if k not in ("productividad_raw", "att_prod_raw", "conversion_raw", "cartera_raw")}
             payload_json = json.dumps(compact, default=str)
         else:
             payload_json = full_json
@@ -315,6 +315,7 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
                       productividad_raw_json: str = None,
                       att_prod_raw_json: str = None,
                       conversion_raw_json: str = None,
+                      cartera_raw_json: str = None,
                       updated_by: str = "supervisor") -> bool:
     """
     Persists the most recent upload so all farmer sessions can read it.
@@ -330,6 +331,7 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
         "productividad_raw": productividad_raw_json,
         "att_prod_raw":      att_prod_raw_json,
         "conversion_raw":    conversion_raw_json,
+        "cartera_raw":       cartera_raw_json,
         "updated_by":        updated_by,
         "updated_at":        datetime.now().isoformat(),
     }

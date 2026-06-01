@@ -1,0 +1,560 @@
+import streamlit as st
+import io
+import pandas as pd
+import plotly.graph_objects as go
+import sys
+from pathlib import Path
+from datetime import date
+
+sys.path.insert(0, str(Path(__file__).parent.parent))
+from core.loader import refresh_net_rev_adj, FARMER_NAMES, FARMERS_EMAILS
+from core.auth import require_auth, render_topbar
+from core.style import inject_global_css
+
+st.set_page_config(
+    page_title="Cartera — Rappi Farmers",
+    page_icon="🗂️",
+    layout="wide",
+)
+st.markdown(inject_global_css(), unsafe_allow_html=True)
+email, is_supervisor = require_auth()
+render_topbar()
+
+
+# ── Auto-load ─────────────────────────────────────────────────────────────────
+if "farmers_data" not in st.session_state:
+    from core.db import load_latest_state
+    latest = load_latest_state()
+    if latest:
+        st.session_state["farmers_data"] = latest["farmers_data"]
+        st.session_state["dia_corte"]    = latest["dia_corte"]
+        st.session_state["dias_mes"]     = latest["dias_mes"]
+        if latest.get("cartera_raw"):
+            st.session_state["_cartera_raw"] = latest["cartera_raw"]
+        if latest.get("productividad_raw"):
+            try:
+                df_raw = pd.read_json(io.StringIO(latest["productividad_raw"]))
+                df_raw.columns = [int(c) for c in df_raw.columns]
+                st.session_state["_productividad_raw"] = df_raw
+            except Exception:
+                pass
+    else:
+        st.warning("⏳ El supervisor aún no ha cargado datos. Vuelve más tarde o contacta a Oscar Pedraza.")
+        st.stop()
+
+farmers_data = st.session_state["farmers_data"]
+dia_corte    = st.session_state.get("dia_corte", 13)
+dias_mes     = st.session_state.get("dias_mes", 31)
+try:
+    refresh_net_rev_adj(farmers_data, dias_mes)
+except Exception:
+    pass
+
+
+# ── Helpers ───────────────────────────────────────────────────────────────────
+BUCKET_CONFIG = {
+    "Reciente":              {"color": "#00B341", "bg": "#D1FAE5", "emoji": "🟢", "code": 0},
+    "No reciente":           {"color": "#F59E0B", "bg": "#FEF3C7", "emoji": "🟡", "code": 1},
+    "Sin contacto reciente": {"color": "#EF4444", "bg": "#FEE2E2", "emoji": "🔴", "code": 2},
+    "Sin contacto en el mes":{"color": "#6B7280", "bg": "#F3F4F6", "emoji": "⚫", "code": 3},
+}
+BUCKET_ORDER = list(BUCKET_CONFIG.keys())
+
+
+def _to_dates_robust(series):
+    """Convert a series to DatetimeSeries handling both Timestamps and epoch-ms integers."""
+    try:
+        result = pd.to_datetime(series, errors="coerce")
+        # If fewer than 10% are valid, try unit='ms' (epoch-ms from JSON serialization)
+        if result.notna().mean() < 0.10 and pd.api.types.is_numeric_dtype(series):
+            result = pd.to_datetime(series, unit="ms", errors="coerce")
+        return result
+    except Exception:
+        return pd.Series(pd.NaT, index=series.index)
+
+
+def recency_bucket(days):
+    """Assign bucket name given days_since value (int or None/NaN)."""
+    if days is None or (isinstance(days, float) and pd.isna(days)):
+        return "Sin contacto en el mes"
+    d = int(days)
+    if d < 0:
+        d = 0
+    if d < 8:
+        return "Reciente"
+    elif d < 20:
+        return "No reciente"
+    elif d < 30:
+        return "Sin contacto reciente"
+    else:
+        return "Sin contacto en el mes"
+
+
+# ── Header ────────────────────────────────────────────────────────────────────
+st.markdown("""
+<div class="rb-page-header">
+    <h1>🗂️ Cartera</h1>
+    <p>Análisis de contacto de marcas por farmer · Recencia calculada desde el día de corte</p>
+</div>
+""", unsafe_allow_html=True)
+
+# ── Check cartera data ────────────────────────────────────────────────────────
+cartera_json = st.session_state.get("_cartera_raw")
+if not cartera_json:
+    st.error("""
+    **Sin datos de Cartera.**
+
+    Para habilitar esta vista:
+    1. Ve a la página principal (sidebar)
+    2. Carga el Sheet Maestro que incluya la pestaña **Cartera**
+    3. Los datos estarán disponibles para todo el equipo automáticamente
+    """)
+    st.stop()
+
+# ── Parse cartera DataFrame ───────────────────────────────────────────────────
+try:
+    df_cart = pd.read_json(io.StringIO(cartera_json))
+    df_cart.columns = [str(c).strip() for c in df_cart.columns]
+except Exception as e:
+    st.error(f"❌ Error al leer datos de cartera: {e}")
+    st.stop()
+
+# Identify key columns (case-insensitive)
+_cols_lower = {c.lower(): c for c in df_cart.columns}
+FARMER_COL  = _cols_lower.get("brand_owner_email_nuevo")
+ID_COL      = _cols_lower.get("country_brand_id")
+NAME_COL    = _cols_lower.get("brand_name")
+COUNTRY_COL = _cols_lower.get("country")
+GMV_COL     = _cols_lower.get("gmv_l28d")
+ORDERS_COL  = _cols_lower.get("orders_l28d")
+LIDER_COL   = _cols_lower.get("lider")
+CAMBIO_COL  = _cols_lower.get("cambio_cartera")
+
+if not FARMER_COL or not ID_COL:
+    st.error(
+        "❌ No se encontraron columnas necesarias en la hoja Cartera. "
+        "Se esperan: **COUNTRY_BRAND_ID** y **BRAND_OWNER_EMAIL_NUEVO**. "
+        f"Columnas encontradas: {', '.join(df_cart.columns.tolist())}"
+    )
+    st.stop()
+
+# Normalize farmer emails & filter to active team
+df_cart[FARMER_COL] = df_cart[FARMER_COL].astype(str).str.strip().str.lower()
+df_cart = df_cart[df_cart[FARMER_COL].isin(set(FARMERS_EMAILS))].copy()
+
+if df_cart.empty:
+    st.warning("No se encontraron marcas asignadas a farmers del equipo activo.")
+    st.stop()
+
+# ── Reference date = dia_corte of current month ───────────────────────────────
+today = date.today()
+try:
+    import calendar
+    max_day = calendar.monthrange(today.year, today.month)[1]
+    ref_date = date(today.year, today.month, min(dia_corte, max_day))
+except Exception:
+    ref_date = today
+
+ref_ts = pd.Timestamp(ref_date)
+
+# ── Compute last contact date per (farmer, brand) from Productividad ──────────
+last_contact_fb   = {}   # (farmer_email, brand_id) → last Timestamp
+last_contact_brand = {}  # brand_id → last Timestamp (any farmer)
+
+df_prod = st.session_state.get("_productividad_raw")  # DataFrame with int cols
+if df_prod is not None and all(c in df_prod.columns for c in [10, 14, 15]):
+    try:
+        df_d = df_prod[[14, 15, 10]].copy()
+        df_d.columns = ["farmer", "code", "date"]
+        df_d["date"] = _to_dates_robust(df_d["date"])
+        df_d = df_d.dropna(subset=["date", "code"])
+        # Only keep the last 30 days from reference date
+        cutoff = ref_ts - pd.Timedelta(days=30)
+        df_d = df_d[df_d["date"] >= cutoff].copy()
+
+        # Last contact per (farmer, brand)
+        for (farmer, code), grp in df_d.groupby(["farmer", "code"]):
+            last_contact_fb[(str(farmer).lower(), str(code))] = grp["date"].max()
+
+        # Last contact per brand (any farmer — for supervisor aggregate)
+        for code, grp in df_d.groupby("code"):
+            last_contact_brand[str(code)] = grp["date"].max()
+
+    except Exception as _e:
+        if is_supervisor:
+            st.warning(f"⚠️ No se pudo calcular recencia desde Productividad: {_e}")
+
+# ── Assign recency ────────────────────────────────────────────────────────────
+def _days_since(farmer_email, brand_id):
+    key = (str(farmer_email).lower(), str(brand_id))
+    last = last_contact_fb.get(key)
+    if last is None:
+        last = last_contact_brand.get(str(brand_id))
+    if last is None or pd.isna(last):
+        return None
+    days = (ref_ts - last).days
+    return max(days, 0)
+
+df_cart["days_since"] = df_cart.apply(
+    lambda r: _days_since(r[FARMER_COL], r[ID_COL]), axis=1
+)
+df_cart["bucket"] = df_cart["days_since"].apply(recency_bucket)
+
+# ── Farmer selector (supervisor sees all; farmer sees own) ────────────────────
+farmer_emails_in_data = sorted(df_cart[FARMER_COL].unique())
+
+if is_supervisor:
+    farmer_display_opts = ["⭐ Todo el equipo"] + [
+        FARMER_NAMES.get(e, e.split("@")[0].title()) for e in farmer_emails_in_data
+    ]
+    sel = st.selectbox(
+        "👤 Ver cartera de", farmer_display_opts,
+        key="cartera_farmer_sel", label_visibility="collapsed"
+    )
+    if sel == "⭐ Todo el equipo":
+        df_view = df_cart.copy()
+        view_email = None
+    else:
+        view_email = next(
+            (e for e in farmer_emails_in_data if FARMER_NAMES.get(e, e.split("@")[0].title()) == sel),
+            None,
+        )
+        df_view = df_cart[df_cart[FARMER_COL] == view_email].copy() if view_email else df_cart.copy()
+else:
+    df_view = df_cart[df_cart[FARMER_COL] == email.lower()].copy()
+    view_email = email.lower()
+    if df_view.empty:
+        st.info("📭 No hay marcas asignadas a tu cartera en este período.")
+        st.stop()
+
+# ── KPI Cards ─────────────────────────────────────────────────────────────────
+n_total   = len(df_view)
+counts    = df_view["bucket"].value_counts()
+n_rec     = int(counts.get("Reciente", 0))
+n_no_rec  = int(counts.get("No reciente", 0))
+n_sin_rec = int(counts.get("Sin contacto reciente", 0))
+n_nunca   = int(counts.get("Sin contacto en el mes", 0))
+pct_at_risk = round((n_sin_rec + n_nunca) / max(n_total, 1) * 100, 1)
+
+col1, col2, col3, col4, col5, col6 = st.columns(6)
+with col1:
+    st.metric("📦 Total marcas", f"{n_total:,}")
+with col2:
+    st.metric("🟢 Reciente (<8d)", n_rec,
+              help="Contactadas hace menos de 8 días")
+with col3:
+    st.metric("🟡 No reciente (8–20d)", n_no_rec,
+              help="Última contacto hace 8 a 20 días")
+with col4:
+    st.metric("🔴 Sin contacto (20–30d)", n_sin_rec,
+              help="Último contacto hace 20 a 30 días")
+with col5:
+    st.metric("⚫ Sin contacto en el mes", n_nunca,
+              help="Sin contacto en los últimos 30 días o sin registro")
+with col6:
+    st.metric("⚠️ % en riesgo", f"{pct_at_risk}%",
+              delta=f"{n_sin_rec + n_nunca} marcas",
+              delta_color="inverse",
+              help="Marcas sin contacto reciente o sin contacto en el mes")
+
+st.markdown("---")
+
+# ── Charts row ────────────────────────────────────────────────────────────────
+chart_col, breakdown_col = st.columns([1, 2])
+
+with chart_col:
+    st.markdown("### Distribución del equipo")
+    values = [n_rec, n_no_rec, n_sin_rec, n_nunca]
+    colors = [BUCKET_CONFIG[b]["color"] for b in BUCKET_ORDER]
+    labels_short = ["Reciente", "No reciente", "Sin reciente", "Sin contacto"]
+
+    fig_pie = go.Figure(go.Pie(
+        labels=labels_short,
+        values=values,
+        hole=0.60,
+        marker_colors=colors,
+        textinfo="percent+value",
+        textfont_size=11,
+        hovertemplate="%{label}: %{value} marcas (%{percent})<extra></extra>",
+        sort=False,
+    ))
+    fig_pie.add_annotation(
+        text=f"<b>{n_total}</b><br>marcas",
+        x=0.5, y=0.5, font_size=14, showarrow=False,
+        font_color="#374151",
+    )
+    fig_pie.update_layout(
+        height=260,
+        margin=dict(l=0, r=0, t=10, b=10),
+        paper_bgcolor="rgba(0,0,0,0)",
+        showlegend=False,
+    )
+    st.plotly_chart(fig_pie, use_container_width=True)
+
+with breakdown_col:
+    # Per-farmer breakdown (only in supervisor + "Todo el equipo" mode)
+    if is_supervisor and view_email is None and len(farmer_emails_in_data) > 1:
+        st.markdown("### Riesgo por farmer")
+        fb_rows = []
+        for fe in farmer_emails_in_data:
+            sub = df_cart[df_cart[FARMER_COL] == fe]
+            nt  = len(sub)
+            nr  = int((sub["bucket"] == "Sin contacto reciente").sum())
+            nn  = int((sub["bucket"] == "Sin contacto en el mes").sum())
+            fb_rows.append({
+                "farmer_email": fe,
+                "name": FARMER_NAMES.get(fe, fe.split("@")[0].title()),
+                "total": nt,
+                "reciente": int((sub["bucket"] == "Reciente").sum()),
+                "no_reciente": int((sub["bucket"] == "No reciente").sum()),
+                "sin_reciente": nr,
+                "nunca": nn,
+                "pct_riesgo": round((nr + nn) / max(nt, 1) * 100, 1),
+            })
+        df_fb = pd.DataFrame(fb_rows).sort_values("pct_riesgo", ascending=False)
+
+        fig_fb = go.Figure()
+        bucket_cols_map = [
+            ("reciente",    "Reciente",               "#00B341"),
+            ("no_reciente", "No reciente",             "#F59E0B"),
+            ("sin_reciente","Sin contacto reciente",   "#EF4444"),
+            ("nunca",       "Sin contacto en el mes",  "#9CA3AF"),
+        ]
+        for col_key, label, color in bucket_cols_map:
+            fig_fb.add_trace(go.Bar(
+                y=df_fb["name"],
+                x=df_fb[col_key],
+                name=label,
+                orientation="h",
+                marker_color=color,
+                hovertemplate=f"{label}: %{{x}}<extra>%{{y}}</extra>",
+            ))
+
+        fig_fb.update_layout(
+            barmode="stack",
+            height=max(220, len(df_fb) * 32),
+            margin=dict(l=0, r=10, t=10, b=0),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            legend=dict(orientation="h", y=-0.25, font_size=10),
+            xaxis=dict(title="Marcas"),
+        )
+        st.plotly_chart(fig_fb, use_container_width=True)
+    else:
+        # Show a horizontal gauge bar for this farmer
+        if n_total > 0:
+            st.markdown("### Avance de cobertura")
+            gauge_data = [
+                ("Reciente",               n_rec,     "#00B341"),
+                ("No reciente",            n_no_rec,  "#F59E0B"),
+                ("Sin contacto reciente",  n_sin_rec, "#EF4444"),
+                ("Sin contacto en el mes", n_nunca,   "#9CA3AF"),
+            ]
+            fig_g = go.Figure()
+            offset = 0
+            for lbl, val, clr in gauge_data:
+                fig_g.add_trace(go.Bar(
+                    x=[val], y=["Cartera"],
+                    orientation="h",
+                    name=lbl,
+                    marker_color=clr,
+                    text=f"{val}" if val > 0 else "",
+                    textposition="inside",
+                    insidetextanchor="middle",
+                    hovertemplate=f"{lbl}: %{{x}} marcas<extra></extra>",
+                ))
+            fig_g.update_layout(
+                barmode="stack",
+                height=100,
+                margin=dict(l=0, r=0, t=10, b=0),
+                paper_bgcolor="rgba(0,0,0,0)",
+                plot_bgcolor="rgba(0,0,0,0)",
+                showlegend=True,
+                legend=dict(orientation="h", y=-0.8, font_size=10),
+                xaxis=dict(showticklabels=False, showgrid=False),
+                yaxis=dict(showticklabels=False),
+            )
+            st.plotly_chart(fig_g, use_container_width=True)
+
+st.markdown("---")
+
+# ── Filters row ───────────────────────────────────────────────────────────────
+fcol1, fcol2 = st.columns([3, 1])
+with fcol1:
+    bucket_filter = st.multiselect(
+        "Estado",
+        options=BUCKET_ORDER,
+        default=BUCKET_ORDER,
+        key="cartera_bucket_filter",
+        label_visibility="collapsed",
+    )
+with fcol2:
+    sort_opts = ["Días sin contacto ↓", "GMV ↓", "Nombre ↑"]
+    sort_sel  = st.selectbox("Ordenar por", sort_opts, key="cartera_sort",
+                              label_visibility="collapsed")
+
+df_filtered = df_view[df_view["bucket"].isin(bucket_filter)].copy()
+
+if sort_sel == "Días sin contacto ↓":
+    df_filtered = df_filtered.sort_values("days_since", ascending=False, na_position="last")
+elif sort_sel == "GMV ↓" and GMV_COL:
+    df_filtered[GMV_COL] = pd.to_numeric(df_filtered[GMV_COL], errors="coerce")
+    df_filtered = df_filtered.sort_values(GMV_COL, ascending=False, na_position="last")
+else:
+    if NAME_COL:
+        df_filtered = df_filtered.sort_values(NAME_COL, ascending=True, na_position="last")
+
+df_filtered = df_filtered.reset_index(drop=True)
+
+n_shown = min(len(df_filtered), 500)
+st.markdown(
+    f"**{len(df_filtered):,} marcas** en los filtros seleccionados"
+    + (f" · mostrando las primeras **500**" if len(df_filtered) > 500 else "")
+)
+
+# ── Download button ───────────────────────────────────────────────────────────
+@st.cache_data(show_spinner=False)
+def _to_csv(df):
+    return df.to_csv(index=False).encode("utf-8")
+
+dl_cols = [c for c in [NAME_COL, COUNTRY_COL, FARMER_COL, "bucket", "days_since", GMV_COL, ORDERS_COL, LIDER_COL] if c]
+st.download_button(
+    "⬇️ Descargar CSV",
+    data=_to_csv(df_filtered[dl_cols].rename(columns={
+        "bucket":     "Estado",
+        "days_since": "Días sin contacto",
+        FARMER_COL:   "Farmer",
+    })),
+    file_name=f"cartera_{ref_date.isoformat()}.csv",
+    mime="text/csv",
+    use_container_width=False,
+)
+
+st.markdown('<div style="height:0.5rem"></div>', unsafe_allow_html=True)
+
+# ── HTML table ────────────────────────────────────────────────────────────────
+rows_html = ""
+for i, (_, row) in enumerate(df_filtered.head(500).iterrows()):
+    bg     = "#FFFFFF" if i % 2 == 0 else "#FAFBFC"
+    bucket = row["bucket"]
+    cfg    = BUCKET_CONFIG.get(bucket, {"color": "#9CA3AF", "bg": "#F3F4F6", "emoji": "⚪"})
+    clr    = cfg["color"]
+    bg_badge = cfg["bg"]
+
+    days    = row.get("days_since")
+    days_str = f"{int(days)}d" if days is not None and not (isinstance(days, float) and pd.isna(days)) else "—"
+    days_clr = clr
+
+    brand_name = str(row.get(NAME_COL, "—")).strip() if NAME_COL else "—"
+    country    = str(row.get(COUNTRY_COL, "—")).strip() if COUNTRY_COL else "—"
+    lider      = str(row.get(LIDER_COL, "—")).strip() if LIDER_COL else "—"
+
+    gmv_raw = row.get(GMV_COL) if GMV_COL else None
+    try:
+        gmv_str = f"${float(gmv_raw):,.0f}" if gmv_raw is not None and not pd.isna(gmv_raw) else "—"
+    except Exception:
+        gmv_str = "—"
+
+    ord_raw = row.get(ORDERS_COL) if ORDERS_COL else None
+    try:
+        ord_str = f"{int(float(ord_raw)):,}" if ord_raw is not None and not pd.isna(ord_raw) else "—"
+    except Exception:
+        ord_str = "—"
+
+    cambio = str(row.get(CAMBIO_COL, "")).strip() if CAMBIO_COL else ""
+    cambio_badge = ""
+    if cambio and cambio.lower() not in ("nan", "no", ""):
+        cambio_badge = (
+            f'<span style="background:#EFF6FF;color:#3B82F6;border-radius:14px;'
+            f'padding:2px 8px;font-size:0.7rem;font-weight:600;margin-left:4px">'
+            f'🔄 {cambio}</span>'
+        )
+
+    badge = (
+        f'<span style="background:{bg_badge};color:{clr};border-radius:20px;'
+        f'padding:3px 10px;font-size:0.72rem;font-weight:700;white-space:nowrap">'
+        f'{cfg["emoji"]} {bucket}</span>'
+    )
+
+    farmer_em   = row.get(FARMER_COL, "")
+    farmer_name = FARMER_NAMES.get(str(farmer_em), str(farmer_em).split("@")[0].title()) if is_supervisor and view_email is None else ""
+    farmer_td   = f'<td style="padding:10px 12px;color:#6B7280;font-size:0.78rem">{farmer_name}</td>' if is_supervisor and view_email is None else ""
+
+    rows_html += f"""
+    <tr style="background:{bg};border-bottom:1px solid #F3F4F6">
+        <td style="padding:10px 14px;font-weight:600;color:#1A1A1A;font-size:0.85rem">
+            {brand_name}{cambio_badge}
+        </td>
+        <td style="padding:10px 10px;color:#6B7280;font-size:0.82rem;text-align:center">{country}</td>
+        {farmer_td}
+        <td style="padding:10px 10px;text-align:center">{badge}</td>
+        <td style="padding:10px 10px;text-align:center;font-weight:700;color:{days_clr};font-size:0.92rem">{days_str}</td>
+        <td style="padding:10px 10px;text-align:right;color:#374151;font-size:0.82rem">{gmv_str}</td>
+        <td style="padding:10px 10px;text-align:right;color:#374151;font-size:0.82rem">{ord_str}</td>
+    </tr>"""
+
+farmer_th_html = (
+    '<th style="padding:10px 12px;text-align:left;color:#6B7280;font-size:0.68rem;'
+    'text-transform:uppercase;letter-spacing:0.8px">Farmer</th>'
+    if is_supervisor and view_email is None else ""
+)
+
+st.markdown(f"""
+<div style="overflow-x:auto;border-radius:12px;border:1px solid #E5E7EB;
+            box-shadow:0 2px 8px rgba(0,0,0,0.06);margin-bottom:2rem">
+<table style="width:100%;border-collapse:collapse;font-size:0.84rem;background:#FFF">
+    <thead>
+        <tr style="background:#F9FAFB;border-bottom:2px solid #E5E7EB">
+            <th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:0.68rem;
+                       text-transform:uppercase;letter-spacing:0.8px">Marca</th>
+            <th style="padding:10px;text-align:center;color:#6B7280;font-size:0.68rem;
+                       text-transform:uppercase;letter-spacing:0.8px">País</th>
+            {farmer_th_html}
+            <th style="padding:10px;text-align:center;color:#6B7280;font-size:0.68rem;
+                       text-transform:uppercase;letter-spacing:0.8px">Estado</th>
+            <th style="padding:10px;text-align:center;color:#6B7280;font-size:0.68rem;
+                       text-transform:uppercase;letter-spacing:0.8px">Días sin contacto</th>
+            <th style="padding:10px;text-align:right;color:#6B7280;font-size:0.68rem;
+                       text-transform:uppercase;letter-spacing:0.8px">GMV L28D</th>
+            <th style="padding:10px;text-align:right;color:#6B7280;font-size:0.68rem;
+                       text-transform:uppercase;letter-spacing:0.8px">Orders L28D</th>
+        </tr>
+    </thead>
+    <tbody>{rows_html}</tbody>
+</table>
+</div>
+""", unsafe_allow_html=True)
+
+# ── Critical brands callout ────────────────────────────────────────────────────
+df_nunca = df_view[df_view["bucket"] == "Sin contacto en el mes"].copy()
+if GMV_COL:
+    df_nunca[GMV_COL] = pd.to_numeric(df_nunca[GMV_COL], errors="coerce")
+    df_nunca = df_nunca.sort_values(GMV_COL, ascending=False, na_position="last")
+
+if not df_nunca.empty:
+    st.markdown("---")
+    st.markdown("## ⚠️ Marcas sin contacto en el mes — mayor GMV primero")
+    st.caption("Estas marcas no tienen ningún registro de contacto en los últimos 30 días. Priorizar para la próxima semana.")
+
+    top_risk = df_nunca.head(20)
+    for _, row in top_risk.iterrows():
+        brand = str(row.get(NAME_COL, "—")).strip() if NAME_COL else "—"
+        gmv_raw = row.get(GMV_COL) if GMV_COL else None
+        try:
+            gmv_s = f"${float(gmv_raw):,.0f}" if gmv_raw is not None and not pd.isna(gmv_raw) else "—"
+        except Exception:
+            gmv_s = "—"
+        farmer_raw = row.get(FARMER_COL, "")
+        farmer_s   = FARMER_NAMES.get(str(farmer_raw), str(farmer_raw).split("@")[0].title()) if is_supervisor and view_email is None else ""
+        farmer_part = f" · <span style='color:#6B7280'>{farmer_s}</span>" if farmer_s else ""
+        st.markdown(
+            f"- **{brand}** · GMV: <span style='color:#EF4444;font-weight:700'>{gmv_s}</span>{farmer_part}",
+            unsafe_allow_html=True,
+        )
+    if len(df_nunca) > 20:
+        st.caption(f"... y {len(df_nunca) - 20} más. Descarga el CSV para la lista completa.")
+
+    st.info(
+        "💡 **Acción sugerida:** contactar estas marcas esta semana y registrar el follow en Productividad. "
+        "Enfocarse primero en las de mayor GMV para proteger revenue."
+    )

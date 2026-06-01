@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent))
 
-from core.loader import load_sheet_maestro, refresh_net_rev_adj
+from core.loader import load_sheet_maestro, refresh_net_rev_adj, load_cartera
 from core.metrics import (get_all_semaforos, tier_farmer, EMOJI, COLOR_HEX,
                           calcular_compensacion_completa, score_farmer,
                           assign_quartiles, QUARTILE_COLOR, QUARTILE_LABEL)
@@ -74,6 +74,8 @@ if not is_supervisor:
                 st.session_state["_att_prod_raw"] = latest["att_prod_raw"]
             if latest.get("conversion_raw"):
                 st.session_state["_conversion_raw"] = latest["conversion_raw"]
+            if latest.get("cartera_raw"):
+                st.session_state["_cartera_raw"] = latest["cartera_raw"]
 
 dia_corte    = st.session_state.get("dia_corte", today.day - 1 if today.day > 1 else 1)
 dias_mes     = st.session_state.get("dias_mes", 31)
@@ -130,7 +132,7 @@ if is_supervisor:
                     st.session_state["dias_mes"]     = dias_mes
                     st.session_state["snap_date"]    = today
 
-                    prod_raw_json = att_prod_raw_json = conversion_raw_json = None
+                    prod_raw_json = att_prod_raw_json = conversion_raw_json = cartera_raw_json = None
                     _sheet_debug = []
                     _att_error   = None
                     try:
@@ -180,6 +182,15 @@ if is_supervisor:
                             st.session_state["_conversion_raw"] = df_conv_raw.to_json()
                             conversion_raw_json = df_conv_raw.to_json()
 
+                        # Cartera sheet (portfolio analysis)
+                        if "Cartera" in xl.sheet_names:
+                            try:
+                                cartera_raw_json = load_cartera(xl)
+                                if cartera_raw_json:
+                                    st.session_state["_cartera_raw"] = cartera_raw_json
+                            except Exception as _ce:
+                                print(f"[app] Cartera load error: {_ce}")
+
                         st.session_state["_sheet_names"] = xl.sheet_names
                     except Exception as _e:
                         _att_error = str(_e)
@@ -191,6 +202,7 @@ if is_supervisor:
                         productividad_raw_json = prod_raw_json,
                         att_prod_raw_json      = att_prod_raw_json,
                         conversion_raw_json    = conversion_raw_json,
+                        cartera_raw_json       = cartera_raw_json,
                         updated_by             = email,
                     )
                     # Refresh progreso after load
@@ -199,6 +211,7 @@ if is_supervisor:
                     extras = []
                     if att_prod_raw_json:   extras.append("Follow Track ✓")
                     if conversion_raw_json: extras.append("Conversión Real ✓")
+                    if cartera_raw_json:    extras.append("Cartera ✓")
                     extra_str = " · ".join(extras)
                     if _att_error:
                         sheets_found = ", ".join(_sheet_debug) if _sheet_debug else "ninguna"

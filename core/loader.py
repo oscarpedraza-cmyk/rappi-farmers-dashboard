@@ -491,6 +491,35 @@ def refresh_net_rev_adj(farmers_data: dict, dias_mes: int = 31) -> None:
             fdata["Net_Rev_Adj"] = None
 
 
+def load_cartera(xl) -> str | None:
+    """
+    Parse the Cartera sheet and return it as a JSON string.
+    Expected columns (header row 0):
+      COUNTRY | COUNTRY_BRAND_ID | BRAND_NAME | LEAD_PERF | BRAND_CITY
+      BRAND_OWNER_EMAIL_ANTERIOR | BRAND_OWNER_ROLE_ANTERIOR
+      BRAND_OWNER_EMAIL_NUEVO (current farmer) | BRAND_OWNER_ROLE_NUEVO
+      CAMBIO_CARTERA | CAMBIO_SEGMENTO | LIDER | GMV_L28D | ORDERS_L28D
+    """
+    try:
+        df = xl.parse("Cartera", header=0)
+        df = df.dropna(how="all")
+        # Normalize column names (strip whitespace)
+        df.columns = [str(c).strip() for c in df.columns]
+        # Normalize current-farmer email column
+        farmer_col = next(
+            (c for c in df.columns if "email_nuevo" in c.lower()), None
+        )
+        if farmer_col:
+            df[farmer_col] = df[farmer_col].astype(str).str.strip().str.lower()
+        print(f"[loader] Cartera: {len(df)} filas, columnas: {list(df.columns)}")
+        return df.to_json()
+    except Exception as e:
+        import traceback
+        print(f"[loader] Cartera error: {e}")
+        traceback.print_exc()
+        return None
+
+
 def load_sheet_maestro(file_obj, dia_corte: int, dias_mes: int = 30) -> dict:
     xl = pd.ExcelFile(file_obj, engine="openpyxl")
     sheets = xl.sheet_names
