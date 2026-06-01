@@ -281,7 +281,7 @@ def _save_latest_gsheet(payload: dict) -> bool:
         return False
 
 
-def _load_latest_gsheet() -> dict | None:
+def _load_latest_gsheet():
     """Load the latest_state payload from GSheet Latest_State tab."""
     client = _gsheet_client()
     if not client:
@@ -370,7 +370,7 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
     return True
 
 
-def load_latest_state() -> dict | None:
+def load_latest_state():
     """
     Returns the dict saved by save_latest_state, or None if nothing saved yet.
     Reads from:

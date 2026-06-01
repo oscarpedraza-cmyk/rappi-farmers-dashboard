@@ -491,7 +491,7 @@ def refresh_net_rev_adj(farmers_data: dict, dias_mes: int = 31) -> None:
             fdata["Net_Rev_Adj"] = None
 
 
-def load_cartera(xl) -> str | None:
+def load_cartera(xl):
     """
     Parse the Cartera sheet and return it as a JSON string.
     Expected columns (header row 0):
