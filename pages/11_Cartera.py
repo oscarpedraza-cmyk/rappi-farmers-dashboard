@@ -67,11 +67,42 @@ BUCKET_ORDER = list(BUCKET_CONFIG.keys())
 
 
 def _to_dates_robust(series):
-    """Convert series to datetime handling both Timestamps and epoch-ms ints."""
+    """
+    Convert a series to DatetimeSeries, handling three formats:
+      1. datetime64 — from a fresh Excel upload (no conversion needed)
+      2. int64 epoch-ms — from JSON round-trip via pd.read_json().
+         pd.to_datetime(int64) interprets as nanoseconds → 1970 dates → wrong!
+         Fix: detect median year < 2000 and retry with unit='ms'.
+      3. float Excel serial — unformatted Excel date cells (e.g. 46048.0 = 2026-01-15)
+    """
     try:
         result = pd.to_datetime(series, errors="coerce")
-        if result.notna().mean() < 0.10 and pd.api.types.is_numeric_dtype(series):
-            result = pd.to_datetime(series, unit="ms", errors="coerce")
+
+        if pd.api.types.is_numeric_dtype(series):
+            valid = result.dropna()
+            # If the parsed dates are suspiciously old (≈ 1970), they were misread
+            if len(valid) > 0 and valid.dt.year.median() < 2000:
+                # Attempt 2: epoch-ms (most common after JSON round-trip)
+                r2 = pd.to_datetime(series, unit="ms", errors="coerce")
+                v2 = r2.dropna()
+                if len(v2) > 0 and v2.dt.year.median() >= 2000:
+                    return r2
+
+                # Attempt 3: Excel serial date (day count since 1899-12-30)
+                from datetime import datetime as _dt, timedelta as _td
+                def _from_excel(v):
+                    try:
+                        f = float(v)
+                        if 20000 <= f <= 60000:   # ~1954-2064 range
+                            return pd.Timestamp(_dt(1899, 12, 30) + _td(days=int(f)))
+                    except Exception:
+                        pass
+                    return pd.NaT
+                r3 = series.apply(_from_excel)
+                v3 = r3.dropna()
+                if len(v3) > 0 and v3.dt.year.median() >= 2000:
+                    return r3
+
         return result
     except Exception:
         return pd.Series(pd.NaT, index=series.index)
@@ -144,6 +175,7 @@ ref_ts = pd.Timestamp(ref_date)
 # ── Process Productividad for contact recency + imposible contacto ─────────────
 # Productividad column mapping (int columns, header=0 stripped):
 #   col 4  = ¿Contactado?   (SI / NO)
+#   col 9  = Week / Date (also a date column — used as fallback)
 #   col 10 = Date
 #   col 14 = Farmer email
 #   col 15 = Code (COUNTRY_BRAND_ID)
@@ -152,38 +184,88 @@ last_contact_fb    = {}   # (farmer, code)  → latest contact Timestamp in last
 last_contact_brand = {}   # code            → latest contact Timestamp in last 30d
 brand_all_no       = set()  # codes where EVERY follow in last 30d was NO (imposible)
 
+# Load _productividad_raw — might not be in session_state if page was loaded
+# directly (navigated from a different session context without upload).
 df_prod = st.session_state.get("_productividad_raw")
-if df_prod is not None and all(c in df_prod.columns for c in [4, 10, 14, 15]):
+if df_prod is None:
     try:
-        df_d = df_prod[[4, 14, 15, 10]].copy()
-        df_d.columns = ["contactado", "farmer", "code", "date"]
-        df_d["date"]      = _to_dates_robust(df_d["date"])
-        df_d["contactado"] = df_d["contactado"].astype(str).str.strip().str.upper()
-        df_d = df_d.dropna(subset=["date", "code"])
+        from core.db import load_latest_state as _lls
+        _ls = _lls()
+        if _ls and _ls.get("productividad_raw"):
+            _df = pd.read_json(io.StringIO(_ls["productividad_raw"]))
+            _df.columns = [int(c) for c in _df.columns]
+            df_prod = _df
+            st.session_state["_productividad_raw"] = df_prod
+    except Exception:
+        pass
 
-        # Last 30 days from reference date
-        cutoff = ref_ts - pd.Timedelta(days=30)
-        df_d = df_d[df_d["date"] >= cutoff].copy()
+_prod_debug = {}   # filled for supervisor debug expander
 
-        # Last contact per (farmer, brand)
-        for (farmer, code), grp in df_d.groupby(["farmer", "code"]):
-            last_contact_fb[(str(farmer).lower(), str(code))] = grp["date"].max()
+if df_prod is not None and all(c in df_prod.columns for c in [4, 14, 15]):
+    try:
+        # Try col 10 (Date) first; fall back to col 9 (also a date field)
+        _date_col = 10 if 10 in df_prod.columns else (9 if 9 in df_prod.columns else None)
 
-        # Last contact per brand (any farmer)
-        for code, grp in df_d.groupby("code"):
-            last_contact_brand[str(code)] = grp["date"].max()
+        if _date_col is not None:
+            df_d = df_prod[[4, 14, 15, _date_col]].copy()
+            df_d.columns = ["contactado", "farmer", "code", "date"]
+            df_d["date"] = _to_dates_robust(df_d["date"])
 
-        # Imposible contacto: brand has follows in period but ALL are NO
-        # (even one SI in any row disqualifies it — the brand IS reachable)
-        for code, grp in df_d.groupby("code"):
-            has_si = (grp["contactado"] != "NO").any()
-            has_no = (grp["contactado"] == "NO").any()
-            if has_no and not has_si:
-                brand_all_no.add(str(code))
+            # If col 10 gave bad dates (still 1970), try col 9 as fallback
+            _valid = df_d["date"].dropna()
+            if (len(_valid) == 0 or _valid.dt.year.median() < 2000) and _date_col == 10 and 9 in df_prod.columns:
+                df_d["date"] = _to_dates_robust(df_prod[9])
+
+            _prod_debug["date_col_used"] = _date_col
+            _prod_debug["raw_rows"]      = len(df_d)
+            _prod_debug["valid_dates"]   = int(df_d["date"].notna().sum())
+            _prod_debug["date_range"]    = (
+                f"{df_d['date'].min().date()} → {df_d['date'].max().date()}"
+                if df_d["date"].notna().any() else "ninguna"
+            )
+            _prod_debug["ref_date"]      = str(ref_date)
+            _prod_debug["cutoff"]        = str((ref_ts - pd.Timedelta(days=30)).date())
+
+            df_d["contactado"] = df_d["contactado"].astype(str).str.strip().str.upper()
+            df_d = df_d.dropna(subset=["date", "code"])
+
+            cutoff = ref_ts - pd.Timedelta(days=30)
+            df_d_30 = df_d[df_d["date"] >= cutoff].copy()
+
+            _prod_debug["rows_in_30d"]  = len(df_d_30)
+            _prod_debug["unique_codes"] = df_d_30["code"].nunique()
+
+            # Last contact per (farmer, brand)
+            for (farmer, code), grp in df_d_30.groupby(["farmer", "code"]):
+                last_contact_fb[(str(farmer).lower(), str(code))] = grp["date"].max()
+
+            # Last contact per brand (any farmer)
+            for code, grp in df_d_30.groupby("code"):
+                last_contact_brand[str(code)] = grp["date"].max()
+
+            # Imposible contacto: has follows in period but ALL are NO
+            for code, grp in df_d_30.groupby("code"):
+                has_si = (grp["contactado"] != "NO").any()
+                has_no = (grp["contactado"] == "NO").any()
+                if has_no and not has_si:
+                    brand_all_no.add(str(code))
+
+            _prod_debug["last_contact_pairs"] = len(last_contact_fb)
+            _prod_debug["imposible_codes"]    = len(brand_all_no)
 
     except Exception as _e:
-        if is_supervisor:
-            st.warning(f"⚠️ No se pudo calcular recencia desde Productividad: {_e}")
+        _prod_debug["error"] = str(_e)
+
+# ── Supervisor debug expander ─────────────────────────────────────────────────
+if is_supervisor:
+    with st.expander("🔧 Debug — Productividad × Cartera (solo supervisor)", expanded=False):
+        st.json(_prod_debug)
+        st.write(f"**`_productividad_raw` en session_state:** {df_prod is not None}")
+        if df_prod is not None:
+            st.write(f"**Filas en Productividad:** {len(df_prod)} · "
+                     f"**Columnas disponibles (muestra):** {[c for c in df_prod.columns if c <= 20]}")
+        st.write(f"**Pares (farmer, brand) con contacto en 30d:** {len(last_contact_fb)}")
+        st.write(f"**Marcas con imposible contacto:** {len(brand_all_no)}")
 
 
 def assign_bucket(farmer_email, brand_id):
