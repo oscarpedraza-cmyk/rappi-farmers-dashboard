@@ -114,63 +114,42 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
             return pd.Series(pd.NA, index=df.index, dtype=float)
         return pd.to_numeric(df[col], errors="coerce")
 
-    # ── Summary table per farmer ──────────────────────────────────────────────
-    summary_rows = []
-    for farmer in sorted(ACTIVE_FARMERS):
-        fd = df_det[df_det["FARMER"] == farmer]
-        if fd.empty:
-            continue
-        name = FARMER_NAMES.get(farmer, farmer.split("@")[0].title())
-        n    = len(fd)
+    # ── Summary table per farmer — CACHED ────────────────────────────────────────
+    @st.cache_data(show_spinner=False)
+    def build_summary_table(df: pd.DataFrame, farmers: frozenset, fnames: dict, quarts: dict) -> pd.DataFrame:
+        rows = []
+        for farmer in sorted(farmers):
+            fd = df[df["FARMER"] == farmer]
+            if fd.empty:
+                continue
+            name = fnames.get(farmer, farmer.split("@")[0].title())
+            n    = len(fd)
+            md_tip   = int((_bool_col(fd, "MARKDOWN")).sum())
+            md_real  = int((_num_col(fd, "MD") == 1).sum())
+            md_falso = int((_bool_col(fd, "MARKDOWN") & (_num_col(fd, "MD") != 1)).sum())
+            md_pct   = round(md_real / md_tip * 100, 1) if md_tip > 0 else 0.0
+            ads_tip  = int(_bool_col(fd, "ADS").sum())
+            ads_real = int((_num_col(fd, "BN") == 1).sum())
+            ads_falso= int((_bool_col(fd, "ADS") & (_num_col(fd, "BN") != 1)).sum())
+            ads_pct  = round(ads_real / ads_tip * 100, 1) if ads_tip > 0 else 0.0
+            ch_tip   = int(_bool_col(fd, "CHURN").sum())
+            ch_real  = int((_num_col(fd, "ORD") == 1).sum())
+            ch_falso = int((_bool_col(fd, "CHURN") & (_num_col(fd, "ORD") != 1)).sum())
+            ch_pct   = round(ch_real / ch_tip * 100, 1) if ch_tip > 0 else 0.0
+            total_tip  = md_tip + ads_tip + ch_tip
+            total_real = md_real + ads_real + ch_real
+            calidad    = round(total_real / total_tip * 100, 1) if total_tip > 0 else 0.0
+            rows.append({
+                "email": farmer, "Farmer": name, "Seguimientos": n,
+                "Q": quarts.get(farmer, "Q4"),
+                "MD Tipificó": md_tip,  "MD Real": md_real,  "MD Falso": md_falso,  "MD Conv%": md_pct,
+                "ADS Tipificó": ads_tip, "ADS Real": ads_real, "ADS Falso": ads_falso, "ADS Conv%": ads_pct,
+                "CH Tipificó": ch_tip,  "CH Real": ch_real,  "CH Falso": ch_falso,  "CH Conv%": ch_pct,
+                "Calidad %": calidad,
+            })
+        return pd.DataFrame(rows).sort_values("Calidad %", ascending=False)
 
-        # MD
-        md_tip    = int(_bool_col(fd, "MARKDOWN").sum())
-        md_real   = int((_num_col(fd, "MD") == 1).sum())
-        md_falso  = int((_bool_col(fd, "MARKDOWN") & (_num_col(fd, "MD") != 1)).sum())
-        md_pct    = round(md_real / md_tip * 100, 1) if md_tip > 0 else 0
-
-        # ADS
-        ads_tip   = int(_bool_col(fd, "ADS").sum())
-        ads_real  = int((_num_col(fd, "BN") == 1).sum())
-        ads_falso = int((_bool_col(fd, "ADS") & (_num_col(fd, "BN") != 1)).sum())
-        ads_pct   = round(ads_real / ads_tip * 100, 1) if ads_tip > 0 else 0
-
-        # Churn
-        ch_tip    = int(_bool_col(fd, "CHURN").sum())
-        ch_real   = int((_num_col(fd, "ORD") == 1).sum())
-        ch_falso  = int((_bool_col(fd, "CHURN") & (_num_col(fd, "ORD") != 1)).sum())
-        ch_pct    = round(ch_real / ch_tip * 100, 1) if ch_tip > 0 else 0
-
-        # Global quality score (weighted)
-        total_tip    = md_tip + ads_tip + ch_tip
-        total_real   = md_real + ads_real + ch_real
-        calidad_tip  = round(total_real / total_tip * 100, 1) if total_tip > 0 else 0
-
-        summary_rows.append({
-            "email":        farmer,
-            "Farmer":       name,
-            "Seguimientos": n,
-            "Q":            quartiles.get(farmer, "Q4"),
-            # MD
-            "MD Tipificó":  md_tip,
-            "MD Real":      md_real,
-            "MD Falso":     md_falso,
-            "MD Conv%":     md_pct,
-            # ADS
-            "ADS Tipificó": ads_tip,
-            "ADS Real":     ads_real,
-            "ADS Falso":    ads_falso,
-            "ADS Conv%":    ads_pct,
-            # Churn
-            "CH Tipificó":  ch_tip,
-            "CH Real":      ch_real,
-            "CH Falso":     ch_falso,
-            "CH Conv%":     ch_pct,
-            # Global
-            "Calidad %":    calidad_tip,
-        })
-
-    df_sum = pd.DataFrame(summary_rows).sort_values("Calidad %", ascending=False)
+    df_sum = build_summary_table(df_det, frozenset(ACTIVE_FARMERS), FARMER_NAMES, quartiles)
 
     # ── KPI cards del equipo ──────────────────────────────────────────────────
     total_md_tip   = df_sum["MD Tipificó"].sum()
@@ -225,75 +204,48 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
     st.markdown("### 📊 Conversión real por farmer")
     st.caption("Datos del DETALLE — sistema confirma cierre efectivo (MD=1, BN=1, ORD=1)")
 
-    # Build HTML table
     medal = ["🥇", "🥈", "🥉"]
-    rows_html = ""
-    for i, (_, row) in enumerate(df_sum.iterrows()):
-        rank   = medal[i] if i < 3 else str(i + 1)
-        bg     = "#FFFFFF" if i % 2 == 0 else "#FAFBFC"
-        q      = row["Q"]
-        qcolor = QUARTILE_COLOR.get(q, "#9CA3AF")
-        calidad = row["Calidad %"]
-        cal_c  = "#00B341" if calidad >= 30 else "#F59E0B" if calidad >= 15 else "#EF4444"
+    df_table = df_sum.reset_index(drop=True).copy()
+    df_table.insert(0, "#", [medal[i] if i < 3 else str(i + 1) for i in range(len(df_table))])
+    df_table["MD R/T"]  = df_table.apply(lambda r: f"{int(r['MD Real'])}/{int(r['MD Tipificó'])}", axis=1)
+    df_table["ADS R/T"] = df_table.apply(lambda r: f"{int(r['ADS Real'])}/{int(r['ADS Tipificó'])}", axis=1)
+    df_table["CH R/T"]  = df_table.apply(lambda r: f"{int(r['CH Real'])}/{int(r['CH Tipificó'])}", axis=1)
+    df_table["MD ✗"]    = df_table["MD Falso"].astype(float)
+    df_table["ADS ✗"]   = df_table["ADS Falso"].astype(float)
+    df_table["CH ✗"]    = df_table["CH Falso"].astype(float)
 
-        def _pct_cell(pct, falso):
-            c = "#00B341" if pct >= 30 else "#F59E0B" if pct >= 15 else "#EF4444"
-            alert = f' <span style="color:#EF4444;font-size:0.7rem">({int(falso)} ✗)</span>' if falso > 0 else ""
-            return f'<span style="color:{c};font-weight:700">{pct:.1f}%</span>{alert}'
-
-        rows_html += f"""
-        <tr style="background:{bg};border-bottom:1px solid #F3F4F6">
-            <td style="padding:11px 14px;text-align:center">{rank}</td>
-            <td style="padding:11px 14px;border-left:3px solid {qcolor}">
-                <span style="background:{qcolor}18;color:{qcolor};font-size:0.65rem;
-                      font-weight:700;padding:2px 6px;border-radius:4px;margin-right:6px">{q}</span>
-                <span style="font-weight:600;color:#1A1A1A">{row['Farmer']}</span>
-            </td>
-            <td style="padding:11px 14px;text-align:center;color:#6B7280">{int(row['Seguimientos'])}</td>
-            <td style="padding:11px 14px;text-align:center">{_pct_cell(row['MD Conv%'], row['MD Falso'])}</td>
-            <td style="padding:11px 14px;text-align:center;font-size:0.8rem;color:#374151">
-                {int(row['MD Real'])}/{int(row['MD Tipificó'])}
-            </td>
-            <td style="padding:11px 14px;text-align:center">{_pct_cell(row['ADS Conv%'], row['ADS Falso'])}</td>
-            <td style="padding:11px 14px;text-align:center;font-size:0.8rem;color:#374151">
-                {int(row['ADS Real'])}/{int(row['ADS Tipificó'])}
-            </td>
-            <td style="padding:11px 14px;text-align:center">{_pct_cell(row['CH Conv%'], row['CH Falso'])}</td>
-            <td style="padding:11px 14px;text-align:center;font-size:0.8rem;color:#374151">
-                {int(row['CH Real'])}/{int(row['CH Tipificó'])}
-            </td>
-            <td style="padding:11px 14px;text-align:center;font-weight:800;color:{cal_c};font-size:1rem">
-                {calidad:.1f}%
-            </td>
-        </tr>"""
-
-    st.markdown(f"""
-    <div style="border-radius:14px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,0.10);margin-bottom:2rem">
-        <div style="overflow-x:auto">
-        <table style="width:100%;border-collapse:collapse;font-size:0.83rem;background:white">
-            <thead>
-                <tr style="background:#F8F9FA;border-bottom:2px solid #E5E7EB">
-                    <th style="padding:10px 14px;text-align:center;color:#6B7280;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.8px">#</th>
-                    <th style="padding:10px 14px;text-align:left;color:#6B7280;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.8px">FARMER</th>
-                    <th style="padding:10px 14px;text-align:center;color:#6B7280;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.8px">SEGUIM.</th>
-                    <th style="padding:10px 14px;text-align:center;color:#4A90D9;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.8px">💰 MD %</th>
-                    <th style="padding:10px 14px;text-align:center;color:#4A90D9;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.8px">MD R/T</th>
-                    <th style="padding:10px 14px;text-align:center;color:#9333EA;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.8px">📢 ADS %</th>
-                    <th style="padding:10px 14px;text-align:center;color:#9333EA;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.8px">ADS R/T</th>
-                    <th style="padding:10px 14px;text-align:center;color:#F59E0B;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.8px">🔄 CHURN %</th>
-                    <th style="padding:10px 14px;text-align:center;color:#F59E0B;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.8px">CH R/T</th>
-                    <th style="padding:10px 14px;text-align:center;color:#374151;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.8px">CALIDAD TIP.</th>
-                </tr>
-            </thead>
-            <tbody>{rows_html}</tbody>
-        </table>
-        </div>
-    </div>
-    <div style="font-size:0.72rem;color:#9CA3AF;margin-bottom:1.5rem">
-        R/T = Reales / Tipificados &nbsp;·&nbsp; (N ✗) = casos tipificados como cerrados sin cierre efectivo en sistema
-        &nbsp;·&nbsp; Calidad de Tipificación = total cierres reales / total tipificados
-    </div>
-    """, unsafe_allow_html=True)
+    show_cols = ["#", "Q", "Farmer", "Seguimientos",
+                 "MD Conv%", "MD R/T", "MD ✗",
+                 "ADS Conv%", "ADS R/T", "ADS ✗",
+                 "CH Conv%", "CH R/T", "CH ✗",
+                 "Calidad %"]
+    st.data_editor(
+        df_table[show_cols],
+        use_container_width=True,
+        hide_index=True,
+        disabled=True,
+        column_config={
+            "#":            st.column_config.TextColumn("#", width="small"),
+            "Q":            st.column_config.TextColumn("Q", width="small"),
+            "Farmer":       st.column_config.TextColumn("Farmer", width="medium"),
+            "Seguimientos": st.column_config.NumberColumn("Seguim.", format="%d", width="small"),
+            "MD Conv%":     st.column_config.NumberColumn("💰 MD %", format="%.1f%%", width="small"),
+            "MD R/T":       st.column_config.TextColumn("MD R/T", width="small"),
+            "MD ✗":         st.column_config.NumberColumn("MD ✗", format="%d", width="small",
+                                help="Casos tipificados sin cierre efectivo"),
+            "ADS Conv%":    st.column_config.NumberColumn("📢 ADS %", format="%.1f%%", width="small"),
+            "ADS R/T":      st.column_config.TextColumn("ADS R/T", width="small"),
+            "ADS ✗":        st.column_config.NumberColumn("ADS ✗", format="%d", width="small",
+                                help="Casos tipificados sin cierre efectivo"),
+            "CH Conv%":     st.column_config.NumberColumn("🔄 CH %", format="%.1f%%", width="small"),
+            "CH R/T":       st.column_config.TextColumn("CH R/T", width="small"),
+            "CH ✗":         st.column_config.NumberColumn("CH ✗", format="%d", width="small",
+                                help="Casos tipificados sin cierre efectivo"),
+            "Calidad %":    st.column_config.ProgressColumn("Calidad Tip.", format="%.1f%%",
+                                min_value=0, max_value=100),
+        },
+    )
+    st.caption("R/T = Reales / Tipificados · ✗ = falsa conversión · Calidad = cierres reales / tipificados")
 
     # ── ALERTA FALSA CONVERSIÓN ───────────────────────────────────────────────
     st.markdown("---")
@@ -310,25 +262,27 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
     </div>
     """, unsafe_allow_html=True)
 
-    # Filter selector
+    # ── Sidebar filters ───────────────────────────────────────────────────────
     farmer_options = (["Todos"] if is_supervisor else []) + [
         FARMER_NAMES.get(f, f) for f in sorted(ACTIVE_FARMERS)
         if f in df_det["FARMER"].values
     ]
+    with st.sidebar:
+        st.markdown("### 🔍 Filtros — Falsa Conversión")
+        if is_supervisor:
+            sel_farmer_name = st.selectbox("Farmer", farmer_options, key="conv_sel_farmer")
+        else:
+            my_name = FARMER_NAMES.get(email_auth.strip().lower(), email_auth)
+            sel_farmer_name = my_name
+            st.info(f"👤 {my_name}")
+        palanca_sel = st.radio("Palanca", ["Todas", "MD", "ADS", "Churn"], key="conv_palanca_sel")
 
-    if is_supervisor:
-        sel_farmer_name = st.selectbox("Filtrar por farmer", farmer_options, key="conv_sel_farmer")
-    else:
-        my_name = FARMER_NAMES.get(email_auth.strip().lower(), email_auth)
-        sel_farmer_name = my_name
+    if not is_supervisor:
         st.markdown(f"""
         <div style="background:rgba(74,108,247,0.08);border-left:4px solid #4A6CF7;
                     border-radius:8px;padding:0.7rem 1rem;margin-bottom:1rem">
             👤 <b>Viendo tus casos: {my_name}</b>
         </div>""", unsafe_allow_html=True)
-
-    palanca_sel = st.radio("Palanca", ["Todas", "MD", "ADS", "Churn"],
-                           horizontal=True, key="conv_palanca_sel")
 
     # Build false-conversion detail table
     def _build_falsos(palanca_filter):

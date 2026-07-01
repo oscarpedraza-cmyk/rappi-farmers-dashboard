@@ -167,54 +167,40 @@ st.plotly_chart(fig, use_container_width=True)
 st.markdown("---")
 st.markdown("## Detalle por farmer")
 
-# Semana count for context
-df_display = df.copy()
-df_display["Pitch %"] = df_display["Pitch %"].apply(
-    lambda v: f"{v:.1f}%" if v is not None else "Sin dato"
+def _sparkline_text(pi_rows):
+    """Convert last 8 weekly values to emoji sparkline string."""
+    if not pi_rows:
+        return "—"
+    return "".join(
+        "🟢" if v is not None and v * 100 >= 65 else
+        "🟡" if v is not None and v * 100 >= 50 else
+        "🔴" if v is not None else "⚪"
+        for v in pi_rows[-8:]
+    )
+
+df_tbl = (
+    df.sort_values("Pitch %", ascending=False, na_position="last")
+    .copy()
+    .reset_index(drop=True)
 )
+df_tbl["Estado"]         = df_tbl["Pitch %"].apply(pi_status)
+df_tbl["Últimas 8 sem."] = df_tbl["_pi_rows"].apply(_sparkline_text)
+df_tbl["Pitch %"]        = df_tbl["Pitch %"].apply(lambda v: v if v is not None else float("nan"))
 
-rows_html = ""
-for _, row in df.sort_values("Pitch %", ascending=False, na_position="last").iterrows():
-    p      = row["_pitch_dec"]
-    pct    = p * 100 if p is not None else None
-    color  = pi_color(pct)
-    status = pi_status(pct)
-    disp   = f"{pct:.1f}%" if pct is not None else "Sin dato"
-    n_sem  = int(row["Semanas con dato"])
-
-    # Mini weekly sparkline as colored dots
-    pi_r = row["_pi_rows"]
-    dots = ""
-    if pi_r:
-        for v in pi_r[-8:]:   # last 8 weeks
-            dc = pi_color(v * 100 if v is not None else None)
-            dots += f'<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{dc};margin:1px" title="{v*100:.0f}%" ></span>'
-
-    rows_html += f"""
-    <tr style="border-bottom:1px solid #F3F4F6">
-        <td style="padding:10px 14px;font-weight:600;color:#1A1A1A">{row['Farmer']}</td>
-        <td style="padding:10px 8px;text-align:center;font-size:1.1rem;font-weight:700;color:{color}">{disp}</td>
-        <td style="padding:10px 8px;text-align:center">{status}</td>
-        <td style="padding:10px 8px;text-align:center;font-size:0.8rem;color:#666">{n_sem} semana{'s' if n_sem != 1 else ''}</td>
-        <td style="padding:10px 8px;text-align:center">{dots if dots else '<span style="color:#aaa">—</span>'}</td>
-    </tr>"""
-
-st.markdown(f"""
-<table style="width:100%;border-collapse:collapse;font-size:0.88rem;background:#FFFFFF;
-              border:1px solid #E5E7EB;border-radius:12px;overflow:hidden;
-              box-shadow:0 2px 8px rgba(0,0,0,0.06)">
-    <thead>
-        <tr style="background:#F9FAFB;color:#6B7280;font-size:0.72rem;text-transform:uppercase;letter-spacing:0.8px">
-            <th style="padding:10px 14px;text-align:left">Farmer</th>
-            <th style="padding:10px;text-align:center">Pitch %</th>
-            <th style="padding:10px;text-align:center">Estado</th>
-            <th style="padding:10px;text-align:center">Datos</th>
-            <th style="padding:10px;text-align:center">Semanas (últimas 8) →</th>
-        </tr>
-    </thead>
-    <tbody>{rows_html}</tbody>
-</table>
-""", unsafe_allow_html=True)
+st.data_editor(
+    df_tbl[["Farmer", "Pitch %", "Estado", "Semanas con dato", "Últimas 8 sem."]],
+    use_container_width=True,
+    hide_index=True,
+    disabled=True,
+    column_config={
+        "Farmer":          st.column_config.TextColumn("Farmer", width="medium"),
+        "Pitch %":         st.column_config.ProgressColumn("Pitch %", format="%.1f%%",
+                               min_value=0, max_value=100),
+        "Estado":          st.column_config.TextColumn("Estado", width="medium"),
+        "Semanas con dato":st.column_config.NumberColumn("Semanas", format="%d", width="small"),
+        "Últimas 8 sem.":  st.column_config.TextColumn("← últimas 8 semanas →", width="large"),
+    },
+)
 
 # ── Weekly trend if data available ───────────────────────────────────────────
 farmers_with_weekly = [(em, data) for em, data in farmers_data.items()

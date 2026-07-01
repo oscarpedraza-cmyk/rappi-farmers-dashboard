@@ -15,6 +15,12 @@ from core.db import get_consecutive_red_weeks
 from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 
+
+@st.cache_data(show_spinner=False)
+def _parse_conversion_raw(raw_json: str) -> pd.DataFrame:
+    return pd.read_json(io.StringIO(raw_json))
+
+
 st.set_page_config(
     page_title="Vista Farmer — Rappi Farmers",
     page_icon="🚀",
@@ -445,15 +451,13 @@ st.markdown("---")
 st.markdown("### 📊 Actividad de pitches y conversión real")
 st.caption("Fuente: pestaña Conversión del Maestro. Falsa conversión = pitch marcado como hecho pero sin cierre real.")
 
-import io as _io
 _conv_raw = st.session_state.get("_conversion_raw")
 
 if not _conv_raw:
     st.info("📂 Sin datos de Conversión disponibles. Asegúrate de que el Maestro incluya la pestaña **Conversión** con las columnas FARMER, DATE, MARKDOWN, MD, ADS, BN, CHURN, ORD.")
 else:
     try:
-        import pandas as _pd
-        _df_conv = _pd.read_json(_io.StringIO(_conv_raw))
+        _df_conv = _parse_conversion_raw(_conv_raw)
 
         if "FARMER" not in _df_conv.columns:
             st.info("La hoja Conversión no tiene columna FARMER.")
@@ -480,12 +484,12 @@ else:
                 def _is_si(s):
                     return s.astype(str).str.strip().str.upper() == "SI"
                 def _is_one(s):
-                    return _pd.to_numeric(s, errors="coerce") == 1
+                    return pd.to_numeric(s, errors="coerce") == 1
 
                 conv_cols = st.columns(3)
                 for col_idx, (name, tip_col, real_col, icon, color) in enumerate(PALANCAS_CONV):
-                    tip_vals  = _is_si(_df_me[tip_col])  if tip_col  in _df_me.columns else _pd.Series(False, index=_df_me.index)
-                    real_vals = _is_one(_df_me[real_col]) if real_col in _df_me.columns else _pd.Series(False, index=_df_me.index)
+                    tip_vals  = _is_si(_df_me[tip_col])  if tip_col  in _df_me.columns else pd.Series(False, index=_df_me.index)
+                    real_vals = _is_one(_df_me[real_col]) if real_col in _df_me.columns else pd.Series(False, index=_df_me.index)
 
                     pitches_hechos = int(tip_vals.sum())
                     cierres_reales = int(real_vals.sum())
