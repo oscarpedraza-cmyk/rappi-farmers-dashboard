@@ -203,12 +203,10 @@ def _handle_login(email_raw: str):
         st.error("❌ Tu correo no está habilitado. Contacta a tu supervisor.")
         return
     if email == SUPERVISOR_EMAIL:
-        st.session_state["_auth_step"] = "pin"
-        st.session_state["_auth_pending_email"] = email
-        st.rerun()
+        _set_auth(email, is_supervisor=True, persist=True)
     else:
         _set_auth(email, is_supervisor=False, persist=True)
-        st.rerun()
+    st.rerun()
 
 
 # ── Auth gate ─────────────────────────────────────────────────────────────────
