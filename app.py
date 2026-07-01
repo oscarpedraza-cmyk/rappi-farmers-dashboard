@@ -220,7 +220,79 @@ if is_supervisor:
                 except Exception as e:
                     st.error(f"Error: {e}")
 
-        # ── Row 2: Snapshot controls ───────────────────────────────────────────
+        # ── Row 2: Asignación del mes ─────────────────────────────────────────
+        st.markdown('<hr style="border:none;border-top:1px solid #F0F0F0;margin:0.8rem 0 0.6rem">', unsafe_allow_html=True)
+        st.markdown("""
+        <div style="font-size:0.78rem;font-weight:600;color:#64748B;
+                    text-transform:uppercase;letter-spacing:0.7px;margin-bottom:0.6rem">
+            Asignación del mes (Cartera independiente)
+        </div>""", unsafe_allow_html=True)
+
+        col_asig, col_asig_info = st.columns([6, 3])
+        with col_asig:
+            asignacion_file = st.file_uploader(
+                "📋  Asignación.xlsx (cartera del mes)",
+                type=["xlsx"],
+                help="Archivo de asignación mensual con columnas: COUNTRY_BRAND_ID, BRAND_OWNER_EMAIL_NUEVO, GMV_L28D…",
+                key="file_uploader_asignacion",
+            )
+
+        if asignacion_file:
+            with st.spinner("Cargando asignación..."):
+                try:
+                    df_asig = pd.read_excel(asignacion_file, header=0, engine="openpyxl")
+                    df_asig = df_asig.dropna(how="all")
+                    df_asig.columns = [str(c).strip() for c in df_asig.columns]
+                    farmer_col_a = next(
+                        (c for c in df_asig.columns if "email_nuevo" in c.lower()), None
+                    )
+                    if farmer_col_a:
+                        df_asig[farmer_col_a] = df_asig[farmer_col_a].astype(str).str.strip().str.lower()
+                    asig_json = df_asig.to_json()
+                    st.session_state["_cartera_raw"] = asig_json
+
+                    # Persist: merge with existing state to preserve farmers_data etc.
+                    _existing = load_latest_state() or {}
+                    if _existing.get("farmers_data"):
+                        save_latest_state(
+                            farmers_data           = _existing["farmers_data"],
+                            dia_corte              = _existing.get("dia_corte", dia_corte),
+                            dias_mes               = _existing.get("dias_mes", dias_mes),
+                            productividad_raw_json = _existing.get("productividad_raw"),
+                            att_prod_raw_json      = _existing.get("att_prod_raw"),
+                            conversion_raw_json    = _existing.get("conversion_raw"),
+                            cartera_raw_json       = asig_json,
+                            updated_by             = email,
+                        )
+                    n_brands  = len(df_asig)
+                    n_farmers = df_asig[farmer_col_a].nunique() if farmer_col_a else "?"
+                    st.success(
+                        f"✅ Asignación cargada: **{n_brands} marcas** · **{n_farmers} farmers** "
+                        f"· Cartera disponible para todo el equipo"
+                    )
+                except Exception as _ae:
+                    st.error(f"❌ Error leyendo Asignación: {_ae}")
+
+        with col_asig_info:
+            if "_cartera_raw" in st.session_state:
+                try:
+                    import io as _io_c
+                    _df_c = pd.read_json(_io_c.StringIO(st.session_state["_cartera_raw"]))
+                    st.markdown(f"""
+                    <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;
+                                padding:0.55rem 0.9rem;font-size:0.83rem;color:#065F46;font-weight:600">
+                        ✅ Cartera activa: {len(_df_c)} marcas
+                    </div>""", unsafe_allow_html=True)
+                except Exception:
+                    pass
+            else:
+                st.markdown("""
+                <div style="background:#FFFBEB;border:1px solid #FDE68A;border-radius:8px;
+                            padding:0.55rem 0.9rem;font-size:0.83rem;color:#78350F">
+                    ⚠️ Sin cartera cargada aún
+                </div>""", unsafe_allow_html=True)
+
+        # ── Row 3: Snapshot controls ───────────────────────────────────────────
         st.markdown('<div style="height:0.3rem"></div>', unsafe_allow_html=True)
         col_snap, col_hist, col_spacer = st.columns([2, 2, 5])
         with col_snap:
