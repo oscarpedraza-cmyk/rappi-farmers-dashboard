@@ -294,7 +294,7 @@ def render_topbar(updated_at: str = "", dia_corte: int = None, progreso_pct: flo
         b64 = base64.b64encode(logo_path.read_bytes()).decode()
         logo_html = f'<img src="data:image/png;base64,{b64}" height="28" style="display:block">'
     else:
-        logo_html = '<span style="font-size:1.2rem;font-weight:900;color:#E8281F">rappi</span>'
+        logo_html = '<span style="font-size:1.2rem;font-weight:900;color:#FF441B">rappi</span>'
 
     chips_html = f'<span class="rb-meta-chip">📅 {today_str}</span>'
     if updated_at:
@@ -311,7 +311,7 @@ def render_topbar(updated_at: str = "", dia_corte: int = None, progreso_pct: flo
                 {logo_html}
                 <div>
                     <div class="brand-name">Rappi <span>Farmers</span></div>
-                    <div style="font-size:0.65rem;color:rgba(255,255,255,0.4);
+                    <div style="font-size:0.65rem;color:#9CA3AF;
                                 margin-top:1px;letter-spacing:0.3px">Dashboard AR / UY</div>
                 </div>
             </div>

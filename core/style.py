@@ -87,9 +87,16 @@ section[data-testid="stSidebar"][aria-expanded="false"] + div .main
     .block-container {{ padding-left: 1.8rem !important; }}
 
 /* ── Sidebar — white with coral active ───────────────────────────────────────── */
-[data-testid="stSidebar"] > div:first-child {{
+section[data-testid="stSidebar"],
+[data-testid="stSidebar"],
+[data-testid="stSidebar"] > div,
+[data-testid="stSidebar"] > div:first-child,
+[data-testid="stSidebarContent"] {{
     background: {BG_SIDEBAR} !important;
-    border-right: 1px solid {C_BORDER};
+    background-color: {BG_SIDEBAR} !important;
+}}
+[data-testid="stSidebar"] > div:first-child {{
+    border-right: 1px solid {C_BORDER} !important;
 }}
 [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] .stMarkdown,
@@ -132,7 +139,8 @@ section[data-testid="stSidebar"][aria-expanded="false"] + div .main
 
 /* ── Top navbar (rendered via HTML) ──────────────────────────────────────────── */
 .rb-topbar {{
-    background: {BG_NAV};
+    background: {BG_NAV} !important;
+    background-color: {BG_NAV} !important;
     border: 1px solid {C_BORDER};
     border-radius: 12px;
     padding: 0.78rem 1.3rem;
@@ -151,10 +159,10 @@ section[data-testid="stSidebar"][aria-expanded="false"] + div .main
 .rb-topbar-brand .brand-name {{
     font-size: 1rem;
     font-weight: 800;
-    color: {C_TEXT};
+    color: {C_TEXT} !important;
     letter-spacing: -0.3px;
 }}
-.rb-topbar-brand .brand-name span {{ color: {C_RED}; }}
+.rb-topbar-brand .brand-name span {{ color: {C_RED} !important; }}
 .rb-topbar-right {{
     display: flex;
     align-items: center;
