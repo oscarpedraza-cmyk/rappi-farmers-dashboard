@@ -316,6 +316,7 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
                       att_prod_raw_json: str = None,
                       conversion_raw_json: str = None,
                       cartera_raw_json: str = None,
+                      asignacion_raw_json: str = None,
                       updated_by: str = "supervisor") -> bool:
     """
     Persists the most recent upload so all farmer sessions can read it.
@@ -332,6 +333,7 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
         "att_prod_raw":      att_prod_raw_json,
         "conversion_raw":    conversion_raw_json,
         "cartera_raw":       cartera_raw_json,
+        "asignacion_raw":    asignacion_raw_json,
         "updated_by":        updated_by,
         "updated_at":        datetime.now().isoformat(),
     }

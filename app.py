@@ -74,8 +74,10 @@ if not is_supervisor:
                 st.session_state["_att_prod_raw"] = latest["att_prod_raw"]
             if latest.get("conversion_raw"):
                 st.session_state["_conversion_raw"] = latest["conversion_raw"]
-            if latest.get("cartera_raw"):
-                st.session_state["_cartera_raw"] = latest["cartera_raw"]
+            # Asignación tiene prioridad sobre Cartera del Maestro
+            _cartera_src = latest.get("asignacion_raw") or latest.get("cartera_raw")
+            if _cartera_src:
+                st.session_state["_cartera_raw"] = _cartera_src
 
 dia_corte    = st.session_state.get("dia_corte", today.day - 1 if today.day > 1 else 1)
 dias_mes     = st.session_state.get("dias_mes", 31)
@@ -195,6 +197,9 @@ if is_supervisor:
                     except Exception as _e:
                         _att_error = str(_e)
 
+                    # Preservar Asignación existente — el Maestro nunca la sobreescribe
+                    _prev_state       = load_latest_state() or {}
+                    _asig_preserved   = _prev_state.get("asignacion_raw")
                     save_latest_state(
                         farmers_data           = farmers_data,
                         dia_corte              = dia_corte,
@@ -203,8 +208,12 @@ if is_supervisor:
                         att_prod_raw_json      = att_prod_raw_json,
                         conversion_raw_json    = conversion_raw_json,
                         cartera_raw_json       = cartera_raw_json,
+                        asignacion_raw_json    = _asig_preserved,
                         updated_by             = email,
                     )
+                    # Si hay Asignación, usarla como cartera activa en esta sesión
+                    if _asig_preserved:
+                        st.session_state["_cartera_raw"] = _asig_preserved
                     # Refresh progreso after load
                     progreso_pct = ((dia_corte - 1) / dias_mes) * 100
                     n = len(farmers_data)
@@ -251,19 +260,19 @@ if is_supervisor:
                     asig_json = df_asig.to_json()
                     st.session_state["_cartera_raw"] = asig_json
 
-                    # Persist: merge with existing state to preserve farmers_data etc.
+                    # Persiste en su propio campo — el Maestro nunca lo toca
                     _existing = load_latest_state() or {}
-                    if _existing.get("farmers_data"):
-                        save_latest_state(
-                            farmers_data           = _existing["farmers_data"],
-                            dia_corte              = _existing.get("dia_corte", dia_corte),
-                            dias_mes               = _existing.get("dias_mes", dias_mes),
-                            productividad_raw_json = _existing.get("productividad_raw"),
-                            att_prod_raw_json      = _existing.get("att_prod_raw"),
-                            conversion_raw_json    = _existing.get("conversion_raw"),
-                            cartera_raw_json       = asig_json,
-                            updated_by             = email,
-                        )
+                    save_latest_state(
+                        farmers_data           = _existing.get("farmers_data", {}),
+                        dia_corte              = _existing.get("dia_corte", dia_corte),
+                        dias_mes               = _existing.get("dias_mes", dias_mes),
+                        productividad_raw_json = _existing.get("productividad_raw"),
+                        att_prod_raw_json      = _existing.get("att_prod_raw"),
+                        conversion_raw_json    = _existing.get("conversion_raw"),
+                        cartera_raw_json       = _existing.get("cartera_raw"),
+                        asignacion_raw_json    = asig_json,   # ← campo propio
+                        updated_by             = email,
+                    )
                     n_brands  = len(df_asig)
                     n_farmers = df_asig[farmer_col_a].nunique() if farmer_col_a else "?"
                     st.success(
