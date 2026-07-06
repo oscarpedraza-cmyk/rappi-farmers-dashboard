@@ -1,12 +1,13 @@
-﻿"""
-Historical storage â€” dual backend:
-  1. Google Sheets (if GSHEET_ID env var set) â€” persists across Render deploys
+﻿“””
+Historical storage — dual backend:
+  1. Google Sheets (if GSHEET_ID env var set) — persists across Render deploys
   2. SQLite local (fallback for local dev)
 
 Latest state sharing:
   - Uses st.cache_resource (process-level, shared across ALL user sessions)
   - Falls back to SQLite for persistence across server restarts
-"""
+“””
+from __future__ import annotations
 
 import logging
 import json

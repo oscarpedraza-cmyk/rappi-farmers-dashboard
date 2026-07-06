@@ -2,6 +2,7 @@
 core/style.py — Rappi Farmers Design System
 White-canvas Rappi Partners aesthetic. Call inject_global_css() once per page.
 """
+from __future__ import annotations
 
 # ── Design tokens ─────────────────────────────────────────────────────────────
 BG_PAGE    = "#F5F5F7"   # page canvas — Apple-grade off-white
