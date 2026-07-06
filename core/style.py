@@ -513,33 +513,41 @@ section[data-testid="stSidebar"],
 
 <script>
 (function() {{
-    // Clear raw "_arrow_right" / "_arrow_drop_down" text nodes injected by Streamlit
-    // when the icon font isn't loaded. CSS ::before chevron handles visual indicator.
+    // Disconnect previous observer (created by prior Streamlit rerun injection)
+    if (window._rappiArrowMo) {{ window._rappiArrowMo.disconnect(); }}
+
     function fixArrows() {{
         document.querySelectorAll(
             '[data-testid="stExpander"] details > summary'
         ).forEach(function(summary) {{
-            var walker = document.createTreeWalker(
-                summary, NodeFilter.SHOW_TEXT, null, false
-            );
+            var walker = document.createTreeWalker(summary, NodeFilter.SHOW_TEXT, null, false);
             var node;
             while ((node = walker.nextNode())) {{
-                if (/_?arrow_/.test(node.textContent)) {{
-                    node.textContent = '';
-                }}
+                if (/_?arrow_/.test(node.textContent)) {{ node.textContent = ''; }}
             }}
         }});
     }}
 
-    fixArrows();
-    window.addEventListener('load', fixArrows);
-    [300, 800, 1500, 3000].forEach(function(ms) {{
-        setTimeout(fixArrows, ms);
+    var _rafPending = false;
+    var mo = new MutationObserver(function() {{
+        if (!_rafPending) {{
+            _rafPending = true;
+            requestAnimationFrame(function() {{ _rafPending = false; fixArrows(); }});
+        }}
     }});
-    var mo = new MutationObserver(function() {{ fixArrows(); }});
-    document.addEventListener('DOMContentLoaded', function() {{
+    window._rappiArrowMo = mo;
+
+    function attach() {{
+        fixArrows();
         mo.observe(document.body, {{ childList: true, subtree: true }});
-    }});
+    }}
+
+    if (document.readyState === 'loading') {{
+        document.addEventListener('DOMContentLoaded', attach);
+    }} else {{
+        attach();
+    }}
+    [300, 800].forEach(function(ms) {{ setTimeout(fixArrows, ms); }});
 }})();
 </script>
 """

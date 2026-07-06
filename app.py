@@ -6,7 +6,7 @@ import streamlit as st
 import pandas as pd
 import json
 import base64
-from datetime import date
+from datetime import date, datetime
 import sys
 from pathlib import Path
 
@@ -223,8 +223,7 @@ if is_supervisor:
                     if _asig_preserved:
                         st.session_state["_cartera_raw"] = _asig_preserved
                     # Cache updated_at so subsequent rerenders don't call load_latest_state()
-                    from datetime import datetime as _dt
-                    st.session_state["_updated_at"] = _dt.now().isoformat()
+                    st.session_state["_updated_at"] = datetime.now().isoformat()
                     # Refresh progreso after load
                     progreso_pct = ((dia_corte - 1) / dias_mes) * 100
                     n = len(farmers_data)
