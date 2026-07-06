@@ -78,10 +78,22 @@ html, body, [class*="css"], [class*="st-"] {{
 /* ── Hide Streamlit chrome ───────────────────────────────────────────────────── */
 #MainMenu {{ visibility: hidden; }}
 footer    {{ visibility: hidden; }}
-header    {{ visibility: hidden; }}
+/* Transparent header — do NOT use visibility:hidden (oculta el toggle del sidebar) */
+header[data-testid="stHeader"] {{
+    background: transparent !important;
+    box-shadow: none !important;
+}}
+/* Ocultar solo los botones de acción de Streamlit (deploy, share, etc.) */
+[data-testid="stToolbar"],
+[data-testid="stDecoration"],
+[data-testid="stStatusWidget"] {{
+    visibility: hidden !important;
+}}
 
-/* ── Sidebar toggle button ───────────────────────────────────────────────────── */
+/* ── Sidebar toggle button — siempre visible ─────────────────────────────────── */
 [data-testid="stSidebarCollapsedControl"] {{
+    visibility: visible !important;
+    display: flex !important;
     background: {BG_CARD} !important;
     border-right: 1px solid {C_BORDER} !important;
     border-radius: 0 8px 8px 0 !important;
