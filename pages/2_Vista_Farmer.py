@@ -1,3 +1,4 @@
+from __future__ import annotations
 import streamlit as st
 import io
 import sys
@@ -19,6 +20,14 @@ from core.style import inject_global_css
 @st.cache_data(show_spinner=False)
 def _parse_conversion_raw(raw_json: str) -> pd.DataFrame:
     return pd.read_json(io.StringIO(raw_json))
+
+
+def _is_si(s: pd.Series) -> pd.Series:
+    return s.astype(str).str.strip().str.upper() == "SI"
+
+
+def _is_one(s: pd.Series) -> pd.Series:
+    return pd.to_numeric(s, errors="coerce") == 1
 
 
 st.set_page_config(
@@ -344,7 +353,7 @@ for col, (kpi, label, att_val) in zip([vc3, vc4, vc5, vc6], kpi_defs):
     icon, kcolor = status_map.get(kpi_statuses.get(kpi, "sin_dato"), ("⚪","#9CA3AF"))
     att_str      = f"{att_val*100:.0f}%" if att_val is not None else "S/D"
     contrib      = contribs.get(kpi)
-    contrib_str  = f"+{contrib:.1f}pp" if contrib else "—"
+    contrib_str  = f"+{contrib:.1f}pp" if contrib is not None else "—"
     with col:
         st.markdown(f"""
         <div style="background:#FFFFFF;border-radius:10px;padding:0.9rem;text-align:center;border:1px solid #E5E7EB;border-top:3px solid {kcolor};box-shadow:0 2px 6px rgba(0,0,0,0.05)">
@@ -480,11 +489,6 @@ else:
                     ("ADS",   "ADS",      "BN",  "📢", "#9333EA"),
                     ("Churn", "CHURN",    "ORD", "🔄", "#F59E0B"),
                 ]
-
-                def _is_si(s):
-                    return s.astype(str).str.strip().str.upper() == "SI"
-                def _is_one(s):
-                    return pd.to_numeric(s, errors="coerce") == 1
 
                 conv_cols = st.columns(3)
                 for col_idx, (name, tip_col, real_col, icon, color) in enumerate(PALANCAS_CONV):

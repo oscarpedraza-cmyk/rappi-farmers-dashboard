@@ -1,5 +1,7 @@
+from __future__ import annotations
 import streamlit as st
 import io
+import calendar
 import pandas as pd
 import plotly.graph_objects as go
 from datetime import date, timedelta
@@ -76,6 +78,9 @@ def parse_prod(df_json: str, date_col: int) -> pd.DataFrame:
     df = pd.read_json(io.StringIO(df_json))
     df.columns = [int(c) if str(c).isdigit() else c for c in df.columns]
 
+    # Capture raw numeric date BEFORE column renaming to avoid a second read_json call
+    num = pd.to_numeric(df[date_col], errors="coerce") if date_col in df.columns else pd.Series(dtype=float)
+
     cols = {4: "contactado", 14: "farmer", 15: "code", date_col: "date"}
     if MD_COL    and MD_COL    in df.columns: cols[MD_COL]    = "md"
     if ADS_COL   and ADS_COL   in df.columns: cols[ADS_COL]   = "ads"
@@ -85,10 +90,6 @@ def parse_prod(df_json: str, date_col: int) -> pd.DataFrame:
     df = df.rename(columns=cols)
 
     df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    num = pd.to_numeric(
-        pd.read_json(io.StringIO(df_json))[date_col] if date_col in pd.read_json(io.StringIO(df_json)).columns else pd.Series(dtype=float),
-        errors="coerce"
-    )
 
     # Fallback epoch-ms
     bad = df["date"].notna() & (df["date"].dt.year < 2000)
@@ -161,7 +162,6 @@ elif ventana == "Últimos 7 días vs. 7-14 días":
     label_this = f"Últimos 7 días ({lunes_this.strftime('%d/%m')} – {today.strftime('%d/%m')})"
     label_prev = f"7-14 días atrás ({lunes_prev.strftime('%d/%m')} – {lunes_this.strftime('%d/%m')})"
 else:
-    import calendar
     first_this = pd.Timestamp(today.replace(day=1))
     last_month_last = first_this - timedelta(days=1)
     first_prev = pd.Timestamp(last_month_last.replace(day=1))

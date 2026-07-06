@@ -346,7 +346,7 @@ else:
         st.markdown(f"### 🔴 Alarmas críticas — caída >10% &nbsp; `{len(red_alarms)} registros`")
         n_cols = min(3, len(red_alarms))
         cols   = st.columns(n_cols)
-        for ci, (_, row) in enumerate(red_alarms.iterrows()):
+        for ci, row in enumerate(red_alarms.to_dict("records")):
             with cols[ci % n_cols]:
                 st.markdown(
                     _alarm_card(row, "#EF4444", "#FEF2F2", "#EF4444", "#991B1B"),
@@ -357,7 +357,7 @@ else:
         st.markdown(f"### 🟡 En seguimiento — caída 5–10% &nbsp; `{len(yell_alarms)} registros`")
         n_cols = min(4, len(yell_alarms))
         cols   = st.columns(n_cols)
-        for ci, (_, row) in enumerate(yell_alarms.iterrows()):
+        for ci, row in enumerate(yell_alarms.to_dict("records")):
             with cols[ci % n_cols]:
                 st.markdown(
                     _alarm_card(row, "#F59E0B", "#FFFBEB", "#F59E0B", "#78350F"),
@@ -373,7 +373,7 @@ if not brand_df.empty:
         n_cols = min(3, len(brand_red))
         cols   = st.columns(n_cols)
         brand_red_sorted = brand_red.sort_values("vs_lw")
-        for ci, (_, row) in enumerate(brand_red_sorted.iterrows()):
+        for ci, row in enumerate(brand_red_sorted.to_dict("records")):
             name = _farmer_name(row["farmer"])
             icon = METRIC_ICONS.get(row["metric"], "📊")
             pct  = _fmt_pct(row["vs_lw"])

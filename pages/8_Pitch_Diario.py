@@ -9,6 +9,7 @@ Columnas clave:
   ADS       → tipificó pitch ADS (SI/NO)  | BN  → cierre real (1/0)
   CHURN     → tipificó pitch CHURN (SI/NO)| ORD → cierre real (1/0)
 """
+from __future__ import annotations
 import streamlit as st
 import io
 import pandas as pd
@@ -391,7 +392,7 @@ st.markdown("""
 
 # Build display table
 display_rows = []
-for _, row in df_daily.sort_values("_dia", ascending=False).iterrows():
+for row in df_daily.sort_values("_dia", ascending=False).to_dict("records"):
     display_rows.append({
         "Fecha":            row["_dia"].strftime("%d %b %Y") if hasattr(row["_dia"], "strftime") else str(row["_dia"]),
         "MD pitches":       int(row["tip_MD"]),
@@ -414,7 +415,7 @@ def _color_conv(val):
         if v >= 30: return "color:#00B341;font-weight:700"
         if v >= 15: return "color:#F59E0B;font-weight:700"
         return "color:#EF4444;font-weight:700"
-    except:
+    except Exception:
         return ""
 
 conv_cols = ["MD conv%", "ADS conv%", "Churn conv%"]

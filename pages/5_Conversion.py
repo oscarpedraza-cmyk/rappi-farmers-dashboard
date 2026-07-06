@@ -13,6 +13,7 @@ from core.metrics import (QUARTILE_COLOR, QUARTILE_LABEL, score_farmer,
                           assign_quartiles, get_all_semaforos, calcular_compensacion_completa)
 from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
+from core.db import load_latest_state
 
 st.set_page_config(page_title="Conversión — Rappi Farmers", page_icon="🚀", layout="wide")
 st.markdown(inject_global_css(), unsafe_allow_html=True)
@@ -22,7 +23,6 @@ render_topbar()
 
 # ── Auto-load si session_state está vacío ─────────────────────────────────────
 if "farmers_data" not in st.session_state:
-    from core.db import load_latest_state
     latest = load_latest_state()
     if latest:
         st.session_state["farmers_data"] = latest["farmers_data"]
@@ -43,6 +43,45 @@ if "farmers_data" not in st.session_state:
 
 ACTIVE_FARMERS = set(FARMERS_EMAILS) - EXCLUDED_EMAILS
 
+
+def _bool_col(df: pd.DataFrame, col: str) -> pd.Series:
+    if col not in df.columns:
+        return pd.Series(False, index=df.index)
+    return df[col].astype(str).str.upper().str.strip() == "SI"
+
+
+def _num_col(df: pd.DataFrame, col: str) -> pd.Series:
+    if col not in df.columns:
+        return pd.Series(pd.NA, index=df.index, dtype=float)
+    return pd.to_numeric(df[col], errors="coerce")
+
+
+def _card(icon: str, label: str, pct: float, real: float, tip: float, color: str) -> str:
+    return f"""
+    <div style="background:#FFFFFF;border-radius:12px;padding:1.2rem 1.4rem;
+                border-top:4px solid {color};border:1px solid #E5E7EB;
+                box-shadow:0 2px 8px rgba(0,0,0,0.06)">
+        <div style="font-size:0.7rem;color:#6B7280;text-transform:uppercase;
+                    letter-spacing:0.5px;font-weight:600">{icon} {label}</div>
+        <div style="font-size:2.2rem;font-weight:800;color:{color};margin:0.2rem 0">{pct}%</div>
+        <div style="font-size:0.8rem;color:#374151">
+            {int(real)} cierres reales / {int(tip)} tipificados
+        </div>
+    </div>"""
+
+
+def _color_conv(val: object) -> str:
+    try:
+        v = float(val)
+        if v >= 30:
+            return "color: #00B341; font-weight: bold"
+        if v >= 15:
+            return "color: #F59E0B; font-weight: bold"
+        return "color: #EF4444; font-weight: bold"
+    except Exception:
+        return ""
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Helper: load Conversión DETALLE from session
 # ─────────────────────────────────────────────────────────────────────────────
@@ -50,7 +89,6 @@ def load_detalle() -> Optional[pd.DataFrame]:
     raw = st.session_state.get("_conversion_raw")
     if not raw:
         # Try to restore from latest_state
-        from core.db import load_latest_state
         latest = load_latest_state()
         if latest and latest.get("conversion_raw"):
             st.session_state["_conversion_raw"] = latest["conversion_raw"]
@@ -100,19 +138,6 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
     # Normalize
     df_det["FARMER"] = df_det["FARMER"].astype(str).str.strip().str.lower()
     df_det = df_det[df_det["FARMER"].isin(ACTIVE_FARMERS)].copy()
-
-    # Bool conversion helpers
-    def _bool_col(df, col):
-        """Returns Series: True where col == 'SI'"""
-        if col not in df.columns:
-            return pd.Series(False, index=df.index)
-        return df[col].astype(str).str.upper().str.strip() == "SI"
-
-    def _num_col(df, col):
-        """Returns Series: numeric (NaN where missing)"""
-        if col not in df.columns:
-            return pd.Series(pd.NA, index=df.index, dtype=float)
-        return pd.to_numeric(df[col], errors="coerce")
 
     # ── Summary table per farmer — CACHED ────────────────────────────────────────
     @st.cache_data(show_spinner=False)
@@ -164,18 +189,6 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
     avg_ads_pct = round(total_ads_real / total_ads_tip * 100, 1) if total_ads_tip > 0 else 0
     avg_ch_pct  = round(total_ch_real  / total_ch_tip  * 100, 1) if total_ch_tip  > 0 else 0
 
-    def _card(icon, label, pct, real, tip, color):
-        return f"""
-        <div style="background:#FFFFFF;border-radius:12px;padding:1.2rem 1.4rem;
-                    border-top:4px solid {color};border:1px solid #E5E7EB;
-                    box-shadow:0 2px 8px rgba(0,0,0,0.06)">
-            <div style="font-size:0.7rem;color:#6B7280;text-transform:uppercase;
-                        letter-spacing:0.5px;font-weight:600">{icon} {label}</div>
-            <div style="font-size:2.2rem;font-weight:800;color:{color};margin:0.2rem 0">{pct}%</div>
-            <div style="font-size:0.8rem;color:#374151">
-                {int(real)} cierres reales / {int(tip)} tipificados
-            </div>
-        </div>"""
 
     c1, c2, c3, c4 = st.columns(4)
     c_md  = "#00B341" if avg_md_pct  >= 30 else "#F59E0B" if avg_md_pct  >= 15 else "#EF4444"
@@ -550,15 +563,7 @@ else:
             display = sub[["Quartil","Farmer","Oportunidades","Contactados",
                            "No contactados","Contratos","Conv. total %","Conv. efectiva %"]].copy()
 
-            def color_conv(val):
-                try:
-                    v = float(val)
-                    if v >= 30: return "color: #00B341; font-weight: bold"
-                    if v >= 15: return "color: #F59E0B; font-weight: bold"
-                    return "color: #EF4444; font-weight: bold"
-                except: return ""
-
             st.dataframe(
-                display.style.map(color_conv, subset=["Conv. total %", "Conv. efectiva %"]),
+                display.style.map(_color_conv, subset=["Conv. total %", "Conv. efectiva %"]),
                 use_container_width=True, hide_index=True
             )

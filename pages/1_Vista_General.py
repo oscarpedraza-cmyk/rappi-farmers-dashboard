@@ -1,3 +1,4 @@
+from __future__ import annotations
 import streamlit as st
 import io
 import pandas as pd
@@ -146,14 +147,12 @@ farmers_list = df["name"].tolist()
 color_map = {"red": 0, "yellow": 1, "green": 2, "gray": -1}
 z = []
 text = []
-for _, row in df.iterrows():
+for row in df.to_dict("records"):
     z_row = []
     t_row = []
     for metric in metrics_list:
         sem = row[f"sem_{metric}"]
         val = row[f"val_{metric}"]
-        # ADS Revenue: color comes from Net_Rev_Adj semaphore (already set in metrics.py)
-        # but display shows the raw ATT % value
         z_row.append(color_map.get(sem, -1))
         if val is None:
             t_row.append("S/D")
@@ -203,6 +202,13 @@ st.plotly_chart(fig, use_container_width=True)
 st.markdown("---")
 st.markdown("## Rankings por palanca")
 
+def _fmt_metric(v, f: str) -> str:
+    if v is None: return "S/D"
+    if f == "decimal": return f"{v*100:.1f}%"
+    if f == "pp":      return f"{v:+.1f} pp"
+    return f"{v:.1f}%"
+
+
 metric_tabs = st.tabs(list(METRICS_DISPLAY.keys()))
 for tab, (metric, (key, fmt)) in zip(metric_tabs, METRICS_DISPLAY.items()):
     with tab:
@@ -211,14 +217,8 @@ for tab, (metric, (key, fmt)) in zip(metric_tabs, METRICS_DISPLAY.items()):
         sub = sub.dropna(subset=["Valor"]).sort_values("Valor",
               ascending=(metric == "No Contactados"))
 
-        def fmt_val(v, f):
-            if v is None: return "S/D"
-            if f == "decimal": return f"{v*100:.1f}%"
-            if f == "pp":      return f"{v:+.1f} pp"
-            return f"{v:.1f}%"
-
         sub["Display"] = sub.apply(
-            lambda r: EMOJI.get(r["Semáforo"], "⚪") + " " + fmt_val(r["Valor"], fmt), axis=1)
+            lambda r: EMOJI.get(r["Semáforo"], "⚪") + " " + _fmt_metric(r["Valor"], fmt), axis=1)
 
         colors = [COLOR_HEX.get(s, "#9CA3AF") for s in sub["Semáforo"]]
         vals = sub["Valor"].tolist()
@@ -304,7 +304,7 @@ st.caption("Peor cuartil del equipo por score compuesto KPIs + variable. Requier
 if q4_rows.empty:
     st.markdown("✅ Ningún farmer en Q4 esta corrida.")
 else:
-    for _, row in q4_rows.iterrows():
+    for row in q4_rows.to_dict("records"):
         farmer_email = row["email"]
         farmer_data  = farmers_data.get(farmer_email, {})
         sems_f       = get_all_semaforos(farmer_data)

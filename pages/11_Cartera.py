@@ -8,6 +8,7 @@ Optimizaciones aplicadas:
   4. Filtros maestros movidos al sidebar — canvas principal limpio para KPIs y charts.
 """
 
+from __future__ import annotations
 import io
 import streamlit as st
 import pandas as pd
@@ -196,7 +197,7 @@ def procesar_recencia_cartera(df_prod: pd.DataFrame, ref_ts: pd.Timestamp):
     )
     last_contact_fb = {
         (row["farmer"], row["code"]): row["date"]
-        for _, row in fb_max.iterrows()
+        for row in fb_max.to_dict("records")
     }
 
     # ── Último contacto por brand (cualquier farmer) — vectorizado ────────────
@@ -337,9 +338,10 @@ def assign_bucket(farmer_email, brand_id):
     else:           return "Sin contacto en el mes", days
 
 
-df_cart[["bucket", "days_since"]] = df_cart.apply(
-    lambda r: pd.Series(assign_bucket(r[FARMER_COL], r[ID_COL])), axis=1
-)
+_bucket_results = [assign_bucket(r[FARMER_COL], r[ID_COL])
+                   for r in df_cart[[FARMER_COL, ID_COL]].to_dict("records")]
+df_cart["bucket"]     = [r[0] for r in _bucket_results]
+df_cart["days_since"] = [r[1] for r in _bucket_results]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -693,7 +695,7 @@ if not df_impos.empty:
         "Estas marcas tienen follows registrados en el período pero **todos** obtuvieron "
         "¿Contactado? = NO. El farmer está intentando pero no logra contactar."
     )
-    for _, row in df_impos.head(20).iterrows():
+    for row in df_impos.head(20).to_dict("records"):
         brand   = str(row.get(NAME_COL, "—")).strip() if NAME_COL else "—"
         days_r  = row.get("days_since")
         days_s  = f"{int(days_r)}d" if days_r is not None and not (isinstance(days_r, float) and pd.isna(days_r)) else "—"
@@ -732,7 +734,7 @@ if not df_nunca.empty:
     st.markdown("---")
     st.markdown("## ⚠️ Sin contacto en el mes — mayor GMV primero")
     st.caption("Estas marcas no tienen ningún follow registrado en los últimos 30 días.")
-    for _, row in df_nunca.head(20).iterrows():
+    for row in df_nunca.head(20).to_dict("records"):
         brand   = str(row.get(NAME_COL, "—")).strip() if NAME_COL else "—"
         gmv_raw = row.get(GMV_COL) if GMV_COL else None
         try:

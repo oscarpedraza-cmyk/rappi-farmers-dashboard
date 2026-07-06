@@ -1,3 +1,4 @@
+from __future__ import annotations
 import streamlit as st
 import io
 import pandas as pd
@@ -211,7 +212,7 @@ df_risk_zone = df[(df["Pace al 100% →"] >= 80) & (df["Pace al 100% →"] < 95)
 
 if not df_crit.empty:
     st.markdown("### 🔴 Farmers críticos — acción urgente")
-    for _, row in df_crit.iterrows():
+    for row in df_crit.to_dict("records"):
         gap   = row["Gap pp"]
         pace  = row["Pace al 100% →"]
         st.error(
@@ -223,7 +224,7 @@ if not df_crit.empty:
 
 if not df_risk_zone.empty:
     st.markdown("### 🟡 Farmers en zona de riesgo")
-    for _, row in df_risk_zone.iterrows():
+    for row in df_risk_zone.to_dict("records"):
         gap  = row["Gap pp"]
         pace = row["Pace al 100% →"]
         st.warning(

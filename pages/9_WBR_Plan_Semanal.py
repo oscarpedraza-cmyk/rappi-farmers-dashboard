@@ -11,6 +11,7 @@ from __future__ import annotations
 import streamlit as st
 import io, json, math
 import pandas as pd
+from collections import defaultdict
 from datetime import date, datetime, timedelta
 from typing import Optional
 import sys
@@ -616,7 +617,6 @@ st.markdown(
 all_llamados = get_all_llamados()
 
 # Group by farmer
-from collections import defaultdict
 llamados_by_farmer: dict = defaultdict(list)
 for ll in all_llamados:
     llamados_by_farmer[ll["farmer_email"]].append(ll)

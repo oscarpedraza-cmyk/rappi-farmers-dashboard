@@ -1,3 +1,4 @@
+from __future__ import annotations
 import streamlit as st
 import io
 import pandas as pd
@@ -253,7 +254,7 @@ st.markdown("---")
 below = df_valid[df_valid["Pitch %"] < 65].sort_values("Pitch %")
 if not below.empty:
     st.markdown("## 🚨 Farmers bajo la meta (< 65%)")
-    for _, row in below.iterrows():
+    for row in below.to_dict("records"):
         p = row["Pitch %"]
         gap = 65 - p
         color = pi_color(p)

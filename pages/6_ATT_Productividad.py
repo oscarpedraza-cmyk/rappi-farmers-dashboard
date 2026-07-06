@@ -1,3 +1,4 @@
+from __future__ import annotations
 import streamlit as st
 import pandas as pd
 import io
@@ -144,7 +145,7 @@ if df is not None and not df.empty:
 
     # Build rows
     rows_html = ""
-    for i, (_, row) in enumerate(df.iterrows()):
+    for i, row in enumerate(df.to_dict("records")):
         rank   = i + 1
         medal  = medals[i] if i < 3 else str(rank)
         bg     = "#FFFFFF" if i % 2 == 0 else "#FAFBFC"
@@ -235,7 +236,8 @@ else:
             if v >= 90: return "color:#00B341;font-weight:bold"
             if v >= 80: return "color:#F59E0B;font-weight:bold"
             return "color:#EF4444;font-weight:bold"
-        except: return ""
+        except Exception:
+            return ""
 
     display_cols = ["Farmer", "Productividad %", "Qualifier", "Follows totales", "Sin contactar", "% Sin contactar"]
     st.dataframe(df_fb[display_cols].style.map(color_p, subset=["Productividad %"]),
