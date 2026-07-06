@@ -13,9 +13,12 @@ Roles:
   - supervisor (oscar.pedraza@rappi.com) → can upload Sheet Maestro, sees admin panel
   - farmer (everyone in FARMERS_EMAILS) → read-only view of latest saved state
 """
-from __future__ import annotations   # enables X | Y type hints on Python 3.9
+from __future__ import annotations
+import base64
 import time
 import secrets
+from datetime import date
+from pathlib import Path
 from typing import Optional
 import streamlit as st
 from core.loader import FARMERS_EMAILS, EXCLUDED_EMAILS, FARMER_NAMES
@@ -62,8 +65,6 @@ def _purge_expired_tokens():
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 def _logo_html(width: int = 120) -> str:
-    import base64
-    from pathlib import Path
     logo_path = Path(__file__).parent.parent / "assets" / "rappi_logo.png"
     if logo_path.exists():
         b64 = base64.b64encode(logo_path.read_bytes()).decode()
@@ -278,10 +279,6 @@ def render_topbar(updated_at: str = "", dia_corte: int = None, progreso_pct: flo
     Renders the top navigation bar in the main content area.
     Shows: logo + brand | user info | meta chips (date, progress).
     """
-    import base64
-    from pathlib import Path
-    from datetime import date
-
     name      = get_auth_name()
     email     = st.session_state.get("auth_email", "")
     is_sup    = st.session_state.get("auth_is_supervisor", False)
