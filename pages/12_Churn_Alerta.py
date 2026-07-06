@@ -171,11 +171,9 @@ df_cart["semanas_sc"] = df_cart["days_since"].apply(
     lambda d: round(d / 7, 1) if pd.notna(d) else None
 )
 gmv_vals = df_cart[GMV_COL] if GMV_COL else pd.Series(0.0, index=df_cart.index)
-df_cart["score"] = df_cart.apply(
-    lambda r: float(gmv_vals[r.name]) * r["semanas_sc"]
-    if pd.notna(r["semanas_sc"]) else 0.0,
-    axis=1,
-)
+df_cart["score"] = (
+    gmv_vals.where(df_cart["semanas_sc"].notna(), 0.0) * df_cart["semanas_sc"].fillna(0.0)
+).astype(float)
 
 # ── Sidebar filters ───────────────────────────────────────────────────────────
 with st.sidebar:
@@ -268,12 +266,15 @@ else:
         df_risk.groupby(FARMER_COL, group_keys=False)
         .apply(lambda g: g.nlargest(1, "score"))
     )
-    for _, row in farmer_top.sort_values("score", ascending=False).iterrows():
-        fname  = FARMER_NAMES.get(row[FARMER_COL], row[FARMER_COL])
-        brand  = str(row[NAME_COL]) if NAME_COL else "—"
-        gmv_v  = float(gmv_vals[row.name]) if GMV_COL else 0
-        weeks  = row["semanas_sc"]
-        score  = row["score"]
+    top_sorted = farmer_top.sort_values("score", ascending=False).copy()
+    if GMV_COL:
+        top_sorted["_gmv"] = gmv_vals
+    for rec in top_sorted.to_dict("records"):
+        fname  = FARMER_NAMES.get(rec[FARMER_COL], rec[FARMER_COL])
+        brand  = str(rec[NAME_COL]) if NAME_COL else "—"
+        gmv_v  = float(rec.get("_gmv") or 0) if GMV_COL else 0
+        weeks  = rec["semanas_sc"]
+        score  = rec["score"]
         color  = "#EF4444" if weeks >= 4 else "#F59E0B"
         st.markdown(
             f"<div style='background:#FEF2F2;border-left:4px solid {color};"

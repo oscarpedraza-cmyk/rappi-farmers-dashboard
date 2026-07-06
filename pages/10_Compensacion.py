@@ -73,6 +73,10 @@ except Exception:
 # ── Build compensation table ──────────────────────────────────────────────────
 st.markdown("## Ranking de compensación del equipo")
 
+def _fmt_att(v):
+    return f"{v*100:.1f}%" if v is not None else "S/D"
+
+
 rows = []
 for farmer_em, data in farmers_data.items():
     comp = calcular_compensacion_completa(data)
@@ -84,16 +88,13 @@ for farmer_em, data in farmers_data.items():
     att_md_pro = data.get("ATT_MD_Pro")
     att_ads = data.get("ATT_Rev_real")
 
-    def fmt_att(v):
-        return f"{v*100:.1f}%" if v is not None else "S/D"
-
     rows.append({
         "_email": farmer_em,
         "Farmer": name,
-        "Churn (25%)": fmt_att(att_churn),
-        "MD Total (20%)": fmt_att(att_md),
-        "MD Pro (20%)": fmt_att(att_md_pro),
-        "ADS Rev (35%)": fmt_att(att_ads),
+        "Churn (25%)": _fmt_att(att_churn),
+        "MD Total (20%)": _fmt_att(att_md),
+        "MD Pro (20%)": _fmt_att(att_md_pro),
+        "ADS Rev (35%)": _fmt_att(att_ads),
         "Qualifier": "✅" if comp.get("qualifies", True) else "⛔ NO",
         "Variable %": comp.get("variable_pct", 0),
         "RS ADS": rs.get("pct", 0),
@@ -173,12 +174,9 @@ RS_TIERS = [
 
 # Group farmers by tier
 tier_farmers = {t["pct"]: [] for t in RS_TIERS}
-for _, row in df.iterrows():
-    rs_val = row["RS ADS"]
-    if rs_val in tier_farmers:
-        tier_farmers[rs_val].append(row["Farmer"])
-    else:
-        tier_farmers[0].append(row["Farmer"])
+for rec in df[["Farmer", "RS ADS"]].to_dict("records"):
+    rs_val = rec["RS ADS"]
+    tier_farmers[rs_val if rs_val in tier_farmers else 0].append(rec["Farmer"])
 
 n_total_rs = len(df)
 cols_rs = st.columns(4)

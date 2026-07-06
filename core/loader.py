@@ -1,6 +1,14 @@
+from __future__ import annotations
+
+import logging
+import math
+import traceback
+
 import pandas as pd
 import numpy as np
 from datetime import date
+
+logger = logging.getLogger(__name__)
 
 
 FARMERS_EMAILS = [
@@ -81,19 +89,17 @@ def load_churn(xl):
         df = df[df[2].apply(_is_farmer_email)].copy()
         df[2] = df[2].str.strip().str.lower()
 
-        result = {}
-        for _, row in df.iterrows():
-            farmer = row[2]
-            result[farmer] = {
-                "ATT_Churn":    pd.to_numeric(row[13], errors="coerce"),
-                "Reactivaciones": pd.to_numeric(row[8], errors="coerce"),
-                "Gross_Churn":  pd.to_numeric(row[7], errors="coerce"),
-                "Net_Churn":    pd.to_numeric(row[9], errors="coerce"),
-                "Ava_Stores":   pd.to_numeric(row[3], errors="coerce"),
-            }
+        for col in [13, 8, 7, 9, 3]:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+        result = (
+            df.set_index(2)[[13, 8, 7, 9, 3]]
+            .rename(columns={13: "ATT_Churn", 8: "Reactivaciones",
+                              7: "Gross_Churn", 9: "Net_Churn", 3: "Ava_Stores"})
+            .to_dict("index")
+        )
         return result
     except Exception as e:
-        print(f"[loader] Churn error: {e}")
+        logger.error("[loader] Churn error: %s", e)
         return {}
 
 
@@ -111,16 +117,16 @@ def load_md(xl):
         df = df[df[2].apply(_is_farmer_email)].copy()
         df[2] = df[2].str.strip().str.lower()
 
-        result = {}
-        for _, row in df.iterrows():
-            farmer = row[2]
-            result[farmer] = {
-                "ATT_MD_Total": pd.to_numeric(row[6], errors="coerce"),
-                "ATT_MD_Pro":   pd.to_numeric(row[10], errors="coerce"),
-            }
+        for col in [6, 10]:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+        result = (
+            df.set_index(2)[[6, 10]]
+            .rename(columns={6: "ATT_MD_Total", 10: "ATT_MD_Pro"})
+            .to_dict("index")
+        )
         return result
     except Exception as e:
-        print(f"[loader] MD error: {e}")
+        logger.error("[loader] MD error: %s", e)
         return {}
 
 
@@ -138,16 +144,16 @@ def load_ads(xl):
         df = df[df[2].apply(_is_farmer_email)].copy()
         df[2] = df[2].str.strip().str.lower()
 
-        result = {}
-        for _, row in df.iterrows():
-            farmer = row[2]
-            result[farmer] = {
-                "ATT_Book":     pd.to_numeric(row[8], errors="coerce"),
-                "ATT_Rev_real": pd.to_numeric(row[13], errors="coerce"),
-            }
+        for col in [8, 13]:
+            df[col] = pd.to_numeric(df[col], errors="coerce")
+        result = (
+            df.set_index(2)[[8, 13]]
+            .rename(columns={8: "ATT_Book", 13: "ATT_Rev_real"})
+            .to_dict("index")
+        )
         return result
     except Exception as e:
-        print(f"[loader] Ads error: {e}")
+        logger.error("[loader] Ads error: %s", e)
         return {}
 
 
@@ -178,7 +184,7 @@ def load_pi(xl):
                 farmer_col = c
                 break
         if farmer_col is None:
-            print("[loader] PI: no se encontró columna de email farmer")
+            logger.warning("[loader] PI: no se encontró columna de email farmer")
             return {}
 
         df_all = df[df[farmer_col].apply(_is_farmer_email)].copy()
@@ -199,13 +205,16 @@ def load_pi(xl):
                 vals = pd.to_numeric(df_total[pitch_col], errors="coerce")
                 valid = vals.dropna()
                 if not valid.empty and valid.between(0, 1.5).mean() >= 0.5:
+                    df_total = df_total.copy()
+                    df_total["_v"] = pd.to_numeric(df_total[pitch_col], errors="coerce")
                     result = {}
-                    for idx, row in df_total.iterrows():
-                        farmer = row[farmer_col]
-                        v = pd.to_numeric(row[pitch_col], errors="coerce")
+                    for rec in df_total[[farmer_col, "_v"]].to_dict("records"):
+                        farmer = rec[farmer_col]
+                        v = rec["_v"]
                         result[farmer] = {"Pitch_Pct": v if pd.notna(v) else None,
                                           "_pi_rows": [v] if pd.notna(v) else []}
-                    print(f"[loader] PI: Strategy A → {len(result)} farmers (tag_col={tag_col}, pitch_col={pitch_col})")
+                    logger.info("[loader] PI: Strategy A → %d farmers (tag_col=%d, pitch_col=%d)",
+                                len(result), tag_col, pitch_col)
                     return result
 
         # ── Strategy B: average all rows per farmer ───────────────────────────
@@ -223,7 +232,7 @@ def load_pi(xl):
                 best_pitch_col = pitch_col
 
         if best_pitch_col is None or best_coverage < 0.3:
-            print(f"[loader] PI: Strategy B no encontró columna válida (best_coverage={best_coverage:.2f})")
+            logger.warning("[loader] PI: Strategy B no encontró columna válida (best_coverage=%.2f)", best_coverage)
             return {}
 
         df_all["_val"] = pd.to_numeric(df_all[best_pitch_col], errors="coerce")
@@ -233,13 +242,12 @@ def load_pi(xl):
             avg = float(np.nanmean(weekly_vals)) if weekly_vals else None
             result[farmer] = {"Pitch_Pct": round(avg, 4) if avg is not None else None,
                               "_pi_rows": weekly_vals}
-        print(f"[loader] PI: Strategy B → {len(result)} farmers (pitch_col={best_pitch_col}, coverage={best_coverage:.0%})")
+        logger.info("[loader] PI: Strategy B → %d farmers (pitch_col=%d, coverage=%.0%%)",
+                    len(result), best_pitch_col, best_coverage * 100)
         return result
 
     except Exception as e:
-        import traceback
-        print(f"[loader] PI error: {e}")
-        traceback.print_exc()
+        logger.error("[loader] PI error: %s", e, exc_info=True)
         return {}
 
 
@@ -257,6 +265,10 @@ def load_productividad(xl):
       weekly_no_contacto:         [{week, total_cuentas, no_cuentas, pct}] for sparkline
     """
     EFFECTIVE_PATTERN = r"zoho voice|treble|videoconferencia|meets|meet"
+
+    def _palanca_stats(sub: pd.DataFrame, mask_col: int, contact_col: int) -> tuple[int, int]:
+        p = sub[sub[mask_col].astype(str).str.upper() == "SI"]
+        return len(p), int((p[contact_col].astype(str).str.upper() != "NO").sum())
 
     try:
         df = xl.parse("Productividad", header=0)
@@ -294,15 +306,9 @@ def load_productividad(xl):
                 productividad_pct = None
 
             # ── Palanca stats ────────────────────────────────────────────────────
-            def palanca_stats(mask_col):
-                p = sub[sub[mask_col].astype(str).str.upper() == "SI"]
-                total_p = len(p)
-                cont_p = int((p[contact_col].astype(str).str.upper() != "NO").sum())
-                return total_p, cont_p
-
-            churn_tot, churn_cont = palanca_stats(churn_col)
-            md_tot,    md_cont    = palanca_stats(md_col)
-            ads_tot,   ads_cont   = palanca_stats(ads_col)
+            churn_tot, churn_cont = _palanca_stats(sub, churn_col, contact_col)
+            md_tot,    md_cont    = _palanca_stats(sub, md_col, contact_col)
+            ads_tot,   ads_cont   = _palanca_stats(sub, ads_col, contact_col)
 
             # ── Recurrencia de no contacto (por cuenta única) ────────────────────
             # % accounts with ≥1 NO / total unique accounts
@@ -359,9 +365,7 @@ def load_productividad(xl):
             }
         return rows
     except Exception as e:
-        import traceback
-        print(f"[loader] Productividad error: {e}")
-        traceback.print_exc()
+        logger.error("[loader] Productividad error: %s", e, exc_info=True)
         return {}
 
 
@@ -409,7 +413,7 @@ def load_penetracion(xl):
                 brands_at_risk[farmer] = at_risk_sub["brand_name"].head(10).tolist()
         return brands_at_risk
     except Exception as e:
-        print(f"[loader] Penetración error: {e}")
+        logger.error("[loader] Penetración error: %s", e)
         return {}
 
 
@@ -436,7 +440,7 @@ def load_att_productividad(xl):
                     break
 
         if farmer_col is None:
-            print("[loader] ATT productividad: no se encontró columna de email farmer")
+            logger.warning("[loader] ATT productividad: no se encontró columna de email farmer")
             return {}
 
         df = df[df[farmer_col].apply(
@@ -444,26 +448,28 @@ def load_att_productividad(xl):
         )].copy()
         df[farmer_col] = df[farmer_col].str.strip().str.lower()
 
-        # Store the entire row so the page can display whatever it finds
+        # Convert all numeric columns upfront to avoid per-cell to_numeric calls
+        n_cols = len(df.columns)
+        numeric_df = df.copy()
+        for c in range(n_cols):
+            if c != farmer_col:
+                numeric_df[c] = pd.to_numeric(df[c], errors="coerce")
+
         result = {}
-        for _, row in df.iterrows():
-            farmer = row[farmer_col]
-            # Try to find an ATT decimal column (values between 0 and 2)
-            att_val = None
-            for c in range(len(df.columns)):
-                if c == farmer_col:
-                    continue
-                v = pd.to_numeric(row[c], errors="coerce")
-                if pd.notna(v) and 0 <= v <= 2.5:
-                    att_val = v
-                    break
+        for tup in numeric_df.itertuples(index=False, name=None):
+            farmer = tup[farmer_col]
+            att_val = next(
+                (tup[c] for c in range(n_cols)
+                 if c != farmer_col and not pd.isna(tup[c]) and 0 <= tup[c] <= 2.5),
+                None,
+            )
             result[farmer] = {
                 "ATT_Prod_Sheet": att_val,
-                "row_data": {str(c): row[c] for c in range(len(df.columns))},
+                "row_data": {str(c): tup[c] for c in range(n_cols)},
             }
         return result
     except Exception as e:
-        print(f"[loader] ATT productividad error: {e}")
+        logger.error("[loader] ATT productividad error: %s", e)
         return {}
 
 
@@ -475,8 +481,6 @@ def refresh_net_rev_adj(farmers_data: dict, dias_mes: int = 31) -> None:
 
     Safe: each farmer wrapped in try/except; uses math.isnan (no pd.NA ambiguity).
     """
-    import math
-    from datetime import date
     today_dia    = date.today().day
     progreso_hoy = ((today_dia - 1) / max(dias_mes, 1)) * 100
     for fdata in farmers_data.values():
@@ -511,12 +515,10 @@ def load_cartera(xl):
         )
         if farmer_col:
             df[farmer_col] = df[farmer_col].astype(str).str.strip().str.lower()
-        print(f"[loader] Cartera: {len(df)} filas, columnas: {list(df.columns)}")
+        logger.info("[loader] Cartera: %d filas, columnas: %s", len(df), list(df.columns))
         return df.to_json()
     except Exception as e:
-        import traceback
-        print(f"[loader] Cartera error: {e}")
-        traceback.print_exc()
+        logger.error("[loader] Cartera error: %s", e, exc_info=True)
         return None
 
 

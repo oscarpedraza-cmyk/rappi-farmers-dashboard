@@ -11,6 +11,7 @@ Qualifier: productividad >= 90% (Zoho Voice + Treble + Meets only)
 Revenue Share ADS: 10% (90-100%) / 20% (100-120%) / 30% (>120%) — cap $2k/mo, $5k/qtr
 Penalty ADS: exclude aliados with ADS investment >= 70% of GMV
 """
+from __future__ import annotations
 
 # ── Weights and bounds ────────────────────────────────────────────────────────
 WEIGHTS = {
