@@ -1,12 +1,7 @@
-﻿“””
-Historical storage — dual backend:
-  1. Google Sheets (if GSHEET_ID env var set) — persists across Render deploys
-  2. SQLite local (fallback for local dev)
-
-Latest state sharing:
-  - Uses st.cache_resource (process-level, shared across ALL user sessions)
-  - Falls back to SQLite for persistence across server restarts
-“””
+# Historical storage - dual backend:
+#   1. Google Sheets (if GSHEET_ID env var set) - persists across Render deploys
+#   2. SQLite local (fallback for local dev)
+# Latest state sharing via st.cache_resource (process-level).
 from __future__ import annotations
 
 import logging
@@ -16,7 +11,7 @@ import streamlit as st
 from datetime import date, datetime
 from pathlib import Path
 
-# â”€â”€ Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Config â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 DB_PATH = Path(__file__).parent.parent / "data" / "history.db"
 GSHEET_ID           = os.environ.get("GSHEET_ID")          # set in Render env vars
 GSHEET_TAB          = os.environ.get("GSHEET_TAB", "Historial_Dashboard")
@@ -26,7 +21,7 @@ GSHEET_METRICAS_TAB = os.environ.get("GSHEET_METRICAS_TAB", "Metricas_Weekly")
 logger = logging.getLogger(__name__)
 
 
-# â”€â”€ SQLite backend (local dev) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ SQLite backend (local dev) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 def _conn():
     DB_PATH.parent.mkdir(exist_ok=True)
     return sqlite3.connect(str(DB_PATH))
@@ -95,7 +90,7 @@ def _get_dates_sqlite() -> list:
     return [r[0] for r in rows]
 
 
-# â”€â”€ Google Sheets backend (Render production) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Google Sheets backend (Render production) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 def _gsheet_client():
     """Returns gspread client using service account from GOOGLE_CREDS env var."""
     try:
@@ -196,7 +191,7 @@ def _get_dates_gsheet() -> list:
         return []
 
 
-# â”€â”€ Public API (auto-selects backend) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Public API (auto-selects backend) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 def _use_gsheet():
     return bool(GSHEET_ID and os.environ.get("GOOGLE_CREDS"))
 
@@ -237,7 +232,7 @@ def get_farmer_trend(farmer: str, metric_keys: list) -> list:
     return trend
 
 
-# â”€â”€ Google Sheets: Latest_State tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ Google Sheets: Latest_State tab â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 def _get_or_create_latest_sheet(client):
     """Return (or create) the Latest_State worksheet."""
     try:
@@ -305,12 +300,12 @@ def _load_latest_gsheet():
         return None
 
 
-# â”€â”€ Process-level shared cache (survives across user sessions in same process) â”€â”€
+# â"€â"€ Process-level shared cache (survives across user sessions in same process) â"€â"€
 @st.cache_resource
 def _process_cache() -> dict:
     """
     Single dict shared by ALL user sessions in this Streamlit process.
-    Oscar writes here â†’ Maria and the whole team reads it instantly.
+    Oscar writes here â†' Maria and the whole team reads it instantly.
     """
     return {}
 
@@ -325,9 +320,9 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
     """
     Persists the most recent upload so all farmer sessions can read it.
     Saves to:
-      1. st.cache_resource (instant â€” shared across all sessions in same process)
-      2. Google Sheets (survives Streamlit Cloud redeploys â€” primary persistent store)
-      3. SQLite (backup â€” survives local process restarts)
+      1. st.cache_resource (instant â€" shared across all sessions in same process)
+      2. Google Sheets (survives Streamlit Cloud redeploys â€" primary persistent store)
+      3. SQLite (backup â€" survives local process restarts)
     """
     payload = {
         "farmers_data":      farmers_data,
@@ -439,7 +434,7 @@ def get_consecutive_red_weeks(farmer: str, metric_key: str, red_threshold: float
     return count
 
 
-# â”€â”€ WBR: Checklist semanal persistente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ WBR: Checklist semanal persistente â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 def _init_wbr_tables():
     init_db()
     with _conn() as con:
@@ -554,7 +549,7 @@ def delete_disciplinario(farmer_email: str):
         logger.error("[db] disciplinario delete error: %s", e)
 
 
-# â”€â”€ WBR: Llamados de atenciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ WBR: Llamados de atenciÃ³n â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 def _init_llamados_table():
     init_db()
     with _conn() as con:
@@ -623,7 +618,7 @@ def delete_llamado(llamado_id: int):
         logger.error("[db] delete_llamado error: %s", e)
 
 
-# â”€â”€ WBR: Documento semanal persistente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ WBR: Documento semanal persistente â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 def _init_wbr_doc_table():
     init_db()
     with _conn() as con:
@@ -669,7 +664,7 @@ def load_wbr_doc(week_key: str) -> dict:
         return {}
 
 
-# â”€â”€ MÃ©tricas Semanales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# â"€â"€ MÃ©tricas Semanales â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
 def _init_metricas_table():
     init_db()
     with _conn() as con:
@@ -746,7 +741,7 @@ def _load_metricas_gsheet():
 def save_metricas_weekly(records: list) -> bool:
     """
     Persist accumulated farmer-level metricas (list of dicts).
-    Saves to: process cache â†’ GSheet â†’ SQLite.
+    Saves to: process cache â†' GSheet â†' SQLite.
     """
     # 1. Process cache
     cache = _process_cache()
@@ -778,7 +773,7 @@ def save_metricas_weekly(records: list) -> bool:
 def load_metricas_weekly():
     """
     Returns list of farmer-level metricas dicts, or None if nothing saved.
-    Reads from: process cache â†’ GSheet â†’ SQLite.
+    Reads from: process cache â†' GSheet â†' SQLite.
     """
     # 1. Process cache
     cache = _process_cache()
