@@ -27,7 +27,7 @@ from core.style import inject_global_css
 st.set_page_config(
     page_title="Cartera — Rappi Farmers",
     page_icon="🗂️",
-    layout="wide",
+    layout="wide", initial_sidebar_state="expanded",
 )
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()

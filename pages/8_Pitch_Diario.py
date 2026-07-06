@@ -24,7 +24,7 @@ from core.loader import FARMER_NAMES, FARMERS_EMAILS, EXCLUDED_EMAILS
 from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 
-st.set_page_config(page_title="Pitch Diario — Rappi Farmers", page_icon="🚀", layout="wide")
+st.set_page_config(page_title="Pitch Diario — Rappi Farmers", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email_auth, is_supervisor = require_auth()
 render_topbar()

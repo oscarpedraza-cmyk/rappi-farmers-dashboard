@@ -21,7 +21,7 @@ from core.db import save_metricas_weekly, load_metricas_weekly
 st.set_page_config(
     page_title="Métricas Semanales — Rappi Farmers",
     page_icon="📊",
-    layout="wide",
+    layout="wide", initial_sidebar_state="expanded",
 )
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
