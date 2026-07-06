@@ -80,11 +80,19 @@ html, body, [class*="css"], [class*="st-"] {{
 footer    {{ visibility: hidden; }}
 header    {{ visibility: hidden; }}
 
-/* ── Hide sidebar collapse toggle ────────────────────────────────────────────── */
-[data-testid="stSidebarCollapsedControl"] {{ display: none !important; }}
-[data-testid="collapsedControl"]          {{ display: none !important; }}
-section[data-testid="stSidebar"][aria-expanded="false"] + div .main
-    .block-container {{ padding-left: 1.8rem !important; }}
+/* ── Sidebar toggle button ───────────────────────────────────────────────────── */
+[data-testid="stSidebarCollapsedControl"] {{
+    background: {BG_CARD} !important;
+    border-right: 1px solid {C_BORDER} !important;
+    border-radius: 0 8px 8px 0 !important;
+    box-shadow: 2px 0 6px {C_SHADOW} !important;
+}}
+[data-testid="stSidebarCollapsedControl"]:hover {{
+    background: {C_RED_SOFT} !important;
+}}
+[data-testid="stSidebarCollapsedControl"] svg {{
+    color: {C_MUTED} !important;
+}}
 
 /* ── Sidebar — white with coral active ───────────────────────────────────────── */
 section[data-testid="stSidebar"],
