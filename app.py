@@ -1,3 +1,7 @@
+from __future__ import annotations
+
+import io
+import logging
 import streamlit as st
 import pandas as pd
 import json
@@ -5,6 +9,8 @@ import base64
 from datetime import date
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 sys.path.insert(0, str(Path(__file__).parent))
 
@@ -62,10 +68,10 @@ if not is_supervisor:
             st.session_state["dia_corte"]    = latest["dia_corte"]
             st.session_state["dias_mes"]     = latest["dias_mes"]
             st.session_state["snap_date"]    = today
+            st.session_state["_updated_at"]  = latest.get("updated_at", "")
             if latest.get("productividad_raw"):
                 try:
-                    import io as _io
-                    df_raw = pd.read_json(_io.StringIO(latest["productividad_raw"]))
+                    df_raw = pd.read_json(io.StringIO(latest["productividad_raw"]))
                     df_raw.columns = [int(c) for c in df_raw.columns]
                     st.session_state["_productividad_raw"] = df_raw
                 except Exception:
@@ -82,8 +88,10 @@ if not is_supervisor:
 dia_corte    = st.session_state.get("dia_corte", today.day - 1 if today.day > 1 else 1)
 dias_mes     = st.session_state.get("dias_mes", 31)
 progreso_pct = ((dia_corte - 1) / dias_mes) * 100
-latest_meta  = load_latest_state()
-updated_at   = latest_meta.get("updated_at", "")[:16].replace("T", " ") if latest_meta else ""
+# Avoid a second load_latest_state() call — read updated_at from session_state
+# (set when farmer first loads, or set by supervisor after upload)
+_raw_updated_at = st.session_state.get("_updated_at", "")
+updated_at = _raw_updated_at[:16].replace("T", " ") if _raw_updated_at else ""
 
 # ── TOP BAR (replaces sidebar user panel) ─────────────────────────────────────
 render_topbar(updated_at=updated_at, dia_corte=dia_corte, progreso_pct=progreso_pct)
@@ -191,7 +199,7 @@ if is_supervisor:
                                 if cartera_raw_json:
                                     st.session_state["_cartera_raw"] = cartera_raw_json
                             except Exception as _ce:
-                                print(f"[app] Cartera load error: {_ce}")
+                                logger.error("[app] Cartera load error: %s", _ce)
 
                         st.session_state["_sheet_names"] = xl.sheet_names
                     except Exception as _e:
@@ -214,6 +222,9 @@ if is_supervisor:
                     # Si hay Asignación, usarla como cartera activa en esta sesión
                     if _asig_preserved:
                         st.session_state["_cartera_raw"] = _asig_preserved
+                    # Cache updated_at so subsequent rerenders don't call load_latest_state()
+                    from datetime import datetime as _dt
+                    st.session_state["_updated_at"] = _dt.now().isoformat()
                     # Refresh progreso after load
                     progreso_pct = ((dia_corte - 1) / dias_mes) * 100
                     n = len(farmers_data)
@@ -285,7 +296,7 @@ if is_supervisor:
         with col_asig_info:
             if "_cartera_raw" in st.session_state:
                 try:
-                    import io as _io_c
+                    
                     _df_c = pd.read_json(_io_c.StringIO(st.session_state["_cartera_raw"]))
                     st.markdown(f"""
                     <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;
@@ -628,3 +639,4 @@ st.markdown("""
     <span style="color:#EF4444">■ &lt;80%</span>
 </div>
 """, unsafe_allow_html=True)
+

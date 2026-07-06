@@ -1,29 +1,31 @@
-"""
-Historical storage — dual backend:
-  1. Google Sheets (if GSHEET_ID env var set) — persists across Render deploys
+﻿"""
+Historical storage â€” dual backend:
+  1. Google Sheets (if GSHEET_ID env var set) â€” persists across Render deploys
   2. SQLite local (fallback for local dev)
 
 Latest state sharing:
   - Uses st.cache_resource (process-level, shared across ALL user sessions)
   - Falls back to SQLite for persistence across server restarts
 """
-from __future__ import annotations
-import os
+
+import logging
 import json
 import sqlite3
 import streamlit as st
 from datetime import date, datetime
 from pathlib import Path
 
-# ── Config ────────────────────────────────────────────────────────────────────
+# â”€â”€ Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 DB_PATH = Path(__file__).parent.parent / "data" / "history.db"
 GSHEET_ID           = os.environ.get("GSHEET_ID")          # set in Render env vars
 GSHEET_TAB          = os.environ.get("GSHEET_TAB", "Historial_Dashboard")
 GSHEET_LATEST_TAB   = os.environ.get("GSHEET_LATEST_TAB", "Latest_State")
 GSHEET_METRICAS_TAB = os.environ.get("GSHEET_METRICAS_TAB", "Metricas_Weekly")
 
+logger = logging.getLogger(__name__)
 
-# ── SQLite backend (local dev) ────────────────────────────────────────────────
+
+# â”€â”€ SQLite backend (local dev) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _conn():
     DB_PATH.parent.mkdir(exist_ok=True)
     return sqlite3.connect(str(DB_PATH))
@@ -92,7 +94,7 @@ def _get_dates_sqlite() -> list:
     return [r[0] for r in rows]
 
 
-# ── Google Sheets backend (Render production) ─────────────────────────────────
+# â”€â”€ Google Sheets backend (Render production) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _gsheet_client():
     """Returns gspread client using service account from GOOGLE_CREDS env var."""
     try:
@@ -193,7 +195,7 @@ def _get_dates_gsheet() -> list:
         return []
 
 
-# ── Public API (auto-selects backend) ────────────────────────────────────────
+# â”€â”€ Public API (auto-selects backend) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _use_gsheet():
     return bool(GSHEET_ID and os.environ.get("GOOGLE_CREDS"))
 
@@ -234,7 +236,7 @@ def get_farmer_trend(farmer: str, metric_keys: list) -> list:
     return trend
 
 
-# ── Google Sheets: Latest_State tab ──────────────────────────────────────────
+# â”€â”€ Google Sheets: Latest_State tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _get_or_create_latest_sheet(client):
     """Return (or create) the Latest_State worksheet."""
     try:
@@ -278,7 +280,7 @@ def _save_latest_gsheet(payload: dict) -> bool:
         ws.append_row(["latest_state", payload_json])
         return True
     except Exception as e:
-        print(f"[db] _save_latest_gsheet error: {e}")
+        logger.error("[db] _save_latest_gsheet error: %s", e)
         return False
 
 
@@ -298,16 +300,16 @@ def _load_latest_gsheet():
                 return json.loads(row[1])
         return None
     except Exception as e:
-        print(f"[db] _load_latest_gsheet error: {e}")
+        logger.error("[db] _load_latest_gsheet error: %s", e)
         return None
 
 
-# ── Process-level shared cache (survives across user sessions in same process) ──
+# â”€â”€ Process-level shared cache (survives across user sessions in same process) â”€â”€
 @st.cache_resource
 def _process_cache() -> dict:
     """
     Single dict shared by ALL user sessions in this Streamlit process.
-    Oscar writes here → Maria and the whole team reads it instantly.
+    Oscar writes here â†’ Maria and the whole team reads it instantly.
     """
     return {}
 
@@ -322,9 +324,9 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
     """
     Persists the most recent upload so all farmer sessions can read it.
     Saves to:
-      1. st.cache_resource (instant — shared across all sessions in same process)
-      2. Google Sheets (survives Streamlit Cloud redeploys — primary persistent store)
-      3. SQLite (backup — survives local process restarts)
+      1. st.cache_resource (instant â€” shared across all sessions in same process)
+      2. Google Sheets (survives Streamlit Cloud redeploys â€” primary persistent store)
+      3. SQLite (backup â€” survives local process restarts)
     """
     payload = {
         "farmers_data":      farmers_data,
@@ -348,7 +350,7 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
         try:
             _save_latest_gsheet(payload)
         except Exception as e:
-            print(f"[db] save_latest_state gsheet error: {e}")
+            logger.error("[db] save_latest_state gsheet error: %s", e)
 
     # 3. Persist to SQLite as backup
     try:
@@ -368,7 +370,7 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
                 (payload_json, datetime.now().isoformat())
             )
     except Exception as e:
-        print(f"[db] save_latest_state sqlite error: {e}")
+        logger.error("[db] save_latest_state sqlite error: %s", e)
 
     return True
 
@@ -395,7 +397,7 @@ def load_latest_state():
                 cache["latest"] = result   # warm up process cache
                 return result
         except Exception as e:
-            print(f"[db] load_latest_state gsheet error: {e}")
+            logger.error("[db] load_latest_state gsheet error: %s", e)
 
     # 3. Fall back to SQLite (survives process restarts, local dev)
     try:
@@ -418,7 +420,7 @@ def load_latest_state():
         cache["latest"] = result
         return result
     except Exception as e:
-        print(f"[db] load_latest_state error: {e}")
+        logger.error("[db] load_latest_state error: %s", e)
         return None
 
 
@@ -436,7 +438,7 @@ def get_consecutive_red_weeks(farmer: str, metric_key: str, red_threshold: float
     return count
 
 
-# ── WBR: Checklist semanal persistente ───────────────────────────────────────
+# â”€â”€ WBR: Checklist semanal persistente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _init_wbr_tables():
     init_db()
     with _conn() as con:
@@ -489,7 +491,7 @@ def save_checklist_task(week_key: str, task_id: str, done: bool):
                 ON CONFLICT(week_key, task_id) DO UPDATE SET done=excluded.done, updated_at=excluded.updated_at
             """, (week_key, task_id, int(done), datetime.now().isoformat()))
     except Exception as e:
-        print(f"[db] checklist save error: {e}")
+        logger.error("[db] checklist save error: %s", e)
 
 
 def get_all_disciplinarios() -> list:
@@ -538,7 +540,7 @@ def save_disciplinario(farmer_email: str, estado: str, fecha_inicio: str,
             """, (farmer_email, estado, fecha_inicio, proximo_paso,
                   fecha_limite, notas, tipo_contrato, datetime.now().isoformat()))
     except Exception as e:
-        print(f"[db] disciplinario save error: {e}")
+        logger.error("[db] disciplinario save error: %s", e)
 
 
 def delete_disciplinario(farmer_email: str):
@@ -548,10 +550,10 @@ def delete_disciplinario(farmer_email: str):
         with _conn() as con:
             con.execute("DELETE FROM wbr_disciplinario WHERE farmer_email=?", (farmer_email,))
     except Exception as e:
-        print(f"[db] disciplinario delete error: {e}")
+        logger.error("[db] disciplinario delete error: %s", e)
 
 
-# ── WBR: Llamados de atención ─────────────────────────────────────────────────
+# â”€â”€ WBR: Llamados de atenciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _init_llamados_table():
     init_db()
     with _conn() as con:
@@ -576,7 +578,7 @@ def _init_llamados_table():
 
 
 def get_all_llamados() -> list:
-    """Return all llamados de atención records, ordered by farmer + number."""
+    """Return all llamados de atenciÃ³n records, ordered by farmer + number."""
     try:
         _init_llamados_table()
         with _conn() as con:
@@ -595,7 +597,7 @@ def get_all_llamados() -> list:
 
 def save_llamado(farmer_email: str, numero: int, fecha: str,
                  motivo: str, tipo_contrato: str):
-    """Insert a new llamado de atención record."""
+    """Insert a new llamado de atenciÃ³n record."""
     try:
         _init_llamados_table()
         with _conn() as con:
@@ -607,7 +609,7 @@ def save_llamado(farmer_email: str, numero: int, fecha: str,
                  tipo_contrato, datetime.now().isoformat())
             )
     except Exception as e:
-        print(f"[db] save_llamado error: {e}")
+        logger.error("[db] save_llamado error: %s", e)
 
 
 def delete_llamado(llamado_id: int):
@@ -617,10 +619,10 @@ def delete_llamado(llamado_id: int):
         with _conn() as con:
             con.execute("DELETE FROM wbr_llamados WHERE id=?", (llamado_id,))
     except Exception as e:
-        print(f"[db] delete_llamado error: {e}")
+        logger.error("[db] delete_llamado error: %s", e)
 
 
-# ── WBR: Documento semanal persistente ───────────────────────────────────────
+# â”€â”€ WBR: Documento semanal persistente â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _init_wbr_doc_table():
     init_db()
     with _conn() as con:
@@ -647,7 +649,7 @@ def save_wbr_doc(week_key: str, doc_data: dict):
                     updated_at=excluded.updated_at
             """, (week_key, json.dumps(doc_data, default=str), datetime.now().isoformat()))
     except Exception as e:
-        print(f"[db] save_wbr_doc error: {e}")
+        logger.error("[db] save_wbr_doc error: %s", e)
 
 
 def load_wbr_doc(week_key: str) -> dict:
@@ -662,11 +664,11 @@ def load_wbr_doc(week_key: str) -> dict:
             return {}
         return json.loads(row[0])
     except Exception as e:
-        print(f"[db] load_wbr_doc error: {e}")
+        logger.error("[db] load_wbr_doc error: %s", e)
         return {}
 
 
-# ── Métricas Semanales ────────────────────────────────────────────────────────
+# â”€â”€ MÃ©tricas Semanales â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _init_metricas_table():
     init_db()
     with _conn() as con:
@@ -706,7 +708,7 @@ def _save_metricas_gsheet(records: list) -> bool:
         ws.update("A1", rows)
         return True
     except Exception as e:
-        print(f"[db] _save_metricas_gsheet error: {e}")
+        logger.error("[db] _save_metricas_gsheet error: %s", e)
         return False
 
 
@@ -736,14 +738,14 @@ def _load_metricas_gsheet():
             records.append(rec)
         return records if records else None
     except Exception as e:
-        print(f"[db] _load_metricas_gsheet error: {e}")
+        logger.error("[db] _load_metricas_gsheet error: %s", e)
         return None
 
 
 def save_metricas_weekly(records: list) -> bool:
     """
     Persist accumulated farmer-level metricas (list of dicts).
-    Saves to: process cache → GSheet → SQLite.
+    Saves to: process cache â†’ GSheet â†’ SQLite.
     """
     # 1. Process cache
     cache = _process_cache()
@@ -754,7 +756,7 @@ def save_metricas_weekly(records: list) -> bool:
         try:
             _save_metricas_gsheet(records)
         except Exception as e:
-            print(f"[db] save_metricas_weekly gsheet error: {e}")
+            logger.error("[db] save_metricas_weekly gsheet error: %s", e)
 
     # 3. SQLite (local dev)
     try:
@@ -767,7 +769,7 @@ def save_metricas_weekly(records: list) -> bool:
                 (data_json, datetime.now().isoformat())
             )
     except Exception as e:
-        print(f"[db] save_metricas_weekly sqlite error: {e}")
+        logger.error("[db] save_metricas_weekly sqlite error: %s", e)
 
     return True
 
@@ -775,7 +777,7 @@ def save_metricas_weekly(records: list) -> bool:
 def load_metricas_weekly():
     """
     Returns list of farmer-level metricas dicts, or None if nothing saved.
-    Reads from: process cache → GSheet → SQLite.
+    Reads from: process cache â†’ GSheet â†’ SQLite.
     """
     # 1. Process cache
     cache = _process_cache()
@@ -790,7 +792,7 @@ def load_metricas_weekly():
                 cache["metricas_weekly"] = records
                 return records
         except Exception as e:
-            print(f"[db] load_metricas_weekly gsheet error: {e}")
+            logger.error("[db] load_metricas_weekly gsheet error: %s", e)
 
     # 3. SQLite
     try:
@@ -805,5 +807,6 @@ def load_metricas_weekly():
         cache["metricas_weekly"] = records
         return records
     except Exception as e:
-        print(f"[db] load_metricas_weekly error: {e}")
+        logger.error("[db] load_metricas_weekly error: %s", e)
         return None
+
