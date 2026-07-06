@@ -17,9 +17,10 @@ from pathlib import Path
 
 # ── Config ────────────────────────────────────────────────────────────────────
 DB_PATH = Path(__file__).parent.parent / "data" / "history.db"
-GSHEET_ID         = os.environ.get("GSHEET_ID")          # set in Render env vars
-GSHEET_TAB        = os.environ.get("GSHEET_TAB", "Historial_Dashboard")
-GSHEET_LATEST_TAB = os.environ.get("GSHEET_LATEST_TAB", "Latest_State")
+GSHEET_ID           = os.environ.get("GSHEET_ID")          # set in Render env vars
+GSHEET_TAB          = os.environ.get("GSHEET_TAB", "Historial_Dashboard")
+GSHEET_LATEST_TAB   = os.environ.get("GSHEET_LATEST_TAB", "Latest_State")
+GSHEET_METRICAS_TAB = os.environ.get("GSHEET_METRICAS_TAB", "Metricas_Weekly")
 
 
 # ── SQLite backend (local dev) ────────────────────────────────────────────────
@@ -663,3 +664,146 @@ def load_wbr_doc(week_key: str) -> dict:
     except Exception as e:
         print(f"[db] load_wbr_doc error: {e}")
         return {}
+
+
+# ── Métricas Semanales ────────────────────────────────────────────────────────
+def _init_metricas_table():
+    init_db()
+    with _conn() as con:
+        con.execute("""
+            CREATE TABLE IF NOT EXISTS metricas_weekly (
+                id         INTEGER PRIMARY KEY,
+                data_json  TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+        """)
+
+
+def _save_metricas_gsheet(records: list) -> bool:
+    """Store farmer-level metricas as tabular rows in a dedicated GSheet tab."""
+    client = _gsheet_client()
+    if not client:
+        return False
+    try:
+        sh = client.open_by_key(GSHEET_ID)
+        try:
+            ws = sh.worksheet(GSHEET_METRICAS_TAB)
+        except Exception:
+            ws = sh.add_worksheet(title=GSHEET_METRICAS_TAB, rows=15000, cols=7)
+        ws.clear()
+        headers = ["week", "metric", "country", "farmer", "brand", "value", "vs_lw"]
+        rows = [headers]
+        for r in records:
+            rows.append([
+                str(r.get("week", "")),
+                str(r.get("metric", "")),
+                str(r.get("country", "")),
+                str(r.get("farmer", "")),
+                str(r.get("brand", "")),
+                "" if r.get("value") is None else r["value"],
+                "" if r.get("vs_lw") is None else r["vs_lw"],
+            ])
+        ws.update("A1", rows)
+        return True
+    except Exception as e:
+        print(f"[db] _save_metricas_gsheet error: {e}")
+        return False
+
+
+def _load_metricas_gsheet():
+    """Load farmer-level metricas from GSheet tab. Returns list of dicts or None."""
+    client = _gsheet_client()
+    if not client:
+        return None
+    try:
+        sh = client.open_by_key(GSHEET_ID)
+        ws = sh.worksheet(GSHEET_METRICAS_TAB)
+        all_values = ws.get_all_values()
+        if len(all_values) < 2:
+            return None
+        headers = all_values[0]
+        records = []
+        for row in all_values[1:]:
+            if not any(row):
+                continue
+            rec = dict(zip(headers, row))
+            for num_col in ("value", "vs_lw"):
+                if num_col in rec:
+                    try:
+                        rec[num_col] = float(rec[num_col]) if rec[num_col] != "" else None
+                    except (ValueError, TypeError):
+                        rec[num_col] = None
+            records.append(rec)
+        return records if records else None
+    except Exception as e:
+        print(f"[db] _load_metricas_gsheet error: {e}")
+        return None
+
+
+def save_metricas_weekly(records: list) -> bool:
+    """
+    Persist accumulated farmer-level metricas (list of dicts).
+    Saves to: process cache → GSheet → SQLite.
+    """
+    # 1. Process cache
+    cache = _process_cache()
+    cache["metricas_weekly"] = records
+
+    # 2. GSheet (production)
+    if _use_gsheet():
+        try:
+            _save_metricas_gsheet(records)
+        except Exception as e:
+            print(f"[db] save_metricas_weekly gsheet error: {e}")
+
+    # 3. SQLite (local dev)
+    try:
+        _init_metricas_table()
+        data_json = json.dumps(records, default=str)
+        with _conn() as con:
+            con.execute("DELETE FROM metricas_weekly")
+            con.execute(
+                "INSERT INTO metricas_weekly (data_json, updated_at) VALUES (?, ?)",
+                (data_json, datetime.now().isoformat())
+            )
+    except Exception as e:
+        print(f"[db] save_metricas_weekly sqlite error: {e}")
+
+    return True
+
+
+def load_metricas_weekly():
+    """
+    Returns list of farmer-level metricas dicts, or None if nothing saved.
+    Reads from: process cache → GSheet → SQLite.
+    """
+    # 1. Process cache
+    cache = _process_cache()
+    if cache.get("metricas_weekly") is not None:
+        return cache["metricas_weekly"]
+
+    # 2. GSheet
+    if _use_gsheet():
+        try:
+            records = _load_metricas_gsheet()
+            if records:
+                cache["metricas_weekly"] = records
+                return records
+        except Exception as e:
+            print(f"[db] load_metricas_weekly gsheet error: {e}")
+
+    # 3. SQLite
+    try:
+        _init_metricas_table()
+        with _conn() as con:
+            row = con.execute(
+                "SELECT data_json FROM metricas_weekly ORDER BY id DESC LIMIT 1"
+            ).fetchone()
+        if not row:
+            return None
+        records = json.loads(row[0])
+        cache["metricas_weekly"] = records
+        return records
+    except Exception as e:
+        print(f"[db] load_metricas_weekly error: {e}")
+        return None
