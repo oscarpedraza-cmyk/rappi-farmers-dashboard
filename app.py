@@ -20,7 +20,7 @@ st.set_page_config(
     page_title="Rappi Farmers Dashboard",
     page_icon="🚀",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="expanded",
 )
 
 # ── Global Rappi CSS ──────────────────────────────────────────────────────────
@@ -42,12 +42,12 @@ with st.sidebar:
     else:
         st.markdown(
             '<div style="text-align:center;padding:0.5rem 0 0.8rem">'
-            '<span style="font-size:1.4rem;font-weight:900;color:#E8281F">rappi</span>'
-            '<span style="font-size:0.65rem;font-weight:700;color:rgba(255,255,255,0.5);'
+            '<span style="font-size:1.4rem;font-weight:900;color:#FF441B">rappi</span>'
+            '<span style="font-size:0.65rem;font-weight:700;color:#9CA3AF;'
             'display:block;letter-spacing:1px">FARMERS</span></div>',
             unsafe_allow_html=True
         )
-    st.markdown('<hr style="border:none;border-top:1px solid rgba(255,255,255,0.1);margin:0 0 0.5rem">',
+    st.markdown('<hr style="border:none;border-top:1px solid #E5E7EB;margin:0 0 0.5rem">',
                 unsafe_allow_html=True)
 
 # ── Collect date / progress info (needed for topbar) ─────────────────────────
