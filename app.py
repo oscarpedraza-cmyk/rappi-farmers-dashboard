@@ -201,13 +201,34 @@ if is_supervisor:
                             except Exception as _ce:
                                 logger.error("[app] Cartera load error: %s", _ce)
 
+                        # Asignación tab in Maestro — eliminates need for separate file upload
+                        asig_from_maestro_json = None
+                        _asig_sheet = next(
+                            (s for s in xl.sheet_names
+                             if s.strip().lower() in ("asignación", "asignacion")), None
+                        )
+                        if _asig_sheet:
+                            try:
+                                df_asig_m = xl.parse(_asig_sheet, header=0)
+                                df_asig_m = df_asig_m.dropna(how="all")
+                                df_asig_m.columns = [str(c).strip() for c in df_asig_m.columns]
+                                _fc = next(
+                                    (c for c in df_asig_m.columns if "email_nuevo" in c.lower()), None
+                                )
+                                if _fc:
+                                    df_asig_m[_fc] = df_asig_m[_fc].astype(str).str.strip().str.lower()
+                                asig_from_maestro_json = df_asig_m.to_json()
+                                st.session_state["_cartera_raw"] = asig_from_maestro_json
+                            except Exception as _ae:
+                                logger.error("[app] Asignación tab parse error: %s", _ae)
+
                         st.session_state["_sheet_names"] = xl.sheet_names
                     except Exception as _e:
                         _att_error = str(_e)
 
-                    # Preservar Asignación existente — el Maestro nunca la sobreescribe
-                    _prev_state       = load_latest_state() or {}
-                    _asig_preserved   = _prev_state.get("asignacion_raw")
+                    # Asignación del Maestro tiene prioridad; si no hay, preservar la guardada
+                    _prev_state     = load_latest_state() or {}
+                    _asig_preserved = asig_from_maestro_json or _prev_state.get("asignacion_raw")
                     save_latest_state(
                         farmers_data           = farmers_data,
                         dia_corte              = dia_corte,
@@ -219,7 +240,7 @@ if is_supervisor:
                         asignacion_raw_json    = _asig_preserved,
                         updated_by             = email,
                     )
-                    # Si hay Asignación, usarla como cartera activa en esta sesión
+                    # Si hay Asignación (del Maestro o previa), usarla como cartera activa
                     if _asig_preserved:
                         st.session_state["_cartera_raw"] = _asig_preserved
                     # Cache updated_at so subsequent rerenders don't call load_latest_state()
@@ -228,9 +249,10 @@ if is_supervisor:
                     progreso_pct = ((dia_corte - 1) / dias_mes) * 100
                     n = len(farmers_data)
                     extras = []
-                    if att_prod_raw_json:   extras.append("Follow Track ✓")
-                    if conversion_raw_json: extras.append("Conversión Real ✓")
-                    if cartera_raw_json:    extras.append("Cartera ✓")
+                    if att_prod_raw_json:        extras.append("Follow Track ✓")
+                    if conversion_raw_json:      extras.append("Conversión Real ✓")
+                    if cartera_raw_json:         extras.append("Cartera ✓")
+                    if asig_from_maestro_json:   extras.append("Asignación ✓")
                     extra_str = " · ".join(extras)
                     if _att_error:
                         sheets_found = ", ".join(_sheet_debug) if _sheet_debug else "ninguna"
@@ -296,7 +318,7 @@ if is_supervisor:
             if "_cartera_raw" in st.session_state:
                 try:
                     
-                    _df_c = pd.read_json(_io_c.StringIO(st.session_state["_cartera_raw"]))
+                    _df_c = pd.read_json(io.StringIO(st.session_state["_cartera_raw"]))
                     st.markdown(f"""
                     <div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:8px;
                                 padding:0.55rem 0.9rem;font-size:0.83rem;color:#065F46;font-weight:600">
