@@ -67,6 +67,63 @@ def _fmt_val(metric: str, v: object) -> str:
     return f"{fv:,.1f}"
 
 
+def _svg_sparkline(vals: list, width: int = 108, height: int = 38,
+                   color: str = "#FF441B") -> str:
+    clean = [float(v) for v in vals if v is not None and str(v) not in ("nan","")]
+    if len(clean) < 2:
+        return f'<svg width="{width}" height="{height}"></svg>'
+    vmin, vmax = min(clean), max(clean)
+    rng = max(vmax - vmin, 1e-9)
+    n = len(clean)
+    gap = 2
+    bar_w = max(3, (width - gap * (n - 1)) / n)
+    bars = []
+    for i, v in enumerate(clean):
+        norm = (v - vmin) / rng
+        h = max(3, norm * (height - 6) + 3)
+        x = i * (bar_w + gap)
+        y = height - h
+        fill = "#1E293B" if i == n - 1 else color
+        op = "1" if i == n - 1 else "0.45"
+        bars.append(
+            f'<rect x="{x:.1f}" y="{y:.1f}" width="{bar_w:.1f}" '
+            f'height="{h:.1f}" rx="2" fill="{fill}" opacity="{op}"/>'
+        )
+    return (
+        f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
+        f'xmlns="http://www.w3.org/2000/svg" style="display:block">'
+        + "".join(bars) + "</svg>"
+    )
+
+
+def _kpi_card_html(title: str, value: str, subtitle: str,
+                   spark_vals: list, delta_pct: float | None,
+                   color: str = "#FF441B") -> str:
+    svg = _svg_sparkline(spark_vals, color=color)
+    if delta_pct is None:
+        ds, dc = "—", "#94A3B8"
+    elif delta_pct > 0.5:
+        ds, dc = f"↑ {abs(delta_pct):.0f}%", "#16A34A"
+    elif delta_pct < -0.5:
+        ds, dc = f"↓ {abs(delta_pct):.0f}%", "#EF4444"
+    else:
+        ds, dc = "sin cambio", "#94A3B8"
+    return (
+        f'<div style="background:#FFFFFF;border-radius:10px;padding:1.05rem 1.1rem;'
+        f'border:1px solid #E2E8F0;box-shadow:0 1px 3px rgba(15,23,42,0.06);height:100%">'
+        f'<div style="font-size:0.54rem;text-transform:uppercase;letter-spacing:1.8px;'
+        f'color:#94A3B8;font-weight:700;margin-bottom:5px">{title}</div>'
+        f'<div style="font-size:2rem;font-weight:800;color:#0F172A;line-height:1;'
+        f'margin-bottom:8px">{value}</div>'
+        f'<div style="margin-bottom:8px">{svg}</div>'
+        f'<div style="display:flex;justify-content:space-between;align-items:center;'
+        f'border-top:1px solid #F1F5F9;padding-top:5px">'
+        f'<span style="font-size:0.63rem;color:#CBD5E1">{subtitle}</span>'
+        f'<span style="font-size:0.72rem;font-weight:700;color:{dc}">{ds}</span>'
+        f'</div></div>'
+    )
+
+
 # ── Excel parser ──────────────────────────────────────────────────────────────
 
 @st.cache_data(show_spinner=False)
@@ -132,14 +189,6 @@ farmer_recs: list = st.session_state["met_farmer_recs"]
 brand_recs:  list = st.session_state["met_brand_recs"]
 farmer_df = pd.DataFrame(farmer_recs) if farmer_recs else pd.DataFrame()
 brand_df  = pd.DataFrame(brand_recs)  if brand_recs  else pd.DataFrame()
-
-# ── Page header ───────────────────────────────────────────────────────────────
-st.markdown("""
-<div class="rb-page-header">
-    <h1>🌍 Dashboard de Seguimiento País</h1>
-    <p>Análisis ejecutivo semanal · Pareto de cartera · Tendencias · Alertas críticas</p>
-</div>
-""", unsafe_allow_html=True)
 
 # ── Upload (supervisor only) ──────────────────────────────────────────────────
 if is_supervisor:
@@ -214,47 +263,181 @@ def _apply_f(df: pd.DataFrame, week: str | None = None) -> pd.DataFrame:
 
 week_df = _apply_f(farmer_df, sel_week)
 
-# ── KPI SUMMARY ───────────────────────────────────────────────────────────────
-if not week_df.empty:
-    valid_vs = week_df["vs_lw"].dropna()
-    red_n  = int((valid_vs <= ALARM_RED).sum())
-    yell_n = int(((valid_vs > ALARM_RED) & (valid_vs <= ALARM_YELLOW)).sum())
-    grn_n  = int((valid_vs >= 0.05).sum())
-    n_fw   = week_df["farmer"].nunique()
-    worst  = week_df.loc[valid_vs.idxmin()] if not valid_vs.empty else None
-    cl     = sel_country if sel_country != "Todos" else "el equipo"
+# ── Compute sparkline trend series (all weeks, filtered by country/farmers/metrics) ──
+all_w_sorted = sorted(farmer_df["week"].unique())
+_sp_red, _sp_yel, _sp_grn, _sp_tot = [], [], [], []
+for _w in all_w_sorted:
+    _wdf = _apply_f(farmer_df, _w)
+    _vs = _wdf["vs_lw"].dropna()
+    _sp_red.append(int((_vs <= ALARM_RED).sum()))
+    _sp_yel.append(int(((_vs > ALARM_RED) & (_vs <= ALARM_YELLOW)).sum()))
+    _sp_grn.append(int((_vs > ALARM_YELLOW).sum()))
+    _sp_tot.append(len(_wdf))
 
-    if red_n == 0 and yell_n == 0:
-        hl_txt = f"✅ Semana sin alertas críticas para {cl}"
-        hl_bg = "#F0FDF4"; hl_bd = "#16A34A"; hl_c = "#15803D"
-    elif red_n >= 5:
-        hl_txt = f"🚨 Semana crítica — {red_n} alarmas rojas en {cl}"
-        hl_bg = "#FEF2F2"; hl_bd = C_RED; hl_c = "#991B1B"
-    else:
-        hl_txt = f"⚠️ {red_n} alarma{'s' if red_n!=1 else ''} roja{'s' if red_n!=1 else ''} · {yell_n} en seguimiento"
-        hl_bg = "#FFFBEB"; hl_bd = C_YELLOW; hl_c = "#78350F"
+# Delta vs previous week
+def _delta_pct(series: list, idx_current: int) -> float | None:
+    if idx_current < 1 or series[idx_current - 1] == 0:
+        return None
+    prev = series[idx_current - 1]
+    cur  = series[idx_current]
+    return (cur - prev) / prev * 100
 
-    worst_line = (
-        f"Mayor caída: <b>{_name(worst['farmer'])}</b> — "
-        f"<b style='color:{C_RED}'>{_fmt_pct(worst['vs_lw'])}</b> en {worst['metric']}."
-        if worst is not None else ""
-    )
-    st.markdown(f"""
-    <div style="background:{hl_bg};border-left:4px solid {hl_bd};border-radius:0 8px 8px 0;
-                padding:0.7rem 1rem;margin-bottom:0.85rem">
-        <div style="font-weight:700;color:{hl_c};font-size:0.95rem">{hl_txt}</div>
-        <div style="font-size:0.78rem;color:#374151;margin-top:2px">
-            {n_fw} farmers · {len(week_df)} registros · semana {sel_week}. {worst_line}
+_cur_idx = all_w_sorted.index(sel_week) if sel_week in all_w_sorted else len(all_w_sorted) - 1
+
+# Current week values
+valid_vs = week_df["vs_lw"].dropna()
+red_n  = _sp_red[_cur_idx]
+yell_n = _sp_yel[_cur_idx]
+grn_n  = _sp_grn[_cur_idx]
+n_fw   = week_df["farmer"].nunique()
+worst  = week_df.loc[valid_vs.idxmin()] if not valid_vs.empty else None
+cl     = sel_country if sel_country != "Todos" else "el equipo"
+
+# Alert state
+if red_n == 0 and yell_n == 0:
+    al_icon, al_txt, al_bg, al_bd, al_c = "✅", "Sin alertas críticas", "#F0FDF4", "#16A34A", "#15803D"
+elif red_n >= 5:
+    al_icon, al_txt, al_bg, al_bd, al_c = "🚨", f"{red_n} alarmas críticas", "#FEF2F2", C_RED, "#991B1B"
+else:
+    al_icon, al_txt, al_bg, al_bd, al_c = "⚠️", f"{red_n} rojas · {yell_n} en seguimiento", "#FFFBEB", C_YELLOW, "#78350F"
+
+worst_txt = (
+    f"Peor: <b>{_name(worst['farmer'])}</b> {_fmt_pct(worst['vs_lw'])} en {worst['metric']}"
+    if worst is not None else ""
+)
+
+# ── Dark hero banner ──────────────────────────────────────────────────────────
+st.markdown(f"""
+<div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);
+            border-radius:12px;padding:1.1rem 1.6rem;margin-bottom:1rem;
+            display:flex;justify-content:space-between;align-items:center">
+    <div>
+        <div style="font-size:0.52rem;letter-spacing:3px;color:#475569;
+                    text-transform:uppercase;font-weight:700;margin-bottom:3px">
+            RAPPI FARMERS · DASHBOARD
         </div>
-    </div>""", unsafe_allow_html=True)
+        <div style="font-size:1.1rem;font-weight:800;color:#FFFFFF;line-height:1.2">
+            SEGUIMIENTO PAÍS
+        </div>
+        <div style="font-size:0.7rem;color:#475569;margin-top:4px">
+            {cl.upper()} &nbsp;·&nbsp; Semana {sel_week}
+            &nbsp;·&nbsp; {n_fw} farmers &nbsp;·&nbsp; {len(sel_metrics)} métricas
+        </div>
+    </div>
+    <div style="text-align:right">
+        <div style="background:{al_bg};color:{al_c};font-size:0.7rem;
+                    font-weight:700;padding:5px 14px;border-radius:20px;
+                    border:1px solid {al_bd};white-space:nowrap">
+            {al_icon}&nbsp; {al_txt}
+        </div>
+        <div style="font-size:0.63rem;color:#475569;margin-top:5px">{worst_txt}</div>
+    </div>
+</div>""", unsafe_allow_html=True)
 
-    c1, c2, c3, c4 = st.columns(4)
-    with c1: st.metric("📅 Semana", sel_week)
-    with c2: st.metric("🔴 Críticas", red_n)
-    with c3: st.metric("🟡 Seguimiento", yell_n)
-    with c4: st.metric("🟢 Mejorando", grn_n)
+# ── Sparkline KPI cards ───────────────────────────────────────────────────────
+k1, k2, k3, k4 = st.columns(4)
+_prev_week = all_w_sorted[_cur_idx - 1] if _cur_idx > 0 else None
+_prev_label = f"vs {_prev_week}" if _prev_week else "primera semana"
 
-st.markdown("---")
+with k1:
+    st.markdown(
+        _kpi_card_html(
+            "ALARMAS CRÍTICAS",
+            str(red_n),
+            _prev_label,
+            _sp_red,
+            _delta_pct(_sp_red, _cur_idx),
+            color=C_RED,
+        ),
+        unsafe_allow_html=True,
+    )
+with k2:
+    st.markdown(
+        _kpi_card_html(
+            "EN SEGUIMIENTO",
+            str(yell_n),
+            _prev_label,
+            _sp_yel,
+            _delta_pct(_sp_yel, _cur_idx),
+            color=C_YELLOW,
+        ),
+        unsafe_allow_html=True,
+    )
+with k3:
+    st.markdown(
+        _kpi_card_html(
+            "SIN ALERTAS",
+            str(grn_n),
+            _prev_label,
+            _sp_grn,
+            _delta_pct(_sp_grn, _cur_idx),
+            color=C_GREEN,
+        ),
+        unsafe_allow_html=True,
+    )
+with k4:
+    _total_cur = _sp_tot[_cur_idx]
+    st.markdown(
+        _kpi_card_html(
+            "REGISTROS SEMANA",
+            str(_total_cur),
+            f"{len(all_w_sorted)} semanas de historial",
+            _sp_tot,
+            _delta_pct(_sp_tot, _cur_idx),
+            color=C_RAPPI,
+        ),
+        unsafe_allow_html=True,
+    )
+
+# ── Alertas por semana — stacked bar ─────────────────────────────────────────
+st.markdown(
+    '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:2px;'
+    'color:#94A3B8;font-weight:700;margin:1.1rem 0 0.4rem">ALERTAS POR SEMANA</div>',
+    unsafe_allow_html=True,
+)
+fig_aw = go.Figure()
+fig_aw.add_trace(go.Bar(
+    x=all_w_sorted, y=_sp_red, name="Crítico",
+    marker_color=C_RED, marker_opacity=0.85,
+    hovertemplate="%{x}<br>Críticos: %{y}<extra></extra>",
+))
+fig_aw.add_trace(go.Bar(
+    x=all_w_sorted, y=_sp_yel, name="Seguimiento",
+    marker_color=C_YELLOW, marker_opacity=0.85,
+    hovertemplate="%{x}<br>Seguimiento: %{y}<extra></extra>",
+))
+fig_aw.add_trace(go.Bar(
+    x=all_w_sorted, y=_sp_grn, name="OK",
+    marker_color=C_GREEN, marker_opacity=0.85,
+    hovertemplate="%{x}<br>OK: %{y}<extra></extra>",
+))
+
+# Highlight selected week
+if sel_week in all_w_sorted:
+    fig_aw.add_vline(
+        x=all_w_sorted.index(sel_week),
+        line_dash="dot", line_color="#0F172A", line_width=1.5,
+        annotation_text=f"◀ {sel_week}",
+        annotation_position="top right",
+        annotation_font=dict(size=9, color="#0F172A"),
+    )
+
+fig_aw.update_layout(
+    barmode="stack",
+    height=160,
+    margin=dict(l=0, r=0, t=5, b=5),
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
+    showlegend=True,
+    legend=dict(orientation="h", x=1, y=1.02, xanchor="right",
+                font=dict(size=10), bgcolor="rgba(0,0,0,0)"),
+    xaxis=dict(showgrid=False, tickangle=-35, tickfont=dict(size=9), zeroline=False),
+    yaxis=dict(showgrid=True, gridcolor="#F1F5F9", tickfont=dict(size=9), zeroline=False),
+    hovermode="x unified",
+    bargap=0.15,
+)
+st.plotly_chart(fig_aw, use_container_width=True, key="aw_stacked")
+st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
 
 # ── PARETO DE CARTERA ─────────────────────────────────────────────────────────
 cartera_json = st.session_state.get("_cartera_raw")
