@@ -133,6 +133,50 @@ with col4: st.metric("⛔ Sin qualifier", int(no_qualifier),
                      help="Productividad < 90% → pierden variable")
 with col5: st.metric("💰 Variable promedio", f"{avg_variable:.0f}%")
 
+# ── Quartile distribution visual ─────────────────────────────────────────────
+st.markdown("---")
+st.markdown("## Distribución por cuartil")
+
+q_labels = ["Q1 🏆", "Q2 ✅", "Q3 ⚠️", "Q4 🚨"]
+q_keys   = ["Q1",    "Q2",    "Q3",    "Q4"]
+q_colors = ["#16A34A", "#3B82F6", "#D97706", "#EF4444"]
+q_counts = [int((df["quartile"] == q).sum()) for q in q_keys]
+q_names  = [df[df["quartile"] == q]["name"].tolist() for q in q_keys]
+
+# Bar chart — horizontal
+fig_q = go.Figure(go.Bar(
+    x=q_counts,
+    y=q_labels,
+    orientation="h",
+    marker_color=q_colors,
+    text=[f"{c} farmer{'s' if c != 1 else ''}" for c in q_counts],
+    textposition="inside",
+    textfont=dict(color="white", size=12, family="sans-serif"),
+    hovertemplate="%{y}: %{x} farmers<extra></extra>",
+))
+fig_q.update_layout(
+    height=160,
+    margin=dict(l=10, r=10, t=5, b=5),
+    plot_bgcolor="rgba(0,0,0,0)",
+    paper_bgcolor="rgba(0,0,0,0)",
+    xaxis=dict(showgrid=False, showticklabels=False, zeroline=False),
+    yaxis=dict(showgrid=False),
+    showlegend=False,
+)
+qc1, qc2 = st.columns([3, 2])
+with qc1:
+    st.plotly_chart(fig_q, use_container_width=True, key="q_dist_bar")
+with qc2:
+    for label, names_list, color in zip(q_labels, q_names, q_colors):
+        if names_list:
+            names_str = ", ".join(names_list)
+            st.markdown(
+                f"<div style='font-size:0.76rem;margin-bottom:4px'>"
+                f"<span style='font-weight:700;color:{color}'>{label}:</span> "
+                f"<span style='color:#374151'>{names_str}</span></div>",
+                unsafe_allow_html=True,
+            )
+
 # ── Heatmap por métrica ───────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown("## Mapa de calor del equipo")

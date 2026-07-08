@@ -126,17 +126,26 @@ for p in PALANCAS:
 all_names  = {FARMER_NAMES.get(e, e): e for e in sorted(ACTIVE_FARMERS) if e in df["FARMER"].values}
 
 if is_supervisor:
-    col_f, col_p = st.columns([3, 6])
+    col_f, col_ct = st.columns([3, 3])
     with col_f:
         sel_farmer = st.selectbox(
             "Farmer", ["Todo el equipo"] + list(all_names.keys()),
             key="pd_farmer_sel"
+        )
+    with col_ct:
+        sel_contacto = st.radio(
+            "Contacto", ["Todos", "Contacto=Sí", "Contacto=No"],
+            horizontal=True, key="pd_contacto_sel"
         )
     selected_emails = set(all_names.values()) if sel_farmer == "Todo el equipo" else {all_names[sel_farmer]}
 else:
     email_me = email_auth.strip().lower()
     selected_emails = {email_me}
     sel_farmer = FARMER_NAMES.get(email_me, email_me)
+    sel_contacto = st.radio(
+        "Contacto", ["Todos", "Contacto=Sí", "Contacto=No"],
+        horizontal=True, key="pd_contacto_sel"
+    )
     st.markdown(f"""
     <div style="background:rgba(74,108,247,0.08);border-left:4px solid #4A6CF7;
                 border-radius:8px;padding:0.6rem 1rem;margin-bottom:0.8rem;
@@ -145,6 +154,15 @@ else:
     </div>""", unsafe_allow_html=True)
 
 df_sel = df[df["FARMER"].isin(selected_emails)].copy()
+
+# Apply Contacto filter
+_any_pitch_mask = (
+    df_sel["_tip_MD"] | df_sel["_tip_ADS"] | df_sel["_tip_Churn"]
+)
+if sel_contacto == "Contacto=Sí":
+    df_sel = df_sel[_any_pitch_mask].copy()
+elif sel_contacto == "Contacto=No":
+    df_sel = df_sel[~_any_pitch_mask].copy()
 
 if df_sel.empty:
     st.warning("Sin datos para el filtro seleccionado.")

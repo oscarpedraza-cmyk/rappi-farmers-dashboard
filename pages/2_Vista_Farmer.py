@@ -173,6 +173,78 @@ for col, (label, key, fmt, sem_key) in zip(cols, metric_defs):
         </div>
         """, unsafe_allow_html=True)
 
+# ── Revenue Perdido ───────────────────────────────────────────────────────────
+_cartera_raw = st.session_state.get("_cartera_raw")
+if _cartera_raw:
+    try:
+        import io as _io
+        _df_c = pd.read_json(_io.StringIO(_cartera_raw))
+        _df_c.columns = [str(c).strip() for c in _df_c.columns]
+        _cm = {c.upper(): c for c in _df_c.columns}
+
+        _email_col = next((c for c in _df_c.columns if "EMAIL_NUEVO" in c.upper()), None)
+        _name_col  = _cm.get("BRAND_NAME") or _cm.get("COUNTRY_BRAND_ID")
+        _gmv_col   = _cm.get("GMV_L28D")
+        _rev_col   = _cm.get("REVENUE_L28D") or _cm.get("ADS_REVENUE_L28D") or _cm.get("REVENUE")
+        _pen_col   = next((c for c in _df_c.columns if "PENETR" in c.upper()), None)
+
+        if _email_col and _name_col and _gmv_col and _pen_col:
+            _df_me = _df_c[_df_c[_email_col].astype(str).str.lower().str.strip() == farmer_email.lower()]
+            _df_me = _df_me.copy()
+            _df_me[_pen_col] = pd.to_numeric(_df_me[_pen_col], errors="coerce")
+            _df_me[_gmv_col] = pd.to_numeric(_df_me[_gmv_col], errors="coerce").fillna(0)
+
+            _high_pen = _df_me[_df_me[_pen_col] > 0.70].sort_values(_pen_col, ascending=False)
+
+            if not _high_pen.empty:
+                st.markdown("---")
+                _total_gmv_risk = _high_pen[_gmv_col].sum()
+                _n_risk = len(_high_pen)
+                st.markdown(
+                    f"<div style='background:#FEF2F2;border-left:4px solid #EF4444;border-radius:0 8px 8px 0;"
+                    f"padding:0.6rem 1rem;margin-bottom:0.7rem'>"
+                    f"<div style='font-weight:700;color:#991B1B;font-size:0.9rem'>"
+                    f"⚠️ Revenue en riesgo — {_n_risk} brand{'s' if _n_risk!=1 else ''} con alta penetración</div>"
+                    f"<div style='font-size:0.75rem;color:#374151;margin-top:2px'>"
+                    f"Penetración > 70% · GMV total expuesto: <b>${_total_gmv_risk:,.0f}</b> — "
+                    f"alta concentración, revisar retención</div></div>",
+                    unsafe_allow_html=True,
+                )
+
+                rows_html = ""
+                for _, br in _high_pen.head(10).iterrows():
+                    pen_v = br[_pen_col]
+                    gmv_v = br[_gmv_col]
+                    bname = str(br[_name_col])[:28]
+                    c_pen = "#EF4444" if pen_v >= 0.90 else "#D97706" if pen_v >= 0.80 else "#F59E0B"
+                    rev_v = br[_rev_col] if _rev_col and pd.notna(br.get(_rev_col)) else None
+                    rev_str = f"${float(rev_v):,.0f}" if rev_v is not None else "—"
+                    rows_html += (
+                        f"<tr>"
+                        f"<td style='padding:5px 8px;font-size:0.78rem;color:#0F172A;font-weight:600'>{bname}</td>"
+                        f"<td style='padding:5px 8px;text-align:center'>"
+                        f"<span style='background:{c_pen}20;color:{c_pen};font-weight:700;font-size:0.78rem;"
+                        f"padding:2px 8px;border-radius:12px'>{pen_v*100:.0f}%</span></td>"
+                        f"<td style='padding:5px 8px;text-align:right;font-size:0.78rem;color:#374151'>${gmv_v:,.0f}</td>"
+                        f"<td style='padding:5px 8px;text-align:right;font-size:0.78rem;color:#374151'>{rev_str}</td>"
+                        f"</tr>"
+                    )
+                st.markdown(
+                    f"<div style='background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;"
+                    f"overflow:hidden;margin-bottom:0.5rem'>"
+                    f"<table style='width:100%;border-collapse:collapse'>"
+                    f"<thead><tr style='background:#F8F9FB'>"
+                    f"<th style='padding:6px 8px;text-align:left;font-size:0.68rem;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:0.4px'>Brand</th>"
+                    f"<th style='padding:6px 8px;text-align:center;font-size:0.68rem;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:0.4px'>Penetración</th>"
+                    f"<th style='padding:6px 8px;text-align:right;font-size:0.68rem;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:0.4px'>GMV L28D</th>"
+                    f"<th style='padding:6px 8px;text-align:right;font-size:0.68rem;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:0.4px'>Revenue</th>"
+                    f"</tr></thead><tbody>{rows_html}</tbody></table></div>",
+                    unsafe_allow_html=True,
+                )
+                st.caption("🔴 ≥ 90% penetración  ·  🟡 80-90%  ·  Revisá retención y pipeline de reactivación")
+    except Exception:
+        pass
+
 # ── Productividad cruzada ─────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown("#### Gestión de follows por palanca")
