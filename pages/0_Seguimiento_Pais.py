@@ -566,43 +566,76 @@ if len(_all_weeks_sorted) >= 2:
     else:
         _drops_df = pd.DataFrame(_drops).sort_values("vs_lw")
 
-        # ── Tabla resumen de caídas ────────────────────────────────────────────
-        _drop_rows_html = ""
-        for _, _dr in _drops_df.iterrows():
-            _fname  = _name(_dr["farmer"])
-            _pct    = f"{_dr['vs_lw']*100:+.1f}%"
-            _val_s  = _fmt_val(_dr["metric"], _dr["value"])
-            _prev_s = _fmt_val(_dr["metric"], _dr["val_prev"]) if _dr["val_prev"] is not None else "—"
-            _severity = "#7F1D1D" if _dr["vs_lw"] <= -0.20 else "#991B1B"
-            _bg = "#FEF2F2" if _dr["vs_lw"] <= -0.20 else "#FFF5F5"
-            _drop_rows_html += (
-                f'<div style="display:grid;grid-template-columns:2fr 1.6fr 1fr 1fr 1fr;'
-                f'background:{_bg};border-bottom:1px solid #FEE2E2;align-items:center">'
-                f'<div style="padding:7px 10px;font-size:0.78rem;font-weight:600;color:#0F172A">{_fname}</div>'
-                f'<div style="padding:7px 8px;font-size:0.78rem;color:#374151">{_dr["metric"]}</div>'
-                f'<div style="padding:7px 8px;font-size:0.82rem;font-weight:800;color:{_severity};text-align:right">{_pct}</div>'
-                f'<div style="padding:7px 8px;font-size:0.78rem;color:#374151;text-align:right">{_prev_s}</div>'
-                f'<div style="padding:7px 8px;font-size:0.78rem;font-weight:600;color:#0F172A;text-align:right">{_val_s}</div>'
-                f'</div>'
+        # ── Resumen rápido ─────────────────────────────────────────────────────
+        _n_critica  = int((_drops_df["vs_lw"] <= -0.20).sum())
+        _n_grave    = int(((_drops_df["vs_lw"] > -0.20) & (_drops_df["vs_lw"] <= -0.10)).sum())
+        _n_farmers  = _drops_df["farmer"].nunique()
+        _n_metrics  = _drops_df["metric"].nunique()
+
+        _summary_pills = ""
+        if _n_critica:
+            _summary_pills += (
+                f'<span style="background:#7F1D1D;color:#fff;border-radius:20px;'
+                f'padding:4px 12px;font-size:0.72rem;font-weight:700;margin-right:8px">'
+                f'🔴 {_n_critica} crítica{"s" if _n_critica>1 else ""} ≥−20%</span>'
             )
-
-        _header_html = (
-            '<div style="display:grid;grid-template-columns:2fr 1.6fr 1fr 1fr 1fr;'
-            'background:#1E293B;border-radius:8px 8px 0 0">'
-            '<div style="padding:7px 10px;font-size:0.6rem;text-transform:uppercase;letter-spacing:1.5px;color:#fff;font-weight:700">Farmer</div>'
-            '<div style="padding:7px 8px;font-size:0.6rem;text-transform:uppercase;letter-spacing:1.5px;color:#fff;font-weight:700">Métrica</div>'
-            '<div style="padding:7px 8px;font-size:0.6rem;text-transform:uppercase;letter-spacing:1.5px;color:#FCA5A5;font-weight:700;text-align:right">vs LW</div>'
-            '<div style="padding:7px 8px;font-size:0.6rem;text-transform:uppercase;letter-spacing:1.5px;color:#94A3B8;font-weight:700;text-align:right">Sem. anterior</div>'
-            '<div style="padding:7px 8px;font-size:0.6rem;text-transform:uppercase;letter-spacing:1.5px;color:#fff;font-weight:700;text-align:right">Sem. actual</div>'
-            '</div>'
+        if _n_grave:
+            _summary_pills += (
+                f'<span style="background:#DC2626;color:#fff;border-radius:20px;'
+                f'padding:4px 12px;font-size:0.72rem;font-weight:700;margin-right:8px">'
+                f'🟠 {_n_grave} grave{"s" if _n_grave>1 else ""} −10% a −20%</span>'
+            )
+        _summary_pills += (
+            f'<span style="background:#F1F5F9;color:#475569;border-radius:20px;'
+            f'padding:4px 12px;font-size:0.72rem;font-weight:600;margin-right:8px">'
+            f'👤 {_n_farmers} farmer{"s" if _n_farmers>1 else ""}</span>'
+            f'<span style="background:#F1F5F9;color:#475569;border-radius:20px;'
+            f'padding:4px 12px;font-size:0.72rem;font-weight:600">'
+            f'📊 {_n_metrics} métrica{"s" if _n_metrics>1 else ""}</span>'
         )
-
         st.markdown(
-            f'<div style="border-radius:8px;overflow:hidden;border:1px solid #FEE2E2;'
-            f'box-shadow:0 1px 4px rgba(239,68,68,0.12)">'
-            f'{_header_html}{_drop_rows_html}</div>',
+            f'<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:1.2rem">{_summary_pills}</div>',
             unsafe_allow_html=True,
         )
+
+        # ── Tarjetas por métrica ───────────────────────────────────────────────
+        _metrics_affected = _drops_df["metric"].unique()
+        _metric_cols = st.columns(min(len(_metrics_affected), 3))
+        for _mi, _met in enumerate(_metrics_affected):
+            _mdrops = _drops_df[_drops_df["metric"] == _met].sort_values("vs_lw")
+            with _metric_cols[_mi % 3]:
+                _rows_html = ""
+                for _, _dr in _mdrops.iterrows():
+                    _fname = _name(_dr["farmer"])
+                    _pct   = f"{_dr['vs_lw']*100:+.1f}%"
+                    _prev  = _fmt_val(_met, _dr["val_prev"]) if _dr["val_prev"] is not None else "—"
+                    _curr  = _fmt_val(_met, _dr["value"])
+                    _is_crit = _dr["vs_lw"] <= -0.20
+                    _clr_bg  = "#FEF2F2" if _is_crit else "#FFF8F8"
+                    _clr_pct = "#7F1D1D" if _is_crit else "#DC2626"
+                    _rows_html += (
+                        f'<div style="display:flex;justify-content:space-between;align-items:center;'
+                        f'padding:6px 10px;background:{_clr_bg};border-bottom:1px solid #FEE2E2">'
+                        f'<span style="font-size:0.76rem;font-weight:600;color:#0F172A">{_fname}</span>'
+                        f'<span style="font-size:0.8rem;font-weight:800;color:{_clr_pct}">{_pct}</span>'
+                        f'</div>'
+                        f'<div style="display:flex;justify-content:space-between;'
+                        f'padding:3px 10px 6px;background:{_clr_bg};border-bottom:1px solid #FEE2E2">'
+                        f'<span style="font-size:0.68rem;color:#94A3B8">Ant: {_prev}</span>'
+                        f'<span style="font-size:0.68rem;color:#64748B;font-weight:600">Act: {_curr}</span>'
+                        f'</div>'
+                    )
+                st.markdown(
+                    f'<div style="border-radius:10px;overflow:hidden;border:1px solid #FEE2E2;'
+                    f'box-shadow:0 1px 6px rgba(239,68,68,0.08);margin-bottom:1rem">'
+                    f'<div style="background:#1E293B;padding:7px 10px">'
+                    f'<span style="font-size:0.65rem;text-transform:uppercase;letter-spacing:1.5px;'
+                    f'color:#FCA5A5;font-weight:800">{_met}</span>'
+                    f'<span style="font-size:0.65rem;color:#94A3B8;float:right">'
+                    f'{len(_mdrops)} farmer{"s" if len(_mdrops)>1 else ""}</span></div>'
+                    f'{_rows_html}</div>',
+                    unsafe_allow_html=True,
+                )
 
         # ── Heatmap de caídas: farmer × métrica ───────────────────────────────
         st.markdown('<div style="height:1rem"></div>', unsafe_allow_html=True)
