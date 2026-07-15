@@ -155,38 +155,46 @@ file_statuses = [
                 lambda d: _count_json_rows(d) + " pitches"),
 ]
 
-# Build status table HTML
-rows_html = ""
+# Status table — inject one self-contained HTML block
+_rows_html = ""
 for fs in file_statuses:
-    status_html = (
-        '<span style="color:#16A34A;font-weight:600;font-size:0.78rem">✓ Cargado</span>'
-        if fs["loaded"] else
-        '<span style="color:#94A3B8;font-size:0.78rem">— Sin datos</span>'
+    status_text = "✓ Cargado" if fs["loaded"] else "— Sin datos"
+    status_color = "#16A34A" if fs["loaded"] else "#94a3b8"
+    status_weight = "700" if fs["loaded"] else "400"
+    _rows_html += (
+        f'<div style="display:grid;grid-template-columns:3fr 1.4fr 1fr 1.4fr 1.4fr;'
+        f'border-bottom:1px solid #E2E8F0;align-items:center">'
+        f'<div style="padding:9px 12px;font-size:12px;font-weight:600;color:#0f172a">{fs["name"]}</div>'
+        f'<div style="padding:9px 12px;font-size:11px;color:#64748b">{fs["date"]}</div>'
+        f'<div style="padding:9px 12px;font-size:11px;color:#64748b">{fs["time"]}</div>'
+        f'<div style="padding:9px 12px;font-size:11px;color:{status_color};font-weight:{status_weight}">{status_text}</div>'
+        f'<div style="padding:9px 12px;font-size:11px;color:#64748b">{fs["records"]}</div>'
+        f'</div>'
     )
-    rows_html += f"""
-    <div class="rb-upload-row">
-        <div style="font-weight:500;color:#0F172A">{fs['name']}</div>
-        <div style="color:#64748B;font-size:0.79rem">{fs['date']}</div>
-        <div style="color:#64748B;font-size:0.79rem">{fs['time']}</div>
-        <div>{status_html}</div>
-        <div style="color:#64748B;font-size:0.79rem">{fs['records']}</div>
-    </div>"""
-
+_by_html = ""
 if _latest and _latest.get("updated_by"):
-    by_html = f'<div style="font-size:0.71rem;color:#94A3B8;margin-top:0.4rem;padding:0 1rem">Última carga por: <b>{_latest["updated_by"]}</b></div>'
-else:
-    by_html = ""
-
-st.markdown(f"""
-<div style="background:#FFFFFF;border:1px solid #E2E8F0;border-radius:10px;
-            box-shadow:0 1px 2px rgba(15,23,42,0.05);overflow:hidden;margin-bottom:1rem">
-    <div class="rb-upload-row rb-upload-header">
-        <div>Archivo</div><div>Fecha</div><div>Hora</div><div>Estado</div><div>Registros</div>
-    </div>
-    {rows_html}
-    {by_html}
-</div>
-""", unsafe_allow_html=True)
+    _by_html = (
+        f'<div style="font-size:11px;color:#94a3b8;padding:6px 12px 8px;'
+        f'border-top:1px solid #E2E8F0">Última carga por: '
+        f'<b>{_latest["updated_by"]}</b></div>'
+    )
+_header_cols = "".join(
+    f'<div style="padding:8px 12px;font-size:10px;font-weight:700;text-transform:uppercase;'
+    f'letter-spacing:0.07em;color:#94a3b8">{h}</div>'
+    for h in ["Archivo", "Fecha", "Hora", "Estado", "Registros"]
+)
+_table_html = (
+    '<div style="background:#fff;border:1.5px solid #E2E8F0;border-radius:14px;'
+    'overflow:hidden;margin-bottom:1rem">'
+    '<div style="display:grid;grid-template-columns:3fr 1.4fr 1fr 1.4fr 1.4fr;'
+    'background:#f8fafc;border-bottom:1px solid #E2E8F0">'
+    + _header_cols +
+    '</div>'
+    + _rows_html
+    + _by_html +
+    '</div>'
+)
+st.markdown(_table_html, unsafe_allow_html=True)
 
 # ── Supervisor upload controls ─────────────────────────────────────────────────
 if is_supervisor:
