@@ -375,7 +375,8 @@ def load_penetracion(xl):
     Col 6-10: # stores by penetration bucket (0%, 0-30%, 30-50%, 50-70%, 70%+)
     Col 11: Penetración (Media) | Col 12: Revenue Perdido
 
-    Brands at risk = those with Penetración (Media) < 0.70 (haven't reached target).
+    ADS opportunity = brands with Penetración (Media) < 0.20 (low ADS usage, high upsell potential).
+    Penetración > 70% is a danger signal (brand losing too much GMV to ADS fees), NOT a target.
     Sorted by Revenue Perdido descending to show highest-impact first.
     """
     try:
@@ -401,9 +402,9 @@ def load_penetracion(xl):
 
         brands_at_risk = {}
         for farmer, sub in df.groupby(2):
-            # Brands not yet at 70% penetration, with any revenue (active brands)
+            # Brands with LOW ADS penetration (<20%) and active revenue = real upsell opportunity
             at_risk_sub = sub[
-                (sub["pen_media"] < 0.70) & (sub["revenue"] > 0)
+                (sub["pen_media"] < 0.20) & (sub["revenue"] > 0)
             ].sort_values("rev_perdido", ascending=False)
 
             if not at_risk_sub.empty:

@@ -194,7 +194,7 @@ if _cartera_raw:
             _df_me[_pen_col] = pd.to_numeric(_df_me[_pen_col], errors="coerce")
             _df_me[_gmv_col] = pd.to_numeric(_df_me[_gmv_col], errors="coerce").fillna(0)
 
-            _high_pen = _df_me[_df_me[_pen_col] > 0.70].sort_values(_pen_col, ascending=False)
+            _high_pen = _df_me[_df_me[_pen_col] > 0.50].sort_values(_pen_col, ascending=False)
 
             if not _high_pen.empty:
                 st.markdown("---")
@@ -204,10 +204,10 @@ if _cartera_raw:
                     f"<div style='background:#FEF2F2;border-left:4px solid #EF4444;border-radius:0 8px 8px 0;"
                     f"padding:0.6rem 1rem;margin-bottom:0.7rem'>"
                     f"<div style='font-weight:700;color:#991B1B;font-size:0.9rem'>"
-                    f"⚠️ Revenue en riesgo — {_n_risk} brand{'s' if _n_risk!=1 else ''} con alta penetración</div>"
+                    f"🚨 ADS sobreexpuesto — {_n_risk} brand{'s' if _n_risk!=1 else ''} con penetración crítica</div>"
                     f"<div style='font-size:0.75rem;color:#374151;margin-top:2px'>"
-                    f"Penetración > 70% · GMV total expuesto: <b>${_total_gmv_risk:,.0f}</b> — "
-                    f"alta concentración, revisar retención</div></div>",
+                    f"Penetración > 50% del GMV · El aliado está perdiendo una parte significativa de sus ganancias en ADS fees · "
+                    f"GMV expuesto: <b>${_total_gmv_risk:,.0f}</b> — urgente revisar y optimizar</div></div>",
                     unsafe_allow_html=True,
                 )
 
@@ -216,7 +216,7 @@ if _cartera_raw:
                     pen_v = br[_pen_col]
                     gmv_v = br[_gmv_col]
                     bname = str(br[_name_col])[:28]
-                    c_pen = "#EF4444" if pen_v >= 0.90 else "#D97706" if pen_v >= 0.80 else "#F59E0B"
+                    c_pen = "#EF4444" if pen_v >= 0.70 else "#D97706" if pen_v >= 0.60 else "#F59E0B"
                     rev_v = br[_rev_col] if _rev_col and pd.notna(br.get(_rev_col)) else None
                     rev_str = f"${float(rev_v):,.0f}" if rev_v is not None else "—"
                     rows_html += (
@@ -241,7 +241,7 @@ if _cartera_raw:
                     f"</tr></thead><tbody>{rows_html}</tbody></table></div>",
                     unsafe_allow_html=True,
                 )
-                st.caption("🔴 ≥ 90% penetración  ·  🟡 80-90%  ·  Revisá retención y pipeline de reactivación")
+                st.caption("🔴 ≥ 70% penetración — crítico  ·  🟡 50-70% — alto riesgo  ·  Reducir inversión ADS y revisar rentabilidad del aliado")
     except Exception:
         pass
 
@@ -462,7 +462,7 @@ st.markdown("---")
 st.markdown("### 🏪 Tus aliados con mayor potencial ADS")
 
 if brands:
-    st.caption(f"Brands activos con penetración < 70% — {len(brands)} oportunidades detectadas")
+    st.caption(f"Brands activos con baja penetración ADS (< 20% del GMV) — {len(brands)} oportunidades detectadas")
     cols_b = st.columns(min(len(brands), 5))
     for col, brand in zip(cols_b, brands[:5]):
         with col:
