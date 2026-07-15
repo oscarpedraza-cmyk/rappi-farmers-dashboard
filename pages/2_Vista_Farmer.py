@@ -15,8 +15,6 @@ from core.metrics import (
 from core.db import get_consecutive_red_weeks
 from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
-from core.slack import send_farmer_report
-from core.loader import SLACK_IDS
 
 
 @st.cache_data(show_spinner=False)
@@ -124,68 +122,6 @@ st.markdown(f"""
     </div>
 </div>
 """, unsafe_allow_html=True)
-
-# ── Botón Slack (solo supervisor) ────────────────────────────────────────────
-if is_supervisor:
-    _slack_id = SLACK_IDS.get(farmer_email) or data.get("slack_id")
-    _col_slack, _col_info = st.columns([1, 4])
-    with _col_slack:
-        _send = st.button(
-            "📨 Enviar por Slack",
-            key="btn_slack_farmer",
-            use_container_width=True,
-            help=f"Envía el resumen semanal a {selected_name} por DM en Slack",
-            disabled=not bool(_slack_id),
-        )
-    with _col_info:
-        if not _slack_id:
-            st.caption(f"⚠️ {selected_name} no tiene Slack ID configurado.")
-    if _send and _slack_id:
-        # Construir payload de métricas
-        _metric_defs_slack = [
-            ("Churn",    "ATT_Churn",    "decimal", "Churn"),
-            ("MD Total", "ATT_MD_Total", "decimal", "MD Total"),
-            ("MD Pro",   "ATT_MD_Pro",   "decimal", "MD Pro"),
-            ("Ads Book", "ATT_Book",     "decimal", "Ads Bookings"),
-            ("Ads Rev",  "ATT_Rev_real", "decimal", "Ads Revenue"),
-            ("Net Rev",  "Net_Rev_Adj",  "pp",      "Net Rev Adj"),
-            ("Pitch",    "Pitch_Pct",    "decimal", "Pitch Integral"),
-        ]
-        _metrics_payload = {}
-        for _lbl, _key, _fmt, _sem_key in _metric_defs_slack:
-            _val = data.get(_key)
-            if _val is None:
-                continue
-            try:
-                _v = float(_val)
-                if _fmt == "decimal":
-                    _vstr = f"{_v*100:.1f}%"
-                elif _fmt == "pp":
-                    _vstr = f"{_v:+.1f}pp"
-                else:
-                    _vstr = str(_v)
-            except (TypeError, ValueError):
-                _vstr = str(_val)
-            _color = sems.get(_sem_key, "gray")
-            _metrics_payload[_lbl] = (_vstr, _color)
-
-        _recs = generar_recomendaciones(data, sems, comp)
-        _brands_risk = data.get("brands_riesgo", [])
-        _semana = st.session_state.get("dia_corte", "")
-
-        with st.spinner(f"Enviando a {selected_name}…"):
-            _ok, _msg = send_farmer_report(
-                slack_user_id=_slack_id,
-                farmer_name=selected_name,
-                metrics=_metrics_payload,
-                plan_items=_recs,
-                brands_riesgo=_brands_risk,
-                semana=str(_semana),
-            )
-        if _ok:
-            st.success(f"✅ Resumen enviado a {selected_name} por Slack.")
-        else:
-            st.error(f"❌ Error al enviar: {_msg}")
 
 # ── KPI Badges ────────────────────────────────────────────────────────────────
 st.markdown("#### Métricas del período")
