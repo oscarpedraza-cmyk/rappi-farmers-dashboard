@@ -360,12 +360,15 @@ else:
                 _fig.add_trace(go.Scatter(
                     x=_avg_w["week"],
                     y=_avg_w["value"],
-                    mode="lines+markers" if _show_total_only else "lines",
+                    mode="lines+markers+text" if _show_total_only else "lines",
                     name=_avg_label,
                     line=dict(color=C_RAPPI if _show_total_only else "#1E293B",
                               width=_avg_width,
                               dash="solid" if _show_total_only else "dash"),
                     marker=dict(size=6) if _show_total_only else {},
+                    text=[f"{v:,.2f}" for v in _avg_w["value"]] if _show_total_only else None,
+                    textposition="top center",
+                    textfont=dict(size=9, color=C_RAPPI),
                     hovertemplate=(
                         f"<b>{_avg_label}</b><br>%{{x}}<br>"
                         f"{_metric}: %{{y:,.2f}}<extra></extra>"
