@@ -389,14 +389,6 @@ with st.sidebar:
         df_view    = df_cart[df_cart[FARMER_COL] == email.lower()].copy()
         view_email = email.lower()
 
-    # Filtro de estado (bucket)
-    bucket_filter = st.multiselect(
-        "📊 Estado",
-        options=BUCKET_ORDER,
-        default=BUCKET_ORDER,
-        key="cartera_bucket_filter",
-    )
-
     # Ordenamiento
     sort_sel = st.selectbox(
         "🔃 Ordenar por",
@@ -566,8 +558,28 @@ st.markdown("---")
 #        monetario y de días, TextColumn para Marca con ancho grande
 # ══════════════════════════════════════════════════════════════════════════════
 
-# Aplicar filtros y ordenamiento (sidebar)
-df_filtered = df_view[df_view["bucket"].isin(bucket_filter)].copy()
+# ── Filtro de estado inline (encima de la tabla) ─────────────────────────────
+_counts_view = df_view["bucket"].value_counts()
+_bucket_options = [
+    f"{BUCKET_CONFIG[b]['emoji']} {b} ({int(_counts_view.get(b, 0))})"
+    for b in BUCKET_ORDER if b in BUCKET_CONFIG
+]
+_bucket_map = {
+    f"{BUCKET_CONFIG[b]['emoji']} {b} ({int(_counts_view.get(b, 0))})": b
+    for b in BUCKET_ORDER if b in BUCKET_CONFIG
+}
+bucket_filter = st.multiselect(
+    "Filtrar por estado",
+    options=_bucket_options,
+    default=_bucket_options,
+    key="cartera_bucket_filter",
+    label_visibility="collapsed",
+    placeholder="Seleccionar estados…",
+)
+_sel_buckets = [_bucket_map[o] for o in bucket_filter] if bucket_filter else list(BUCKET_ORDER)
+
+# Aplicar filtros y ordenamiento
+df_filtered = df_view[df_view["bucket"].isin(_sel_buckets)].copy()
 
 if sort_sel == "Días sin contacto ↓":
     df_filtered = df_filtered.sort_values("days_since", ascending=False, na_position="last")
