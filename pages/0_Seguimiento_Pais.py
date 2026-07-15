@@ -637,42 +637,82 @@ if len(_all_weeks_sorted) >= 3:
                     unsafe_allow_html=True,
                 )
 
-        # ── Heatmap de caídas: farmer × métrica ───────────────────────────────
+        # ── Heatmap completo: todos los farmers × todas las métricas ─────────
         st.markdown('<div style="height:1rem"></div>', unsafe_allow_html=True)
-        _pivot = _drops_df.pivot_table(
-            index="farmer", columns="metric", values="vs_lw", aggfunc="min"
-        )
-        _pivot.index = [_name(e) for e in _pivot.index]
-        _z = _pivot.values.tolist()
-        _text = [
-            [f"{v*100:+.1f}%" if v is not None and not pd.isna(v) else "" for v in row]
-            for row in _z
+
+        # Construir pivot con TODOS los farmers y métricas disponibles
+        _all_farmers_heat = sorted(_ts_df_team["farmer"].unique())
+        _all_metrics_heat = sorted(_ts_df_team["metric"].unique())
+
+        _heat_rows = []
+        for _fe in _all_farmers_heat:
+            for _m in _all_metrics_heat:
+                _c = _curr_df[(_curr_df["farmer"] == _fe) & (_curr_df["metric"] == _m)]
+                _p = _prev_df[(_prev_df["farmer"] == _fe) & (_prev_df["metric"] == _m)]
+                if _c.empty or _p.empty:
+                    _chg = None
+                else:
+                    _vc = _c.iloc[0]["value"]
+                    _vp = _p.iloc[0]["value"]
+                    try:
+                        _chg = (float(_vc) - float(_vp)) / abs(float(_vp)) if _vp and float(_vp) != 0 else None
+                    except (TypeError, ValueError):
+                        _chg = None
+                _heat_rows.append({"farmer": _fe, "metric": _m, "chg": _chg})
+
+        _heat_df  = pd.DataFrame(_heat_rows)
+        _heat_piv = _heat_df.pivot(index="farmer", columns="metric", values="chg")
+        _heat_piv.index = [_name(e) for e in _heat_piv.index]
+
+        _hz = _heat_piv.values.tolist()
+        _htxt = [
+            [f"{v*100:+.1f}%" if v is not None and not pd.isna(v) else "S/D" for v in row]
+            for row in _hz
         ]
+        # Text color: dark for light cells (near 0), white for extreme cells
+        _htxt_color = [
+            ["#1E293B" if v is not None and not pd.isna(v) and abs(v) < 0.08 else "#fff"
+             for v in row]
+            for row in _hz
+        ]
+
         _fig_heat = go.Figure(go.Heatmap(
-            z=_z,
-            x=list(_pivot.columns),
-            y=list(_pivot.index),
-            text=_text,
+            z=_hz,
+            x=list(_heat_piv.columns),
+            y=list(_heat_piv.index),
+            text=_htxt,
             texttemplate="%{text}",
-            textfont=dict(size=11, color="#fff"),
+            textfont=dict(size=10, color="#1E293B"),
             colorscale=[
-                [0.0,  "#7F1D1D"],
-                [0.35, "#DC2626"],
-                [0.7,  "#F87171"],
-                [1.0,  "#FECACA"],
+                [0.0,  "#7F1D1D"],   # caída grave ≥30%
+                [0.25, "#DC2626"],   # caída grave
+                [0.42, "#FCA5A5"],   # caída leve
+                [0.50, "#F8FAFC"],   # neutro (0%)
+                [0.58, "#BBF7D0"],   # subida leve
+                [0.75, "#16A34A"],   # subida buena
+                [1.0,  "#14532D"],   # subida fuerte
             ],
-            showscale=False,
-            zmin=min(_drops_df["vs_lw"].min(), -0.30),
-            zmax=ALARM_RED,
-            hovertemplate="%{y} · %{x}: %{text}<extra></extra>",
+            zmid=0,
+            zmin=-0.35,
+            zmax=0.35,
+            showscale=True,
+            colorbar=dict(
+                tickformat="+.0%",
+                thickness=12,
+                len=0.8,
+                tickfont=dict(size=9),
+                title=dict(text="vs LW", side="right", font=dict(size=9)),
+            ),
+            hovertemplate="%{y} · %{x}<br>%{text}<extra></extra>",
+            xgap=2, ygap=2,
         ))
         _fig_heat.update_layout(
-            height=max(180, len(_pivot) * 36 + 60),
-            margin=dict(l=0, r=0, t=8, b=8),
+            height=max(200, len(_heat_piv) * 38 + 80),
+            margin=dict(l=0, r=60, t=8, b=8),
             plot_bgcolor="rgba(0,0,0,0)",
             paper_bgcolor="rgba(0,0,0,0)",
             xaxis=dict(side="top", tickfont=dict(size=10), showgrid=False),
-            yaxis=dict(tickfont=dict(size=10), showgrid=False),
+            yaxis=dict(tickfont=dict(size=10), showgrid=False, autorange="reversed"),
         )
         st.plotly_chart(_fig_heat, use_container_width=True, key="drops_heat",
                         config={"displayModeBar": False})
