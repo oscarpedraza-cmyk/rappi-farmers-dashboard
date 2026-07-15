@@ -1,6 +1,6 @@
-"""
-0_Seguimiento_Pais.py — Dashboard de Seguimiento País
-Vista ejecutiva: Pareto de cartera + análisis semanal filtrado.
+﻿"""
+0_Seguimiento_Pais.py â€” Dashboard de Seguimiento PaÃ­s
+Vista ejecutiva: Pareto de cartera + anÃ¡lisis semanal filtrado.
 """
 from __future__ import annotations
 import sys
@@ -17,7 +17,7 @@ from core.loader import FARMER_NAMES
 from core.db import save_metricas_weekly, load_metricas_weekly
 
 st.set_page_config(
-    page_title="Seguimiento País — Rappi Farmers",
+    page_title="Seguimiento PaÃ­s â€” Rappi Farmers",
     page_icon="🌍",
     layout="wide",
     initial_sidebar_state="expanded",
@@ -26,7 +26,7 @@ st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
 render_topbar()
 
-# ── Constants ─────────────────────────────────────────────────────────────────
+# â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 ALARM_RED    = -0.10
 ALARM_YELLOW = -0.05
 C_RED    = "#EF4444"
@@ -53,14 +53,14 @@ def _fmt_pct(vs: object) -> str:
     try:
         return f"{float(vs)*100:+.1f}%"
     except (TypeError, ValueError):
-        return "—"
+        return "â€”"
 
 
 def _fmt_val(metric: str, v: object) -> str:
     try:
         fv = float(v)
     except (TypeError, ValueError):
-        return "—"
+        return "â€”"
     n = metric.upper()
     if "GMV" in n or "REVENUE" in n:
         return f"${fv:,.0f}"
@@ -101,11 +101,11 @@ def _kpi_card_html(title: str, value: str, subtitle: str,
                    color: str = "#FF441B") -> str:
     svg = _svg_sparkline(spark_vals, color=color)
     if delta_pct is None:
-        ds, dc = "—", "#94A3B8"
+        ds, dc = "â€”", "#94A3B8"
     elif delta_pct > 0.5:
-        ds, dc = f"↑ {abs(delta_pct):.0f}%", "#16A34A"
+        ds, dc = f"â†‘ {abs(delta_pct):.0f}%", "#16A34A"
     elif delta_pct < -0.5:
-        ds, dc = f"↓ {abs(delta_pct):.0f}%", "#EF4444"
+        ds, dc = f"â†“ {abs(delta_pct):.0f}%", "#EF4444"
     else:
         ds, dc = "sin cambio", "#94A3B8"
     return (
@@ -124,7 +124,7 @@ def _kpi_card_html(title: str, value: str, subtitle: str,
     )
 
 
-# ── Excel parser ──────────────────────────────────────────────────────────────
+# â”€â”€ Excel parser â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 @st.cache_data(show_spinner=False)
 def _parse_excel(file_bytes: bytes) -> tuple[list, list]:
@@ -179,7 +179,7 @@ def _merge(new_recs: list, stored_recs: list) -> list:
     return [r for r in stored_recs if r["week"] not in new_weeks] + new_recs
 
 
-# ── Bootstrap ─────────────────────────────────────────────────────────────────
+# â”€â”€ Bootstrap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if "met_farmer_recs" not in st.session_state:
     st.session_state["met_farmer_recs"] = load_metricas_weekly() or []
 if "met_brand_recs" not in st.session_state:
@@ -190,11 +190,11 @@ brand_recs:  list = st.session_state["met_brand_recs"]
 farmer_df = pd.DataFrame(farmer_recs) if farmer_recs else pd.DataFrame()
 brand_df  = pd.DataFrame(brand_recs)  if brand_recs  else pd.DataFrame()
 
-# ── Upload (supervisor only) ──────────────────────────────────────────────────
+# â”€â”€ Upload (supervisor only) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if is_supervisor:
     weeks_loaded = sorted(farmer_df["week"].unique()) if not farmer_df.empty else []
-    with st.expander(f"⬆️ Cargar métricas semanales ({len(weeks_loaded)} semanas)", expanded=(not farmer_recs)):
-        st.caption("Export 'Metrics Weekly by Hierarchy Level' — acumula semanas automáticamente.")
+    with st.expander(f"â¬†ï¸ Cargar mÃ©tricas semanales ({len(weeks_loaded)} semanas)", expanded=(not farmer_recs)):
+        st.caption("Export 'Metrics Weekly by Hierarchy Level' â€” acumula semanas automÃ¡ticamente.")
         uploaded = st.file_uploader("Metrics Weekly (.xlsx)", type=["xlsx"], key="met_upload")
         if uploaded is not None:
             with st.spinner("Procesando..."):
@@ -209,7 +209,7 @@ if is_supervisor:
                     brand_recs  = new_brand
                     farmer_df   = pd.DataFrame(farmer_recs)
                     brand_df    = pd.DataFrame(brand_recs)
-                    st.success(f"✅ {len({r['week'] for r in new_farmer})} semanas nuevas · Total: {len({r['week'] for r in merged})} semanas")
+                    st.success(f"âœ… {len({r['week'] for r in new_farmer})} semanas nuevas Â· Total: {len({r['week'] for r in merged})} semanas")
                     st.rerun()
                 except Exception as ex:
                     st.error(f"Error: {ex}")
@@ -217,14 +217,14 @@ if is_supervisor:
 if farmer_df.empty:
     st.markdown("""
     <div class="rb-empty-state">
-        <div class="rb-empty-icon">📊</div>
-        <h3>Sin métricas semanales</h3>
-        <p>Cargá el archivo <b>Metrics Weekly</b> en <b>Carga de Datos</b> para comenzar el análisis.</p>
+        <div class="rb-empty-icon">ðŸ“Š</div>
+        <h3>Sin mÃ©tricas semanales</h3>
+        <p>CargÃ¡ el archivo <b>Metrics Weekly</b> en <b>Carga de Datos</b> para comenzar el anÃ¡lisis.</p>
     </div>
     """, unsafe_allow_html=True)
     st.stop()
 
-# ── GLOBAL FILTERS ────────────────────────────────────────────────────────────
+# â”€â”€ GLOBAL FILTERS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 all_weeks   = sorted(farmer_df["week"].unique(), reverse=True)
 all_metrics = sorted(farmer_df["metric"].unique())
 all_countries = [c for c in sorted(farmer_df["country"].unique()) if c in ("AR", "UY")]
@@ -235,13 +235,13 @@ with st.container():
     st.markdown('<div class="rb-filter-title">Filtros globales</div>', unsafe_allow_html=True)
     fcol1, fcol2, fcol3, fcol4 = st.columns([1, 2, 3, 3])
     with fcol1:
-        sel_country = st.radio("País", ["Todos"] + all_countries, key="sp_country", horizontal=True)
+        sel_country = st.radio("PaÃ­s", ["Todos"] + all_countries, key="sp_country", horizontal=True)
     with fcol2:
         sel_week = st.selectbox("Semana", all_weeks, key="sp_week",
                                 format_func=lambda w: f"Sem. {w}")
     with fcol3:
         sel_metrics = st.multiselect(
-            "Métricas", all_metrics,
+            "MÃ©tricas", all_metrics,
             default=[m for m in ["Orders","GMV","CVR (%)","Revenue"] if m in all_metrics] or all_metrics[:4],
             key="sp_metrics",
         )
@@ -269,7 +269,7 @@ def _apply_f(df: pd.DataFrame, week: str | None = None) -> pd.DataFrame:
 
 week_df = _apply_f(farmer_df, sel_week)
 
-# ── Compute sparkline trend series (all weeks, filtered by country/farmers/metrics) ──
+# â”€â”€ Compute sparkline trend series (all weeks, filtered by country/farmers/metrics) â”€â”€
 all_w_sorted = sorted(farmer_df["week"].unique())
 _sp_red, _sp_yel, _sp_grn, _sp_tot = [], [], [], []
 for _w in all_w_sorted:
@@ -301,18 +301,18 @@ cl     = sel_country if sel_country != "Todos" else "el equipo"
 
 # Alert state
 if red_n == 0 and yell_n == 0:
-    al_icon, al_txt, al_bg, al_bd, al_c = "✅", "Sin alertas críticas", "#F0FDF4", "#16A34A", "#15803D"
+    al_icon, al_txt, al_bg, al_bd, al_c = "âœ…", "Sin alertas crÃ­ticas", "#F0FDF4", "#16A34A", "#15803D"
 elif red_n >= 5:
-    al_icon, al_txt, al_bg, al_bd, al_c = "🚨", f"{red_n} alarmas críticas", "#FEF2F2", C_RED, "#991B1B"
+    al_icon, al_txt, al_bg, al_bd, al_c = "ðŸš¨", f"{red_n} alarmas crÃ­ticas", "#FEF2F2", C_RED, "#991B1B"
 else:
-    al_icon, al_txt, al_bg, al_bd, al_c = "⚠️", f"{red_n} rojas · {yell_n} en seguimiento", "#FFFBEB", C_YELLOW, "#78350F"
+    al_icon, al_txt, al_bg, al_bd, al_c = "âš ï¸", f"{red_n} rojas Â· {yell_n} en seguimiento", "#FFFBEB", C_YELLOW, "#78350F"
 
 worst_txt = (
     f"Peor: <b>{_name(worst['farmer'])}</b> {_fmt_pct(worst['vs_lw'])} en {worst['metric']}"
     if worst is not None else ""
 )
 
-# ── Dark hero banner ──────────────────────────────────────────────────────────
+# â”€â”€ Dark hero banner â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown(f"""
 <div style="background:linear-gradient(135deg,#0F172A 0%,#1E293B 100%);
             border-radius:12px;padding:1.1rem 1.6rem;margin-bottom:1rem;
@@ -320,14 +320,14 @@ st.markdown(f"""
     <div>
         <div style="font-size:0.52rem;letter-spacing:3px;color:#475569;
                     text-transform:uppercase;font-weight:700;margin-bottom:3px">
-            RAPPI FARMERS · DASHBOARD
+            RAPPI FARMERS Â· DASHBOARD
         </div>
         <div style="font-size:1.1rem;font-weight:800;color:#FFFFFF;line-height:1.2">
-            SEGUIMIENTO PAÍS
+            SEGUIMIENTO PAÃS
         </div>
         <div style="font-size:0.7rem;color:#475569;margin-top:4px">
-            {cl.upper()} &nbsp;·&nbsp; Semana {sel_week}
-            &nbsp;·&nbsp; {n_fw} farmers &nbsp;·&nbsp; {len(sel_metrics)} métricas
+            {cl.upper()} &nbsp;Â·&nbsp; Semana {sel_week}
+            &nbsp;Â·&nbsp; {n_fw} farmers &nbsp;Â·&nbsp; {len(sel_metrics)} mÃ©tricas
         </div>
     </div>
     <div style="text-align:right">
@@ -340,7 +340,7 @@ st.markdown(f"""
     </div>
 </div>""", unsafe_allow_html=True)
 
-# ── Sparkline KPI cards ───────────────────────────────────────────────────────
+# â”€â”€ Sparkline KPI cards â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 k1, k2, k3, k4 = st.columns(4)
 _prev_week = all_w_sorted[_cur_idx - 1] if _cur_idx > 0 else None
 _prev_label = f"vs {_prev_week}" if _prev_week else "primera semana"
@@ -348,7 +348,7 @@ _prev_label = f"vs {_prev_week}" if _prev_week else "primera semana"
 with k1:
     st.markdown(
         _kpi_card_html(
-            "ALARMAS CRÍTICAS",
+            "ALARMAS CRÃTICAS",
             str(red_n),
             _prev_label,
             _sp_red,
@@ -395,7 +395,7 @@ with k4:
         unsafe_allow_html=True,
     )
 
-# ── Alertas por semana — stacked bar ─────────────────────────────────────────
+# â”€â”€ Alertas por semana â€” stacked bar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown(
     '<div style="font-size:0.6rem;text-transform:uppercase;letter-spacing:2px;'
     'color:#94A3B8;font-weight:700;margin:1.1rem 0 0.4rem">ALERTAS POR SEMANA</div>',
@@ -403,9 +403,9 @@ st.markdown(
 )
 fig_aw = go.Figure()
 fig_aw.add_trace(go.Bar(
-    x=all_w_sorted, y=_sp_red, name="Crítico",
+    x=all_w_sorted, y=_sp_red, name="CrÃ­tico",
     marker_color=C_RED, marker_opacity=0.85,
-    hovertemplate="%{x}<br>Críticos: %{y}<extra></extra>",
+    hovertemplate="%{x}<br>CrÃ­ticos: %{y}<extra></extra>",
 ))
 fig_aw.add_trace(go.Bar(
     x=all_w_sorted, y=_sp_yel, name="Seguimiento",
@@ -423,7 +423,7 @@ if sel_week in all_w_sorted:
     fig_aw.add_vline(
         x=all_w_sorted.index(sel_week),
         line_dash="dot", line_color="#0F172A", line_width=1.5,
-        annotation_text=f"◀ {sel_week}",
+        annotation_text=f"â—€ {sel_week}",
         annotation_position="top right",
         annotation_font=dict(size=9, color="#0F172A"),
     )
@@ -445,7 +445,7 @@ fig_aw.update_layout(
 st.plotly_chart(fig_aw, use_container_width=True, key="aw_stacked")
 st.markdown('<div style="height:4px"></div>', unsafe_allow_html=True)
 
-# ── PARETO DE CARTERA ─────────────────────────────────────────────────────────
+# â”€â”€ PARETO DE CARTERA â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 cartera_json = st.session_state.get("_cartera_raw")
 df_pareto_brands: pd.DataFrame = pd.DataFrame()
 pareto_brand_ids: list[str] = []
@@ -476,21 +476,21 @@ if cartera_json:
     except Exception:
         pass
 
-# ── TABS ──────────────────────────────────────────────────────────────────────
+# â”€â”€ TABS â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 tab_pareto, tab_ranking, tab_evol, tab_heat = st.tabs([
-    "🏆 Pareto de Cartera",
-    "📊 Ranking del equipo",
-    "📈 Evolución histórica",
-    "🗺️ Heatmap de alertas",
+    "ðŸ† Pareto de Cartera",
+    "ðŸ“Š Ranking del equipo",
+    "ðŸ“ˆ EvoluciÃ³n histÃ³rica",
+    "ðŸ—ºï¸ Heatmap de alertas",
 ])
 
-# ── Pareto ────────────────────────────────────────────────────────────────────
+# â”€â”€ Pareto â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 with tab_pareto:
     if df_pareto_brands.empty:
         if not cartera_json:
-            st.info("💡 Cargá la Asignación/Cartera en **Carga de Datos** para ver el Pareto por GMV.")
+            st.info("ðŸ’¡ CargÃ¡ la AsignaciÃ³n/Cartera en **Carga de Datos** para ver el Pareto por GMV.")
         else:
-            st.info("Sin datos suficientes. Verificá columnas GMV_L28D y BRAND_NAME en la Asignación.")
+            st.info("Sin datos suficientes. VerificÃ¡ columnas GMV_L28D y BRAND_NAME en la AsignaciÃ³n.")
     else:
         _cm2 = {c.upper(): c for c in df_pareto_brands.columns}
         gc2  = _cm2.get("GMV_L28D")
@@ -505,12 +505,12 @@ with tab_pareto:
             <div>
                 <div style="font-weight:700;font-size:0.95rem;color:#0F172A">Top {n_pb} Brands por GMV</div>
                 <div style="font-size:0.76rem;color:#64748B;margin-top:2px">
-                    GMV L28D total: <b>${total_g2:,.0f}</b> — enfocate en estas marcas
+                    GMV L28D total: <b>${total_g2:,.0f}</b> â€” enfocate en estas marcas
                 </div>
             </div>
             <div style="text-align:right">
                 <div style="font-size:1.6rem;font-weight:800;color:#FF441B">{n_pb}</div>
-                <div style="font-size:0.68rem;color:#94A3B8">brands · Pareto 80%</div>
+                <div style="font-size:0.68rem;color:#94A3B8">brands Â· Pareto 80%</div>
             </div>
         </div>""", unsafe_allow_html=True)
 
@@ -541,7 +541,7 @@ with tab_pareto:
 
         # Per-metric bars for pareto brands
         if not brand_df.empty and pareto_brand_ids:
-            st.markdown('<div class="rb-section-title">Pareto brands — métricas esta semana</div>', unsafe_allow_html=True)
+            st.markdown('<div class="rb-section-title">Pareto brands â€” mÃ©tricas esta semana</div>', unsafe_allow_html=True)
             pb_df = brand_df[brand_df["brand"].isin(pareto_brand_ids) & (brand_df["week"] == sel_week)]
             if sel_country != "Todos":
                 pb_df = pb_df[pb_df["country"] == sel_country]
@@ -572,7 +572,7 @@ with tab_pareto:
                     )
                     st.plotly_chart(fig_b, use_container_width=True, key=f"pb_m_{metric}")
 
-# ── Ranking ───────────────────────────────────────────────────────────────────
+# â”€â”€ Ranking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 with tab_ranking:
     if week_df.empty:
         st.info("Sin datos para los filtros seleccionados.")
@@ -591,8 +591,8 @@ with tab_ranking:
 
             st.markdown(
                 f"<div style='font-size:0.74rem;color:#64748B;margin:0.8rem 0 0.15rem'>"
-                f"<b>{metric}</b> · {len(mdata)} farmers"
-                + (f" · <span style='color:{C_RED};font-weight:600'>{n_red_m} críticos</span>" if n_red_m else "")
+                f"<b>{metric}</b> Â· {len(mdata)} farmers"
+                + (f" Â· <span style='color:{C_RED};font-weight:600'>{n_red_m} crÃ­ticos</span>" if n_red_m else "")
                 + "</div>",
                 unsafe_allow_html=True,
             )
@@ -613,11 +613,11 @@ with tab_ranking:
             )
             st.plotly_chart(fig_r, use_container_width=True, key=f"rank_{metric}")
 
-# ── Evolución histórica ───────────────────────────────────────────────────────
+# â”€â”€ EvoluciÃ³n histÃ³rica â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 with tab_evol:
     col_em, col_ef = st.columns([1, 2])
     with col_em:
-        evol_metric = st.selectbox("Métrica", sel_metrics or all_metrics[:1], key="evol_m")
+        evol_metric = st.selectbox("MÃ©trica", sel_metrics or all_metrics[:1], key="evol_m")
     with col_ef:
         evol_farmers = st.multiselect(
             "Farmers", all_farmers_emails,
@@ -647,8 +647,8 @@ with tab_evol:
                     st.markdown(
                         f"<div style='font-size:0.78rem;color:#374151;margin-bottom:0.4rem'>"
                         f"Promedio equipo en <b>{evol_metric}</b>: "
-                        f"<span style='color:{dc};font-weight:700'>{'↑' if delta>0 else '↓'}{abs(delta):.1f}%</span>"
-                        f" vs semana anterior ({_fmt_val(evol_metric, prv_a)} → {_fmt_val(evol_metric, cur_a)})</div>",
+                        f"<span style='color:{dc};font-weight:700'>{'â†‘' if delta>0 else 'â†“'}{abs(delta):.1f}%</span>"
+                        f" vs semana anterior ({_fmt_val(evol_metric, prv_a)} â†’ {_fmt_val(evol_metric, cur_a)})</div>",
                         unsafe_allow_html=True,
                     )
 
@@ -692,7 +692,7 @@ with tab_evol:
             )
             st.plotly_chart(fig_e, use_container_width=True, key="evol_fig")
 
-# ── Heatmap ───────────────────────────────────────────────────────────────────
+# â”€â”€ Heatmap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 with tab_heat:
     if week_df.empty:
         st.info("Sin datos para el heatmap.")
@@ -740,4 +740,5 @@ with tab_heat:
             xaxis=dict(side="top"),
         )
         st.plotly_chart(fig_h, use_container_width=True, key="heat_fig")
-        st.caption("🟢 Mejora >5% · 🟡 Caída 5-10% · 🔴 Caída >10% · ⬜ Sin datos")
+        st.caption("ðŸŸ¢ Mejora >5% Â· ðŸŸ¡ CaÃ­da 5-10% Â· ðŸ”´ CaÃ­da >10% Â· â¬œ Sin datos")
+

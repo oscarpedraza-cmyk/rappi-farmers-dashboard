@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 import streamlit as st
 import io
 import sys
@@ -31,8 +31,8 @@ def _is_one(s: pd.Series) -> pd.Series:
 
 
 st.set_page_config(
-    page_title="Vista Farmer — Rappi Farmers",
-    page_icon="🚀",
+    page_title="Vista Farmer â€” Rappi Farmers",
+    page_icon="🌍",
     layout="wide", initial_sidebar_state="expanded",
 )
 st.markdown(inject_global_css(), unsafe_allow_html=True)
@@ -55,7 +55,7 @@ if "farmers_data" not in st.session_state:
             except Exception:
                 pass
     else:
-        st.warning("⏳ El supervisor aún no ha cargado datos para este período. Vuelve más tarde o contacta a Oscar Pedraza.")
+        st.warning("â³ El supervisor aÃºn no ha cargado datos para este perÃ­odo. Vuelve mÃ¡s tarde o contacta a Oscar Pedraza.")
         st.stop()
 
 farmers_data = st.session_state["farmers_data"]
@@ -67,15 +67,15 @@ try:
 except Exception:
     pass
 
-# ── Farmer selector ───────────────────────────────────────────────────────────
+# â”€â”€ Farmer selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 names        = {data.get("name", em): em for em, data in farmers_data.items()}
 sorted_names = sorted(names.keys())
 
 if is_supervisor:
-    selected_name = st.selectbox("👤 Selecciona un farmer", sorted_names)
+    selected_name = st.selectbox("ðŸ‘¤ Selecciona un farmer", sorted_names)
     farmer_email  = names[selected_name]
 else:
-    # Non-supervisors are locked to their own profile — no selectbox
+    # Non-supervisors are locked to their own profile â€” no selectbox
     email_auth_clean = email_auth.strip().lower()
     farmer_email = next(
         (em for em in farmers_data if em.strip().lower() == email_auth_clean),
@@ -83,8 +83,8 @@ else:
     )
     if farmer_email is None:
         st.error(
-            "⚠️ Tu perfil no fue encontrado en los datos del equipo. "
-            "Contacta a Oscar Pedraza para verificar que tu email esté registrado."
+            "âš ï¸ Tu perfil no fue encontrado en los datos del equipo. "
+            "Contacta a Oscar Pedraza para verificar que tu email estÃ© registrado."
         )
         st.stop()
     selected_name = farmers_data[farmer_email].get("name", farmer_email)
@@ -92,7 +92,7 @@ else:
         f'<div style="background:#FFFFFF;border:1px solid #E5E7EB;border-radius:10px;'
         f'padding:0.6rem 1rem;margin-bottom:0.8rem;display:inline-block;'
         f'font-size:0.9rem;color:#374151;font-weight:600">'
-        f'👤 Tu perfil — {selected_name}</div>',
+        f'ðŸ‘¤ Tu perfil â€” {selected_name}</div>',
         unsafe_allow_html=True
     )
 
@@ -101,20 +101,20 @@ sems         = get_all_semaforos(data)
 tier         = tier_farmer(sems)
 comp         = calcular_compensacion_completa(data)
 
-# ── Header ────────────────────────────────────────────────────────────────────
+# â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 tier_color = COLOR_HEX.get(tier, "#9CA3AF")
 var_pct    = comp.get("variable_pct", 0)
 qualifies  = comp.get("qualifies", True)
-qual_badge = "" if qualifies else " ⛔"
+qual_badge = "" if qualifies else " â›”"
 var_color  = "#00B341" if var_pct >= 80 else "#F59E0B" if var_pct >= 50 else "#EF4444"
 
 st.markdown(f"""
 <div class="rb-page-header" style="display:flex;justify-content:space-between;align-items:center;border-left-color:{tier_color}">
     <div>
         <h1 style="font-size:1.4rem">
-            {EMOJI.get(tier,'⚪')} {selected_name}{qual_badge}
+            {EMOJI.get(tier,'âšª')} {selected_name}{qual_badge}
         </h1>
-        <p>Corte día {dia_corte} · {progreso_pct:.1f}% del mes</p>
+        <p>Corte dÃ­a {dia_corte} Â· {progreso_pct:.1f}% del mes</p>
     </div>
     <div style="text-align:right">
         <div style="font-size:2rem;font-weight:800;color:{var_color}">{var_pct:.0f}%</div>
@@ -123,8 +123,8 @@ st.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-# ── KPI Badges ────────────────────────────────────────────────────────────────
-st.markdown("#### Métricas del período")
+# â”€â”€ KPI Badges â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+st.markdown("#### MÃ©tricas del perÃ­odo")
 
 metric_defs = [
     ("Churn",    "ATT_Churn",         "decimal", "Churn"),
@@ -157,7 +157,7 @@ for col, (label, key, fmt, sem_key) in zip(cols, metric_defs):
 
     consec = get_consecutive_red_weeks(farmer_email, metric_map_red[sem_key]) \
              if sem_key in metric_map_red else 0
-    consec_txt = f"<div style='font-size:0.62rem;color:#EF4444'>{consec}w 🔴</div>" \
+    consec_txt = f"<div style='font-size:0.62rem;color:#EF4444'>{consec}w ðŸ”´</div>" \
                  if consec >= 2 else ""
 
     with col:
@@ -168,12 +168,12 @@ for col, (label, key, fmt, sem_key) in zip(cols, metric_defs):
             <div style="font-size:0.6rem;color:#6B7280;margin-bottom:3px;
                         text-transform:uppercase;letter-spacing:0.5px;font-weight:600">{label}</div>
             <div style="font-size:1.2rem;font-weight:800;color:{color};line-height:1.1">{display}</div>
-            <div style="font-size:0.68rem;color:#9CA3AF">{EMOJI.get(sem,'⚪')}</div>
+            <div style="font-size:0.68rem;color:#9CA3AF">{EMOJI.get(sem,'âšª')}</div>
             {consec_txt}
         </div>
         """, unsafe_allow_html=True)
 
-# ── Revenue Perdido ───────────────────────────────────────────────────────────
+# â”€â”€ Revenue Perdido â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _cartera_raw = st.session_state.get("_cartera_raw")
 if _cartera_raw:
     try:
@@ -204,10 +204,10 @@ if _cartera_raw:
                     f"<div style='background:#FEF2F2;border-left:4px solid #EF4444;border-radius:0 8px 8px 0;"
                     f"padding:0.6rem 1rem;margin-bottom:0.7rem'>"
                     f"<div style='font-weight:700;color:#991B1B;font-size:0.9rem'>"
-                    f"⚠️ Revenue en riesgo — {_n_risk} brand{'s' if _n_risk!=1 else ''} con alta penetración</div>"
+                    f"âš ï¸ Revenue en riesgo â€” {_n_risk} brand{'s' if _n_risk!=1 else ''} con alta penetraciÃ³n</div>"
                     f"<div style='font-size:0.75rem;color:#374151;margin-top:2px'>"
-                    f"Penetración > 70% · GMV total expuesto: <b>${_total_gmv_risk:,.0f}</b> — "
-                    f"alta concentración, revisar retención</div></div>",
+                    f"PenetraciÃ³n > 70% Â· GMV total expuesto: <b>${_total_gmv_risk:,.0f}</b> â€” "
+                    f"alta concentraciÃ³n, revisar retenciÃ³n</div></div>",
                     unsafe_allow_html=True,
                 )
 
@@ -218,7 +218,7 @@ if _cartera_raw:
                     bname = str(br[_name_col])[:28]
                     c_pen = "#EF4444" if pen_v >= 0.90 else "#D97706" if pen_v >= 0.80 else "#F59E0B"
                     rev_v = br[_rev_col] if _rev_col and pd.notna(br.get(_rev_col)) else None
-                    rev_str = f"${float(rev_v):,.0f}" if rev_v is not None else "—"
+                    rev_str = f"${float(rev_v):,.0f}" if rev_v is not None else "â€”"
                     rows_html += (
                         f"<tr>"
                         f"<td style='padding:5px 8px;font-size:0.78rem;color:#0F172A;font-weight:600'>{bname}</td>"
@@ -235,24 +235,24 @@ if _cartera_raw:
                     f"<table style='width:100%;border-collapse:collapse'>"
                     f"<thead><tr style='background:#F8F9FB'>"
                     f"<th style='padding:6px 8px;text-align:left;font-size:0.68rem;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:0.4px'>Brand</th>"
-                    f"<th style='padding:6px 8px;text-align:center;font-size:0.68rem;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:0.4px'>Penetración</th>"
+                    f"<th style='padding:6px 8px;text-align:center;font-size:0.68rem;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:0.4px'>PenetraciÃ³n</th>"
                     f"<th style='padding:6px 8px;text-align:right;font-size:0.68rem;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:0.4px'>GMV L28D</th>"
                     f"<th style='padding:6px 8px;text-align:right;font-size:0.68rem;color:#64748B;font-weight:600;text-transform:uppercase;letter-spacing:0.4px'>Revenue</th>"
                     f"</tr></thead><tbody>{rows_html}</tbody></table></div>",
                     unsafe_allow_html=True,
                 )
-                st.caption("🔴 ≥ 90% penetración  ·  🟡 80-90%  ·  Revisá retención y pipeline de reactivación")
+                st.caption("ðŸ”´ â‰¥ 90% penetraciÃ³n  Â·  ðŸŸ¡ 80-90%  Â·  RevisÃ¡ retenciÃ³n y pipeline de reactivaciÃ³n")
     except Exception:
         pass
 
-# ── Productividad cruzada ─────────────────────────────────────────────────────
+# â”€â”€ Productividad cruzada â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("---")
-st.markdown("#### Gestión de follows por palanca")
+st.markdown("#### GestiÃ³n de follows por palanca")
 
 palancas = [
-    ("🔄 Churn",   "churn_follows", "churn_contactados", "Churn"),
-    ("💰 MD",      "md_follows",    "md_contactados",    "MD Total"),
-    ("📢 Ads",     "ads_follows",   "ads_contactados",   "Ads Revenue"),
+    ("ðŸ”„ Churn",   "churn_follows", "churn_contactados", "Churn"),
+    ("ðŸ’° MD",      "md_follows",    "md_contactados",    "MD Total"),
+    ("ðŸ“¢ Ads",     "ads_follows",   "ads_contactados",   "Ads Revenue"),
 ]
 
 prod_cols = st.columns(3)
@@ -289,12 +289,12 @@ for col, (label, fk, ck, sk) in zip(prod_cols, palancas):
         </div>
         """, unsafe_allow_html=True)
 
-# ── Contactabilidad general ───────────────────────────────────────────────────
+# â”€â”€ Contactabilidad general â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 total_f      = int(data.get("total_follows") or 0)
 no_ct        = int(data.get("no_contactados") or 0)
 pct_nc       = float(data.get("pct_no_contactados") or 0)
 
-# Recurrencia de no contacto (nuevas métricas por cuenta única)
+# Recurrencia de no contacto (nuevas mÃ©tricas por cuenta Ãºnica)
 total_cuentas    = int(data.get("total_cuentas") or 0)
 cuentas_no       = int(data.get("cuentas_no_contactadas") or 0)
 pct_cuentas_no   = float(data.get("pct_cuentas_no_contactadas") or 0)
@@ -304,14 +304,14 @@ weekly_no        = data.get("weekly_no_contacto") or []
 
 # Alert banner
 if pct_cuentas_no > 40:
-    st.error(f"🔴 **Contactabilidad crítica:** {cuentas_no} de {total_cuentas} cuentas sin contactar ({pct_cuentas_no:.0f}%). Prioridad urgente.")
+    st.error(f"ðŸ”´ **Contactabilidad crÃ­tica:** {cuentas_no} de {total_cuentas} cuentas sin contactar ({pct_cuentas_no:.0f}%). Prioridad urgente.")
 elif pct_cuentas_no > 25:
-    st.warning(f"🟡 Contactabilidad baja: {cuentas_no} cuentas sin contactar ({pct_cuentas_no:.0f}%). Revisar agenda.")
+    st.warning(f"ðŸŸ¡ Contactabilidad baja: {cuentas_no} cuentas sin contactar ({pct_cuentas_no:.0f}%). Revisar agenda.")
 
 # Cards de contactabilidad
 c_nc1, c_nc2, c_nc3 = st.columns(3)
 nc_color = "#00B341" if pct_cuentas_no <= 20 else "#F59E0B" if pct_cuentas_no <= 35 else "#EF4444"
-# Recurrencia: MAYOR ES MEJOR — identifica marcas candidatas a limpiar del portafolio
+# Recurrencia: MAYOR ES MEJOR â€” identifica marcas candidatas a limpiar del portafolio
 rc_color = "#EF4444" if pct_recurr < 10 else "#F59E0B" if pct_recurr < 20 else "#00B341"
 
 with c_nc1:
@@ -320,7 +320,7 @@ with c_nc1:
                 border-top:4px solid {nc_color};border:1px solid #E5E7EB;
                 box-shadow:0 2px 8px rgba(0,0,0,0.06)">
         <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">
-            📵 % Cuentas sin contactar
+            ðŸ“µ % Cuentas sin contactar
         </div>
         <div style="font-size:2rem;font-weight:800;color:{nc_color};margin:0.2rem 0">
             {pct_cuentas_no:.1f}%
@@ -329,7 +329,7 @@ with c_nc1:
             {cuentas_no} cuentas / {total_cuentas} totales
         </div>
         <div style="font-size:0.7rem;color:#9CA3AF;margin-top:2px">
-            Por cuenta única (no por fila de follow)
+            Por cuenta Ãºnica (no por fila de follow)
         </div>
     </div>""", unsafe_allow_html=True)
 
@@ -339,7 +339,7 @@ with c_nc2:
                 border-top:4px solid {rc_color};border:1px solid #E5E7EB;
                 box-shadow:0 2px 8px rgba(0,0,0,0.06)">
         <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;letter-spacing:0.5px;font-weight:600">
-            🔁 % Recurrencia sin contactar
+            ðŸ” % Recurrencia sin contactar
         </div>
         <div style="font-size:2rem;font-weight:800;color:{rc_color};margin:0.2rem 0">
             {pct_recurr:.1f}%
@@ -348,7 +348,7 @@ with c_nc2:
             {cuentas_recurr} cuentas sin contactar en 2+ semanas
         </div>
         <div style="font-size:0.7rem;color:#00B341;margin-top:2px;font-weight:600">
-            ↑ Mayor = mejor — candidatas a salir del portafolio
+            â†‘ Mayor = mejor â€” candidatas a salir del portafolio
         </div>
     </div>""", unsafe_allow_html=True)
 
@@ -360,7 +360,7 @@ with c_nc3:
             f'border-bottom:1px solid #F3F4F6">'
             f'<span style="color:#6B7280;font-size:0.75rem">Semana {w["week"]}</span>'
             f'<span style="font-weight:700;font-size:0.8rem;color:{"#EF4444" if w["pct"]>35 else "#F59E0B" if w["pct"]>20 else "#00B341"}">'
-            f'{w["no_cuentas"]}/{w["total_cuentas"]} · {w["pct"]:.0f}%</span></div>'
+            f'{w["no_cuentas"]}/{w["total_cuentas"]} Â· {w["pct"]:.0f}%</span></div>'
             for w in weekly_no
         )
         st.markdown(f"""
@@ -369,7 +369,7 @@ with c_nc3:
                     box-shadow:0 2px 8px rgba(0,0,0,0.06)">
             <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;
                         letter-spacing:0.5px;font-weight:600;margin-bottom:6px">
-                📅 No contactadas por semana
+                ðŸ“… No contactadas por semana
             </div>
             {wk_html}
         </div>""", unsafe_allow_html=True)
@@ -378,14 +378,14 @@ with c_nc3:
         <div style="background:#FFFFFF;border-radius:12px;padding:1rem 1.2rem;
                     border-top:4px solid #9CA3AF;border:1px solid #E5E7EB">
             <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;font-weight:600">
-                📅 Por semana
+                ðŸ“… Por semana
             </div>
             <div style="color:#9CA3AF;font-size:0.8rem;margin-top:4px">Sin datos semanales</div>
         </div>""", unsafe_allow_html=True)
 
-# ── Variable summary (sin gauge) ──────────────────────────────────────────────
+# â”€â”€ Variable summary (sin gauge) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("---")
-st.markdown("#### 💰 Estado de tu variable")
+st.markdown("#### ðŸ’° Estado de tu variable")
 
 rs       = comp.get("rs_ads", {})
 rs_pct   = rs.get("pct", 0)
@@ -400,7 +400,7 @@ with vc1:
     <div style="background:#FFFFFF;border-radius:10px;padding:0.9rem;text-align:center;border:1px solid #E5E7EB;border-top:3px solid {vc};box-shadow:0 2px 6px rgba(0,0,0,0.05)">
         <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;font-weight:600;letter-spacing:0.5px">Variable</div>
         <div style="font-size:1.8rem;font-weight:800;color:{vc}">{var_pct:.0f}%</div>
-        <div style="font-size:0.68rem;color:#9CA3AF">{'⛔ Sin qualifier' if not qualifies else '✅ Qualifier OK'}</div>
+        <div style="font-size:0.68rem;color:#9CA3AF">{'â›” Sin qualifier' if not qualifies else 'âœ… Qualifier OK'}</div>
     </div>""", unsafe_allow_html=True)
 
 with vc2:
@@ -409,7 +409,7 @@ with vc2:
     <div style="background:#FFFFFF;border-radius:10px;padding:0.9rem;text-align:center;border:1px solid #E5E7EB;border-top:3px solid {rsc};box-shadow:0 2px 6px rgba(0,0,0,0.05)">
         <div style="font-size:0.65rem;color:#6B7280;text-transform:uppercase;font-weight:600;letter-spacing:0.5px">RS ADS</div>
         <div style="font-size:1.8rem;font-weight:800;color:{rsc}">{rs_pct}%</div>
-        <div style="font-size:0.68rem;color:#9CA3AF">{rs.get('label','—')[:18]}</div>
+        <div style="font-size:0.68rem;color:#9CA3AF">{rs.get('label','â€”')[:18]}</div>
     </div>""", unsafe_allow_html=True)
 
 kpi_defs = [
@@ -418,14 +418,14 @@ kpi_defs = [
     ("MD_Pro",   "MD Pro 20%",   data.get("ATT_MD_Pro")),
     ("Churn",    "Churn 25%",    data.get("ATT_Churn")),
 ]
-status_map = {"gana": ("🟢","#00B341"), "parcial": ("🟡","#F59E0B"),
-              "no_gana": ("🔴","#EF4444"), "sin_dato": ("⚪","#9CA3AF")}
+status_map = {"gana": ("ðŸŸ¢","#00B341"), "parcial": ("ðŸŸ¡","#F59E0B"),
+              "no_gana": ("ðŸ”´","#EF4444"), "sin_dato": ("âšª","#9CA3AF")}
 
 for col, (kpi, label, att_val) in zip([vc3, vc4, vc5, vc6], kpi_defs):
-    icon, kcolor = status_map.get(kpi_statuses.get(kpi, "sin_dato"), ("⚪","#9CA3AF"))
+    icon, kcolor = status_map.get(kpi_statuses.get(kpi, "sin_dato"), ("âšª","#9CA3AF"))
     att_str      = f"{att_val*100:.0f}%" if att_val is not None else "S/D"
     contrib      = contribs.get(kpi)
-    contrib_str  = f"+{contrib:.1f}pp" if contrib is not None else "—"
+    contrib_str  = f"+{contrib:.1f}pp" if contrib is not None else "â€”"
     with col:
         st.markdown(f"""
         <div style="background:#FFFFFF;border-radius:10px;padding:0.9rem;text-align:center;border:1px solid #E5E7EB;border-top:3px solid {kcolor};box-shadow:0 2px 6px rgba(0,0,0,0.05)">
@@ -434,17 +434,17 @@ for col, (kpi, label, att_val) in zip([vc3, vc4, vc5, vc6], kpi_defs):
             <div style="font-size:0.68rem;color:#9CA3AF">{contrib_str} al var.</div>
         </div>""", unsafe_allow_html=True)
 
-# ── Plan de acción — farmer-centric ──────────────────────────────────────────
+# â”€â”€ Plan de acciÃ³n â€” farmer-centric â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("---")
-st.markdown("### 🎯 Tu plan de esta semana")
-st.caption("Acciones concretas basadas en tus métricas de hoy")
+st.markdown("### ðŸŽ¯ Tu plan de esta semana")
+st.caption("Acciones concretas basadas en tus mÃ©tricas de hoy")
 
 recs = generar_recomendaciones(data, sems)
 
 # Organise into priority buckets
 urgent, normal = [], []
 for r in recs:
-    if "urgente" in r.lower() or "crítico" in r.lower() or "priorizar" in r.lower() \
+    if "urgente" in r.lower() or "crÃ­tico" in r.lower() or "priorizar" in r.lower() \
        or "sin follows" in r.lower() or "pierde variable" in r.lower():
         urgent.append(r)
     else:
@@ -456,13 +456,13 @@ if urgent:
 for r in normal:
     st.info(r)
 
-# ── Aliados clave ─────────────────────────────────────────────────────────────
+# â”€â”€ Aliados clave â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 brands = data.get("brands_riesgo", [])
 st.markdown("---")
-st.markdown("### 🏪 Tus aliados con mayor potencial ADS")
+st.markdown("### ðŸª Tus aliados con mayor potencial ADS")
 
 if brands:
-    st.caption(f"Brands activos con penetración < 70% — {len(brands)} oportunidades detectadas")
+    st.caption(f"Brands activos con penetraciÃ³n < 70% â€” {len(brands)} oportunidades detectadas")
     cols_b = st.columns(min(len(brands), 5))
     for col, brand in zip(cols_b, brands[:5]):
         with col:
@@ -470,43 +470,43 @@ if brands:
             <div style="background:#FFF7ED;border:1px solid #FF6B00;border-radius:8px;
                         padding:0.5rem 0.4rem;text-align:center;font-size:0.78rem;
                         font-weight:600;color:#FF6B00">
-                ⚡ {brand}
+                âš¡ {brand}
             </div>
             """, unsafe_allow_html=True)
     if len(brands) > 5:
-        st.caption(f"… y {len(brands)-5} aliados más. Ver lista completa en Vista Equipo → Rankings.")
+        st.caption(f"â€¦ y {len(brands)-5} aliados mÃ¡s. Ver lista completa en Vista Equipo â†’ Rankings.")
     st.markdown("""
     <div style="background:#F0FDF9;border-radius:8px;padding:0.7rem 1rem;
                 border-left:3px solid #00C9A7;margin-top:0.5rem;font-size:0.82rem;color:#374151">
-        💡 <b>Acción:</b> proponer inversión ADS a estos brands en la próxima visita.
-        Son aliados activos con revenue significativo y baja penetración — el upsell más sencillo.
+        ðŸ’¡ <b>AcciÃ³n:</b> proponer inversiÃ³n ADS a estos brands en la prÃ³xima visita.
+        Son aliados activos con revenue significativo y baja penetraciÃ³n â€” el upsell mÃ¡s sencillo.
     </div>
     """, unsafe_allow_html=True)
 else:
-    st.success("✅ Sin aliados en riesgo de penetración identificados esta corrida.")
+    st.success("âœ… Sin aliados en riesgo de penetraciÃ³n identificados esta corrida.")
 
-# ── Gap al próximo hito de variable ──────────────────────────────────────────
+# â”€â”€ Gap al prÃ³ximo hito de variable â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("---")
-st.markdown("### 📈 ¿Qué necesito para subir mi variable?")
+st.markdown("### ðŸ“ˆ Â¿QuÃ© necesito para subir mi variable?")
 
 att_ads = data.get("ATT_Rev_real")
 gaps    = []
 
 if not qualifies:
     prod = data.get("productividad_pct") or 0
-    gaps.append(f"🔴 **Qualifier bloqueado:** tu productividad es {prod*100:.0f}% y necesitas ≥ 90%. "
+    gaps.append(f"ðŸ”´ **Qualifier bloqueado:** tu productividad es {prod*100:.0f}% y necesitas â‰¥ 90%. "
                 "Sin esto, el variable es **0%** sin importar tus ATTs. "
                 "Contactar cada follow con Zoho Voice, Treble o Meets esta semana.")
 
 if att_ads is not None and att_ads < 0.90:
     gap = (0.90 - att_ads) * 100
-    gaps.append(f"📢 **Ads Revenue:** faltan **{gap:.1f} pp** para activar el Revenue Share ADS (mínimo 90%).")
+    gaps.append(f"ðŸ“¢ **Ads Revenue:** faltan **{gap:.1f} pp** para activar el Revenue Share ADS (mÃ­nimo 90%).")
 elif att_ads is not None and att_ads < 1.00:
     gap = (1.00 - att_ads) * 100
-    gaps.append(f"📢 **Ads Revenue:** faltan **{gap:.1f} pp** para subir al tier 20% RS ADS.")
+    gaps.append(f"ðŸ“¢ **Ads Revenue:** faltan **{gap:.1f} pp** para subir al tier 20% RS ADS.")
 elif att_ads is not None and att_ads < 1.20:
     gap = (1.20 - att_ads) * 100
-    gaps.append(f"🔥 **Ads Revenue:** faltan **{gap:.1f} pp** para el tier máximo 30% RS ADS.")
+    gaps.append(f"ðŸ”¥ **Ads Revenue:** faltan **{gap:.1f} pp** para el tier mÃ¡ximo 30% RS ADS.")
 
 for kpi, sem_key, label in [
     ("ATT_Churn",    "Churn",    "Churn"),
@@ -515,51 +515,51 @@ for kpi, sem_key, label in [
 ]:
     v = data.get(kpi)
     if v is not None and v < 0.90 and sems.get(sem_key) == "red":
-        gaps.append(f"⚠️ **{label}:** en {v*100:.0f}% — falta {(0.90-v)*100:.1f} pp para dejar de estar en rojo.")
+        gaps.append(f"âš ï¸ **{label}:** en {v*100:.0f}% â€” falta {(0.90-v)*100:.1f} pp para dejar de estar en rojo.")
 
 if not gaps:
     target_90 = 90 - var_pct
     if target_90 <= 0:
-        st.success(f"🏆 Tu variable está al {var_pct:.0f}%. Mantén el ritmo y apunta al Revenue Share ADS máximo.")
+        st.success(f"ðŸ† Tu variable estÃ¡ al {var_pct:.0f}%. MantÃ©n el ritmo y apunta al Revenue Share ADS mÃ¡ximo.")
     else:
-        st.info(f"Estás en {var_pct:.0f}% de variable. Necesitas {target_90:.0f} pp más para llegar al 90%.")
+        st.info(f"EstÃ¡s en {var_pct:.0f}% de variable. Necesitas {target_90:.0f} pp mÃ¡s para llegar al 90%.")
 else:
     for g in gaps:
         st.markdown(f"- {g}")
 
-# ── Conversión y falsa conversión ─────────────────────────────────────────────
+# â”€â”€ ConversiÃ³n y falsa conversiÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("---")
-st.markdown("### 📊 Actividad de pitches y conversión real")
-st.caption("Fuente: pestaña Conversión del Maestro. Falsa conversión = pitch marcado como hecho pero sin cierre real.")
+st.markdown("### ðŸ“Š Actividad de pitches y conversiÃ³n real")
+st.caption("Fuente: pestaÃ±a ConversiÃ³n del Maestro. Falsa conversiÃ³n = pitch marcado como hecho pero sin cierre real.")
 
 _conv_raw = st.session_state.get("_conversion_raw")
 
 if not _conv_raw:
-    st.info("📂 Sin datos de Conversión disponibles. Asegúrate de que el Maestro incluya la pestaña **Conversión** con las columnas FARMER, DATE, MARKDOWN, MD, ADS, BN, CHURN, ORD.")
+    st.info("ðŸ“‚ Sin datos de ConversiÃ³n disponibles. AsegÃºrate de que el Maestro incluya la pestaÃ±a **ConversiÃ³n** con las columnas FARMER, DATE, MARKDOWN, MD, ADS, BN, CHURN, ORD.")
 else:
     try:
         _df_conv = _parse_conversion_raw(_conv_raw)
 
         if "FARMER" not in _df_conv.columns:
-            st.info("La hoja Conversión no tiene columna FARMER.")
+            st.info("La hoja ConversiÃ³n no tiene columna FARMER.")
         else:
             _df_conv["FARMER"] = _df_conv["FARMER"].astype(str).str.strip().str.lower()
             _df_me = _df_conv[_df_conv["FARMER"] == farmer_email].copy()
 
             if _df_me.empty:
-                st.info("Sin datos de pitches para este farmer en el período.")
+                st.info("Sin datos de pitches para este farmer en el perÃ­odo.")
             else:
                 # Drop exact duplicates (safety net)
                 _before = len(_df_me)
                 _df_me = _df_me.drop_duplicates()
                 _after = len(_df_me)
                 if _before > _after:
-                    st.caption(f"ℹ️ Se descartaron {_before - _after} filas duplicadas exactas del DETALLE.")
+                    st.caption(f"â„¹ï¸ Se descartaron {_before - _after} filas duplicadas exactas del DETALLE.")
 
                 PALANCAS_CONV = [
-                    ("MD",    "MARKDOWN", "MD",  "💰", "#4A6CF7"),
-                    ("ADS",   "ADS",      "BN",  "📢", "#9333EA"),
-                    ("Churn", "CHURN",    "ORD", "🔄", "#F59E0B"),
+                    ("MD",    "MARKDOWN", "MD",  "ðŸ’°", "#4A6CF7"),
+                    ("ADS",   "ADS",      "BN",  "ðŸ“¢", "#9333EA"),
+                    ("Churn", "CHURN",    "ORD", "ðŸ”„", "#F59E0B"),
                 ]
 
                 conv_cols = st.columns(3)
@@ -570,7 +570,7 @@ else:
                     pitches_hechos = int(tip_vals.sum())
                     cierres_reales = int(real_vals.sum())
 
-                    # Falsa conversión: pitch hecho pero sin cierre
+                    # Falsa conversiÃ³n: pitch hecho pero sin cierre
                     falsos = int((tip_vals & ~real_vals).sum())
                     conv_rate = round(cierres_reales / pitches_hechos * 100, 1) if pitches_hechos > 0 else 0
                     falsa_rate = round(falsos / pitches_hechos * 100, 1) if pitches_hechos > 0 else 0
@@ -594,7 +594,7 @@ else:
                                 <span style="font-weight:700;color:{c_real}">{cierres_reales} ({conv_rate}%)</span>
                             </div>
                             <div style="display:flex;justify-content:space-between;margin-bottom:6px">
-                                <span style="color:#6B7280;font-size:0.8rem">Falsa conversión</span>
+                                <span style="color:#6B7280;font-size:0.8rem">Falsa conversiÃ³n</span>
                                 <span style="font-weight:700;color:{c_falsa}">{falsos} ({falsa_rate}%)</span>
                             </div>
                             <div style="font-size:0.68rem;color:#9CA3AF">
@@ -610,9 +610,10 @@ else:
                 for name, _, falsos, total in high_falsa:
                     if total > 0 and falsos / total > 0.6:
                         st.warning(
-                            f"⚠️ **{name}:** {falsos/total*100:.0f}% de falsa conversión — "
-                            f"la mayoría de los pitches no se convirtieron en cierre real. "
+                            f"âš ï¸ **{name}:** {falsos/total*100:.0f}% de falsa conversiÃ³n â€” "
+                            f"la mayorÃ­a de los pitches no se convirtieron en cierre real. "
                             f"Revisar calidad del pitch y objeciones frecuentes."
                         )
     except Exception as _e:
-        st.caption(f"ℹ️ No se pudieron cargar datos de conversión: {_e}")
+        st.caption(f"â„¹ï¸ No se pudieron cargar datos de conversiÃ³n: {_e}")
+

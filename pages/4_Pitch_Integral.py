@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 import streamlit as st
 import io
 import pandas as pd
@@ -13,8 +13,8 @@ from core.metrics import COLOR_HEX, EMOJI
 from core.style import inject_global_css
 
 st.set_page_config(
-    page_title="Pitch Integral — Rappi Farmers",
-    page_icon="🚀",
+    page_title="Pitch Integral â€” Rappi Farmers",
+    page_icon="🌍",
     layout="wide", initial_sidebar_state="expanded",
 )
 st.markdown(inject_global_css(), unsafe_allow_html=True)
@@ -22,7 +22,7 @@ email, is_supervisor = require_auth()
 render_topbar()
 
 
-# ── Semáforo helpers ──────────────────────────────────────────────────────────
+# â”€â”€ SemÃ¡foro helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def pi_color(pct):
     if pct is None: return "#9CA3AF"
     if pct >= 65:   return "#00B341"
@@ -30,12 +30,12 @@ def pi_color(pct):
     return "#EF4444"
 
 def pi_status(pct):
-    if pct is None: return "⚪ Sin dato"
-    if pct >= 65:   return "🟢 En meta"
-    if pct >= 50:   return "🟡 En seguimiento"
-    return "🔴 Crítico"
+    if pct is None: return "âšª Sin dato"
+    if pct >= 65:   return "ðŸŸ¢ En meta"
+    if pct >= 50:   return "ðŸŸ¡ En seguimiento"
+    return "ðŸ”´ CrÃ­tico"
 
-# ── Data check ────────────────────────────────────────────────────────────────
+# â”€â”€ Data check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if "farmers_data" not in st.session_state:
     from core.db import load_latest_state
     latest = load_latest_state()
@@ -51,7 +51,7 @@ if "farmers_data" not in st.session_state:
             except Exception:
                 pass
     else:
-        st.warning("⏳ El supervisor aún no ha cargado datos para este período. Vuelve más tarde o contacta a Oscar Pedraza.")
+        st.warning("â³ El supervisor aÃºn no ha cargado datos para este perÃ­odo. Vuelve mÃ¡s tarde o contacta a Oscar Pedraza.")
         st.stop()
 
 farmers_data = st.session_state["farmers_data"]
@@ -63,7 +63,7 @@ try:
 except Exception:
     pass
 
-# ── Build PI table ────────────────────────────────────────────────────────────
+# â”€â”€ Build PI table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 rows = []
 for em, data in farmers_data.items():
     pitch = data.get("Pitch_Pct")
@@ -82,11 +82,11 @@ for em, data in farmers_data.items():
 df = pd.DataFrame(rows)
 has_data = df["Pitch %"].notna().any()
 
-# ── Header ────────────────────────────────────────────────────────────────────
+# â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("""
 <div class="rb-page-header">
-    <h1>🎤 Pitch Integral</h1>
-    <p>% visitas con pitch completo (todas palancas). Meta: ≥ 65% | Seguimiento: 50–65% | Crítico: &lt; 50%</p>
+    <h1>ðŸŽ¤ Pitch Integral</h1>
+    <p>% visitas con pitch completo (todas palancas). Meta: â‰¥ 65% | Seguimiento: 50â€“65% | CrÃ­tico: &lt; 50%</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -95,26 +95,26 @@ if not has_data:
     **Sin datos de Pitch Integral en este archivo.**
 
     Posibles causas:
-    - La hoja **PI** no existe en el Excel o está vacía
-    - El nombre de la hoja difiere (verificar mayúsculas: debe ser exactamente `PI`)
+    - La hoja **PI** no existe en el Excel o estÃ¡ vacÃ­a
+    - El nombre de la hoja difiere (verificar mayÃºsculas: debe ser exactamente `PI`)
     - La columna de emails no contiene direcciones `@rappi.com` reconocidas
 
-    **Diagnóstico:** abre el expander abajo para ver qué encontró el loader.
+    **DiagnÃ³stico:** abre el expander abajo para ver quÃ© encontrÃ³ el loader.
     """)
 
-    with st.expander("🔍 Diagnóstico PI (expandir)", expanded=True):
+    with st.expander("ðŸ” DiagnÃ³stico PI (expandir)", expanded=True):
         raw = st.session_state.get("_productividad_raw")
         if raw is not None:
-            st.markdown(f"- Hoja Productividad cargada: ✅ ({len(raw)} filas)")
+            st.markdown(f"- Hoja Productividad cargada: âœ… ({len(raw)} filas)")
         else:
-            st.markdown("- Hoja Productividad: ❌ no cargada")
+            st.markdown("- Hoja Productividad: âŒ no cargada")
 
         st.markdown("**Farmers y sus valores Pitch_Pct:**")
         debug_rows = [(data.get("name", em), data.get("Pitch_Pct")) for em, data in farmers_data.items()]
         st.dataframe(pd.DataFrame(debug_rows, columns=["Farmer", "Pitch_Pct"]), hide_index=True)
     st.stop()
 
-# ── KPI summary ───────────────────────────────────────────────────────────────
+# â”€â”€ KPI summary â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 df_valid = df.dropna(subset=["Pitch %"])
 avg_pi   = df_valid["Pitch %"].mean()
 en_meta  = (df_valid["Pitch %"] >= 65).sum()
@@ -123,16 +123,16 @@ criticos = (df_valid["Pitch %"] < 50).sum()
 sin_dato = df["Pitch %"].isna().sum()
 
 col1, col2, col3, col4, col5 = st.columns(5)
-with col1: st.metric("📊 Promedio equipo", f"{avg_pi:.1f}%",
-                      help="Promedio de % Palancas del período")
-with col2: st.metric("🟢 En meta (≥65%)", int(en_meta))
-with col3: st.metric("🟡 Seguimiento (50-65%)", int(seguim))
-with col4: st.metric("🔴 Críticos (<50%)", int(criticos))
-with col5: st.metric("⚪ Sin dato", int(sin_dato))
+with col1: st.metric("ðŸ“Š Promedio equipo", f"{avg_pi:.1f}%",
+                      help="Promedio de % Palancas del perÃ­odo")
+with col2: st.metric("ðŸŸ¢ En meta (â‰¥65%)", int(en_meta))
+with col3: st.metric("ðŸŸ¡ Seguimiento (50-65%)", int(seguim))
+with col4: st.metric("ðŸ”´ CrÃ­ticos (<50%)", int(criticos))
+with col5: st.metric("âšª Sin dato", int(sin_dato))
 
 st.markdown("---")
 
-# ── Bar chart — ranking por Pitch % ──────────────────────────────────────────
+# â”€â”€ Bar chart â€” ranking por Pitch % â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("## Ranking de Pitch Integral")
 
 df_sorted = df_valid.sort_values("Pitch %", ascending=True)
@@ -151,7 +151,7 @@ fig = go.Figure(go.Bar(
 fig.add_vline(x=65, line_dash="dash", line_color="#00B341", opacity=0.7,
               annotation_text="Meta 65%", annotation_position="top")
 fig.add_vline(x=50, line_dash="dot",  line_color="#F59E0B", opacity=0.6,
-              annotation_text="Mínimo 50%")
+              annotation_text="MÃ­nimo 50%")
 
 fig.update_layout(
     height=max(300, len(df_sorted) * 36),
@@ -164,18 +164,18 @@ fig.update_layout(
 )
 st.plotly_chart(fig, use_container_width=True)
 
-# ── Semaphore table ───────────────────────────────────────────────────────────
+# â”€â”€ Semaphore table â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("---")
 st.markdown("## Detalle por farmer")
 
 def _sparkline_text(pi_rows):
     """Convert last 8 weekly values to emoji sparkline string."""
     if not pi_rows:
-        return "—"
+        return "â€”"
     return "".join(
-        "🟢" if v is not None and v * 100 >= 65 else
-        "🟡" if v is not None and v * 100 >= 50 else
-        "🔴" if v is not None else "⚪"
+        "ðŸŸ¢" if v is not None and v * 100 >= 65 else
+        "ðŸŸ¡" if v is not None and v * 100 >= 50 else
+        "ðŸ”´" if v is not None else "âšª"
         for v in pi_rows[-8:]
     )
 
@@ -185,11 +185,11 @@ df_tbl = (
     .reset_index(drop=True)
 )
 df_tbl["Estado"]         = df_tbl["Pitch %"].apply(pi_status)
-df_tbl["Últimas 8 sem."] = df_tbl["_pi_rows"].apply(_sparkline_text)
+df_tbl["Ãšltimas 8 sem."] = df_tbl["_pi_rows"].apply(_sparkline_text)
 df_tbl["Pitch %"]        = df_tbl["Pitch %"].apply(lambda v: v if v is not None else float("nan"))
 
 st.data_editor(
-    df_tbl[["Farmer", "Pitch %", "Estado", "Semanas con dato", "Últimas 8 sem."]],
+    df_tbl[["Farmer", "Pitch %", "Estado", "Semanas con dato", "Ãšltimas 8 sem."]],
     use_container_width=True,
     hide_index=True,
     disabled=True,
@@ -199,18 +199,18 @@ st.data_editor(
                                min_value=0, max_value=100),
         "Estado":          st.column_config.TextColumn("Estado", width="medium"),
         "Semanas con dato":st.column_config.NumberColumn("Semanas", format="%d", width="small"),
-        "Últimas 8 sem.":  st.column_config.TextColumn("← últimas 8 semanas →", width="large"),
+        "Ãšltimas 8 sem.":  st.column_config.TextColumn("â† Ãºltimas 8 semanas â†’", width="large"),
     },
 )
 
-# ── Weekly trend if data available ───────────────────────────────────────────
+# â”€â”€ Weekly trend if data available â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 farmers_with_weekly = [(em, data) for em, data in farmers_data.items()
                        if data.get("_pi_rows") and len(data["_pi_rows"]) > 1]
 
 if farmers_with_weekly:
     st.markdown("---")
     st.markdown("## Tendencia semanal del equipo")
-    st.caption("Evolución de Pitch % semana a semana (las columnas del archivo PI representan semanas)")
+    st.caption("EvoluciÃ³n de Pitch % semana a semana (las columnas del archivo PI representan semanas)")
 
     fig2 = go.Figure()
     for em, data in farmers_with_weekly:
@@ -227,13 +227,13 @@ if farmers_with_weekly:
             mode="lines+markers",
             line=dict(color=color, width=2),
             marker=dict(size=6, color=color),
-            hovertemplate=f"{name} — semana %{{x}}: %{{y:.1f}}<extra></extra>",
+            hovertemplate=f"{name} â€” semana %{{x}}: %{{y:.1f}}<extra></extra>",
         ))
 
     fig2.add_hline(y=65, line_dash="dash", line_color="#00B341", opacity=0.5,
                    annotation_text="Meta 65%")
     fig2.add_hline(y=50, line_dash="dot",  line_color="#F59E0B", opacity=0.4,
-                   annotation_text="Mín 50%")
+                   annotation_text="MÃ­n 50%")
 
     max_weeks = max(len(d.get("_pi_rows", [])) for _, d in farmers_with_weekly)
     fig2.update_layout(
@@ -249,11 +249,11 @@ if farmers_with_weekly:
     )
     st.plotly_chart(fig2, use_container_width=True)
 
-# ── Farmers below meta ────────────────────────────────────────────────────────
+# â”€â”€ Farmers below meta â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("---")
 below = df_valid[df_valid["Pitch %"] < 65].sort_values("Pitch %")
 if not below.empty:
-    st.markdown("## 🚨 Farmers bajo la meta (< 65%)")
+    st.markdown("## ðŸš¨ Farmers bajo la meta (< 65%)")
     for row in below.to_dict("records"):
         p = row["Pitch %"]
         gap = 65 - p
@@ -261,10 +261,11 @@ if not below.empty:
         st.markdown(
             f"- **{row['Farmer']}**: "
             f"<span style='color:{color};font-weight:700'>{p:.1f}%</span> "
-            f"— faltan **{gap:.1f} pp** para la meta",
+            f"â€” faltan **{gap:.1f} pp** para la meta",
             unsafe_allow_html=True
         )
     st.markdown("")
-    st.info("💡 **Acción recomendada:** en la próxima 1:1 revisar grabaciones de visitas y reforzar estructura del pitch integral (MD + Ads + Churn en cada contacto).")
+    st.info("ðŸ’¡ **AcciÃ³n recomendada:** en la prÃ³xima 1:1 revisar grabaciones de visitas y reforzar estructura del pitch integral (MD + Ads + Churn en cada contacto).")
 else:
-    st.success("✅ Todo el equipo supera la meta de Pitch Integral (≥ 65%)")
+    st.success("âœ… Todo el equipo supera la meta de Pitch Integral (â‰¥ 65%)")
+

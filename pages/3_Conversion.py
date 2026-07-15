@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 import streamlit as st
 import io
 import pandas as pd
@@ -15,13 +15,13 @@ from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 from core.db import load_latest_state
 
-st.set_page_config(page_title="Conversión — Rappi Farmers", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="ConversiÃ³n â€” Rappi Farmers", page_icon="🌍", layout="wide", initial_sidebar_state="expanded")
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email_auth, is_supervisor = require_auth()
 render_topbar()
 
 
-# ── Auto-load si session_state está vacío ─────────────────────────────────────
+# â”€â”€ Auto-load si session_state estÃ¡ vacÃ­o â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if "farmers_data" not in st.session_state:
     latest = load_latest_state()
     if latest:
@@ -38,7 +38,7 @@ if "farmers_data" not in st.session_state:
         if latest.get("conversion_raw"):
             st.session_state["_conversion_raw"] = latest["conversion_raw"]
     else:
-        st.warning("⏳ El supervisor aún no ha cargado datos. Vuelve más tarde o contacta a Oscar Pedraza.")
+        st.warning("â³ El supervisor aÃºn no ha cargado datos. Vuelve mÃ¡s tarde o contacta a Oscar Pedraza.")
         st.stop()
 
 ACTIVE_FARMERS = set(FARMERS_EMAILS) - EXCLUDED_EMAILS
@@ -82,9 +82,9 @@ def _color_conv(val: object) -> str:
         return ""
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helper: load Conversión DETALLE from session
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# Helper: load ConversiÃ³n DETALLE from session
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def load_detalle() -> Optional[pd.DataFrame]:
     raw = st.session_state.get("_conversion_raw")
     if not raw:
@@ -104,9 +104,9 @@ def load_detalle() -> Optional[pd.DataFrame]:
 
 df_det = load_detalle()
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # Quartiles from session
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 farmers_data = st.session_state["farmers_data"]
 dias_mes     = st.session_state.get("dias_mes", 31)
 try:
@@ -120,26 +120,26 @@ for f, d in farmers_data.items():
     all_scores[f] = score_farmer(sems, comp)
 quartiles = assign_quartiles(all_scores)
 
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 # PAGE HEADER
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("""
 <div class="rb-page-header">
-    <h1>🎯 Conversión Real</h1>
-    <p>Conversión efectiva confirmada por sistema vs. lo que el farmer tipificó como cerrado.</p>
+    <h1>ðŸŽ¯ ConversiÃ³n Real</h1>
+    <p>ConversiÃ³n efectiva confirmada por sistema vs. lo que el farmer tipificÃ³ como cerrado.</p>
 </div>
 """, unsafe_allow_html=True)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# BRANCH A — Conversión con DETALLE real (pestaña "Conversión" en Sheet Maestro)
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# BRANCH A â€” ConversiÃ³n con DETALLE real (pestaÃ±a "ConversiÃ³n" en Sheet Maestro)
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
 
     # Normalize
     df_det["FARMER"] = df_det["FARMER"].astype(str).str.strip().str.lower()
     df_det = df_det[df_det["FARMER"].isin(ACTIVE_FARMERS)].copy()
 
-    # ── Summary table per farmer — CACHED ────────────────────────────────────────
+    # â”€â”€ Summary table per farmer â€” CACHED â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     @st.cache_data(show_spinner=False)
     def build_summary_table(df: pd.DataFrame, farmers: frozenset, fnames: dict, quarts: dict) -> pd.DataFrame:
         rows = []
@@ -167,21 +167,21 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
             rows.append({
                 "email": farmer, "Farmer": name, "Seguimientos": n,
                 "Q": quarts.get(farmer, "Q4"),
-                "MD Tipificó": md_tip,  "MD Real": md_real,  "MD Falso": md_falso,  "MD Conv%": md_pct,
-                "ADS Tipificó": ads_tip, "ADS Real": ads_real, "ADS Falso": ads_falso, "ADS Conv%": ads_pct,
-                "CH Tipificó": ch_tip,  "CH Real": ch_real,  "CH Falso": ch_falso,  "CH Conv%": ch_pct,
+                "MD TipificÃ³": md_tip,  "MD Real": md_real,  "MD Falso": md_falso,  "MD Conv%": md_pct,
+                "ADS TipificÃ³": ads_tip, "ADS Real": ads_real, "ADS Falso": ads_falso, "ADS Conv%": ads_pct,
+                "CH TipificÃ³": ch_tip,  "CH Real": ch_real,  "CH Falso": ch_falso,  "CH Conv%": ch_pct,
                 "Calidad %": calidad,
             })
         return pd.DataFrame(rows).sort_values("Calidad %", ascending=False)
 
     df_sum = build_summary_table(df_det, frozenset(ACTIVE_FARMERS), FARMER_NAMES, quartiles)
 
-    # ── KPI cards del equipo ──────────────────────────────────────────────────
-    total_md_tip   = df_sum["MD Tipificó"].sum()
+    # â”€â”€ KPI cards del equipo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    total_md_tip   = df_sum["MD TipificÃ³"].sum()
     total_md_real  = df_sum["MD Real"].sum()
-    total_ads_tip  = df_sum["ADS Tipificó"].sum()
+    total_ads_tip  = df_sum["ADS TipificÃ³"].sum()
     total_ads_real = df_sum["ADS Real"].sum()
-    total_ch_tip   = df_sum["CH Tipificó"].sum()
+    total_ch_tip   = df_sum["CH TipificÃ³"].sum()
     total_ch_real  = df_sum["CH Real"].sum()
     total_falso    = df_sum["MD Falso"].sum() + df_sum["ADS Falso"].sum() + df_sum["CH Falso"].sum()
 
@@ -194,9 +194,9 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
     c_md  = "#00B341" if avg_md_pct  >= 30 else "#F59E0B" if avg_md_pct  >= 15 else "#EF4444"
     c_ads = "#00B341" if avg_ads_pct >= 30 else "#F59E0B" if avg_ads_pct >= 15 else "#EF4444"
     c_ch  = "#00B341" if avg_ch_pct  >= 30 else "#F59E0B" if avg_ch_pct  >= 15 else "#EF4444"
-    with c1: st.markdown(_card("💰", "MD Conv. Real",   avg_md_pct,  total_md_real,  total_md_tip,  c_md),  unsafe_allow_html=True)
-    with c2: st.markdown(_card("📢", "ADS Conv. Real",  avg_ads_pct, total_ads_real, total_ads_tip, c_ads), unsafe_allow_html=True)
-    with c3: st.markdown(_card("🔄", "Churn Conv. Real",avg_ch_pct,  total_ch_real,  total_ch_tip,  c_ch),  unsafe_allow_html=True)
+    with c1: st.markdown(_card("ðŸ’°", "MD Conv. Real",   avg_md_pct,  total_md_real,  total_md_tip,  c_md),  unsafe_allow_html=True)
+    with c2: st.markdown(_card("ðŸ“¢", "ADS Conv. Real",  avg_ads_pct, total_ads_real, total_ads_tip, c_ads), unsafe_allow_html=True)
+    with c3: st.markdown(_card("ðŸ”„", "Churn Conv. Real",avg_ch_pct,  total_ch_real,  total_ch_tip,  c_ch),  unsafe_allow_html=True)
     with c4:
         falso_color = "#EF4444" if total_falso > 100 else "#F59E0B" if total_falso > 50 else "#00B341"
         st.markdown(f"""
@@ -204,7 +204,7 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
                     border-top:4px solid {falso_color};border:1px solid #FEE2E2;
                     box-shadow:0 2px 8px rgba(0,0,0,0.06)">
             <div style="font-size:0.7rem;color:#6B7280;text-transform:uppercase;
-                        letter-spacing:0.5px;font-weight:600">⚠️ Falsa Conversión</div>
+                        letter-spacing:0.5px;font-weight:600">âš ï¸ Falsa ConversiÃ³n</div>
             <div style="font-size:2.2rem;font-weight:800;color:{falso_color};margin:0.2rem 0">{int(total_falso)}</div>
             <div style="font-size:0.8rem;color:#374151">
                 Casos tipificados como cerrados sin cierre efectivo
@@ -213,24 +213,24 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    # ── Tabla resumen por farmer ──────────────────────────────────────────────
-    st.markdown("### 📊 Conversión real por farmer")
-    st.caption("Datos del DETALLE — sistema confirma cierre efectivo (MD=1, BN=1, ORD=1)")
+    # â”€â”€ Tabla resumen por farmer â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    st.markdown("### ðŸ“Š ConversiÃ³n real por farmer")
+    st.caption("Datos del DETALLE â€” sistema confirma cierre efectivo (MD=1, BN=1, ORD=1)")
 
-    medal = ["🥇", "🥈", "🥉"]
+    medal = ["ðŸ¥‡", "ðŸ¥ˆ", "ðŸ¥‰"]
     df_table = df_sum.reset_index(drop=True).copy()
     df_table.insert(0, "#", [medal[i] if i < 3 else str(i + 1) for i in range(len(df_table))])
-    df_table["MD R/T"]  = df_table.apply(lambda r: f"{int(r['MD Real'])}/{int(r['MD Tipificó'])}", axis=1)
-    df_table["ADS R/T"] = df_table.apply(lambda r: f"{int(r['ADS Real'])}/{int(r['ADS Tipificó'])}", axis=1)
-    df_table["CH R/T"]  = df_table.apply(lambda r: f"{int(r['CH Real'])}/{int(r['CH Tipificó'])}", axis=1)
-    df_table["MD ✗"]    = df_table["MD Falso"].astype(float)
-    df_table["ADS ✗"]   = df_table["ADS Falso"].astype(float)
-    df_table["CH ✗"]    = df_table["CH Falso"].astype(float)
+    df_table["MD R/T"]  = df_table.apply(lambda r: f"{int(r['MD Real'])}/{int(r['MD TipificÃ³'])}", axis=1)
+    df_table["ADS R/T"] = df_table.apply(lambda r: f"{int(r['ADS Real'])}/{int(r['ADS TipificÃ³'])}", axis=1)
+    df_table["CH R/T"]  = df_table.apply(lambda r: f"{int(r['CH Real'])}/{int(r['CH TipificÃ³'])}", axis=1)
+    df_table["MD âœ—"]    = df_table["MD Falso"].astype(float)
+    df_table["ADS âœ—"]   = df_table["ADS Falso"].astype(float)
+    df_table["CH âœ—"]    = df_table["CH Falso"].astype(float)
 
     show_cols = ["#", "Q", "Farmer", "Seguimientos",
-                 "MD Conv%", "MD R/T", "MD ✗",
-                 "ADS Conv%", "ADS R/T", "ADS ✗",
-                 "CH Conv%", "CH R/T", "CH ✗",
+                 "MD Conv%", "MD R/T", "MD âœ—",
+                 "ADS Conv%", "ADS R/T", "ADS âœ—",
+                 "CH Conv%", "CH R/T", "CH âœ—",
                  "Calidad %"]
     st.data_editor(
         df_table[show_cols],
@@ -242,59 +242,59 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
             "Q":            st.column_config.TextColumn("Q", width="small"),
             "Farmer":       st.column_config.TextColumn("Farmer", width="medium"),
             "Seguimientos": st.column_config.NumberColumn("Seguim.", format="%d", width="small"),
-            "MD Conv%":     st.column_config.NumberColumn("💰 MD %", format="%.1f%%", width="small"),
+            "MD Conv%":     st.column_config.NumberColumn("ðŸ’° MD %", format="%.1f%%", width="small"),
             "MD R/T":       st.column_config.TextColumn("MD R/T", width="small"),
-            "MD ✗":         st.column_config.NumberColumn("MD ✗", format="%d", width="small",
+            "MD âœ—":         st.column_config.NumberColumn("MD âœ—", format="%d", width="small",
                                 help="Casos tipificados sin cierre efectivo"),
-            "ADS Conv%":    st.column_config.NumberColumn("📢 ADS %", format="%.1f%%", width="small"),
+            "ADS Conv%":    st.column_config.NumberColumn("ðŸ“¢ ADS %", format="%.1f%%", width="small"),
             "ADS R/T":      st.column_config.TextColumn("ADS R/T", width="small"),
-            "ADS ✗":        st.column_config.NumberColumn("ADS ✗", format="%d", width="small",
+            "ADS âœ—":        st.column_config.NumberColumn("ADS âœ—", format="%d", width="small",
                                 help="Casos tipificados sin cierre efectivo"),
-            "CH Conv%":     st.column_config.NumberColumn("🔄 CH %", format="%.1f%%", width="small"),
+            "CH Conv%":     st.column_config.NumberColumn("ðŸ”„ CH %", format="%.1f%%", width="small"),
             "CH R/T":       st.column_config.TextColumn("CH R/T", width="small"),
-            "CH ✗":         st.column_config.NumberColumn("CH ✗", format="%d", width="small",
+            "CH âœ—":         st.column_config.NumberColumn("CH âœ—", format="%d", width="small",
                                 help="Casos tipificados sin cierre efectivo"),
             "Calidad %":    st.column_config.ProgressColumn("Calidad Tip.", format="%.1f%%",
                                 min_value=0, max_value=100),
         },
     )
-    st.caption("R/T = Reales / Tipificados · ✗ = falsa conversión · Calidad = cierres reales / tipificados")
+    st.caption("R/T = Reales / Tipificados Â· âœ— = falsa conversiÃ³n Â· Calidad = cierres reales / tipificados")
 
-    # ── ALERTA FALSA CONVERSIÓN ───────────────────────────────────────────────
+    # â”€â”€ ALERTA FALSA CONVERSIÃ“N â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     st.markdown("---")
     st.markdown("""
     <div style="background:#FEF2F2;border:2px solid #EF4444;border-radius:14px;
                 padding:1.2rem 1.6rem;margin-bottom:1.5rem">
         <div style="font-size:1.1rem;font-weight:800;color:#EF4444;margin-bottom:4px">
-            ⚠️ Alerta de Falsa Conversión
+            âš ï¸ Alerta de Falsa ConversiÃ³n
         </div>
         <div style="font-size:0.85rem;color:#7F1D1D">
-            El farmer tipificó como <b>cerrado</b> en su seguimiento, pero el sistema
-            <b>no registra cierre efectivo</b>. Estos casos requieren revisión o corrección de tipificación.
+            El farmer tipificÃ³ como <b>cerrado</b> en su seguimiento, pero el sistema
+            <b>no registra cierre efectivo</b>. Estos casos requieren revisiÃ³n o correcciÃ³n de tipificaciÃ³n.
         </div>
     </div>
     """, unsafe_allow_html=True)
 
-    # ── Sidebar filters ───────────────────────────────────────────────────────
+    # â”€â”€ Sidebar filters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     farmer_options = (["Todos"] if is_supervisor else []) + [
         FARMER_NAMES.get(f, f) for f in sorted(ACTIVE_FARMERS)
         if f in df_det["FARMER"].values
     ]
     with st.sidebar:
-        st.markdown("### 🔍 Filtros — Falsa Conversión")
+        st.markdown("### ðŸ” Filtros â€” Falsa ConversiÃ³n")
         if is_supervisor:
             sel_farmer_name = st.selectbox("Farmer", farmer_options, key="conv_sel_farmer")
         else:
             my_name = FARMER_NAMES.get(email_auth.strip().lower(), email_auth)
             sel_farmer_name = my_name
-            st.info(f"👤 {my_name}")
+            st.info(f"ðŸ‘¤ {my_name}")
         palanca_sel = st.radio("Palanca", ["Todas", "MD", "ADS", "Churn"], key="conv_palanca_sel")
 
     if not is_supervisor:
         st.markdown(f"""
         <div style="background:rgba(74,108,247,0.08);border-left:4px solid #4A6CF7;
                     border-radius:8px;padding:0.7rem 1rem;margin-bottom:1rem">
-            👤 <b>Viendo tus casos: {my_name}</b>
+            ðŸ‘¤ <b>Viendo tus casos: {my_name}</b>
         </div>""", unsafe_allow_html=True)
 
     # Build false-conversion detail table
@@ -316,9 +316,9 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
                 continue
             sub = sub.rename(columns={"FARMER": "email"})
             sub["Palanca"]  = pal_name
-            sub["Tipificó"] = "SI"
-            sub["Cierre Sistema"] = "❌ Sin cierre"
-            sub["Tipo"] = sub[tipo_col].astype(str) if tipo_col and tipo_col in sub.columns else "—"
+            sub["TipificÃ³"] = "SI"
+            sub["Cierre Sistema"] = "âŒ Sin cierre"
+            sub["Tipo"] = sub[tipo_col].astype(str) if tipo_col and tipo_col in sub.columns else "â€”"
             # Pick display columns
             cols_show = ["email", "Palanca"]
             for c in ["BRAND_NAME", "DATE", "COUNTRY"]:
@@ -343,13 +343,13 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
             df_falsos = df_falsos[df_falsos["email"] == email_sel]
 
     if df_falsos.empty:
-        st.success("✅ No hay casos de falsa conversión para el filtro seleccionado.")
+        st.success("âœ… No hay casos de falsa conversiÃ³n para el filtro seleccionado.")
     else:
         total_falsos = len(df_falsos)
         st.markdown(f"""
         <div style="background:#FEE2E2;border-radius:8px;padding:0.6rem 1rem;
                     margin-bottom:0.8rem;font-weight:700;color:#991B1B">
-            🚨 {total_falsos} caso{'s' if total_falsos != 1 else ''} de falsa conversión
+            ðŸš¨ {total_falsos} caso{'s' if total_falsos != 1 else ''} de falsa conversiÃ³n
             {'(equipo completo)' if sel_farmer_name == 'Todos' else f'de {sel_farmer_name}'}
         </div>""", unsafe_allow_html=True)
 
@@ -357,7 +357,7 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
         rename_map = {
             "Farmer": "Farmer", "Palanca": "Palanca",
             "BRAND_NAME": "Tienda", "DATE": "Fecha",
-            "COUNTRY": "País", "Tipo": "Tipo",
+            "COUNTRY": "PaÃ­s", "Tipo": "Tipo",
             "Cierre Sistema": "Sistema"
         }
         display_cols = [c for c in rename_map if c in df_falsos.columns]
@@ -365,8 +365,8 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
         st.dataframe(df_display, use_container_width=True, hide_index=True)
 
         if is_supervisor:
-            # Summary bar chart — falsos por farmer y palanca
-            st.markdown("#### Distribución de falsa conversión por farmer")
+            # Summary bar chart â€” falsos por farmer y palanca
+            st.markdown("#### DistribuciÃ³n de falsa conversiÃ³n por farmer")
             falso_by = (df_falsos.groupby(["Farmer", "Palanca"])
                         .size().reset_index(name="Casos"))
             pal_colors = {"MD": "#4A90D9", "ADS": "#9333EA", "Churn": "#F59E0B"}
@@ -389,11 +389,11 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
             )
             st.plotly_chart(fig, use_container_width=True)
 
-    # ── Gráfico de conversión real por palanca ────────────────────────────────
+    # â”€â”€ GrÃ¡fico de conversiÃ³n real por palanca â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     st.markdown("---")
-    st.markdown("### 📈 Comparativa de conversión real")
+    st.markdown("### ðŸ“ˆ Comparativa de conversiÃ³n real")
 
-    tabs = st.tabs(["💰 MD", "📢 ADS", "🔄 Churn"])
+    tabs = st.tabs(["ðŸ’° MD", "ðŸ“¢ ADS", "ðŸ”„ Churn"])
     for tab, pal, tip_col, real_col in zip(
         tabs,
         ["MD", "ADS", "Churn"],
@@ -413,7 +413,7 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
                 real = int((_num_col(fd, real_col) == 1).sum())
                 pct  = round(real / tip * 100, 1) if tip > 0 else 0
                 falso= tip - real
-                pal_rows.append({"Farmer": name, "Tipificó": tip, "Real": real,
+                pal_rows.append({"Farmer": name, "TipificÃ³": tip, "Real": real,
                                   "Falso": falso, "Conv%": pct})
             df_pal = pd.DataFrame(pal_rows).sort_values("Conv%", ascending=False)
 
@@ -422,7 +422,7 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
 
             fig = go.Figure()
             fig.add_trace(go.Bar(
-                name="Tipificó (total)", x=df_pal["Farmer"], y=df_pal["Tipificó"],
+                name="TipificÃ³ (total)", x=df_pal["Farmer"], y=df_pal["TipificÃ³"],
                 marker_color="#E5E7EB", opacity=0.6,
             ))
             fig.add_trace(go.Bar(
@@ -432,7 +432,7 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
                 textposition="outside",
             ))
             fig.add_trace(go.Bar(
-                name="Falso (tipificó=SI, sin cierre)",
+                name="Falso (tipificÃ³=SI, sin cierre)",
                 x=df_pal["Farmer"], y=df_pal["Falso"],
                 marker_color="#EF4444", opacity=0.7,
             ))
@@ -447,18 +447,18 @@ if df_det is not None and not df_det.empty and "FARMER" in df_det.columns:
                           annotation_text=f"Prom. {avg:.1f}%", annotation_position="top right")
             st.plotly_chart(fig, use_container_width=True)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# BRANCH B — Fallback: conversión desde hoja Productividad (clásico)
-# ─────────────────────────────────────────────────────────────────────────────
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# BRANCH B â€” Fallback: conversiÃ³n desde hoja Productividad (clÃ¡sico)
+# â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 else:
     if df_det is not None:
-        st.info("ℹ️ El DETALLE cargado no tiene columna FARMER. Usando datos de Productividad.")
+        st.info("â„¹ï¸ El DETALLE cargado no tiene columna FARMER. Usando datos de Productividad.")
     else:
-        st.info("📂 **Para ver Conversión Real**, añade una pestaña llamada **`Conversión`** en el Sheet Maestro con el contenido del DETALLE.xlsx (columnas: FARMER, MARKDOWN, MD, ADS, BN, CHURN, ORD, BRAND_NAME…)\n\nMostrando embudo clásico desde hoja Productividad.")
+        st.info("ðŸ“‚ **Para ver ConversiÃ³n Real**, aÃ±ade una pestaÃ±a llamada **`ConversiÃ³n`** en el Sheet Maestro con el contenido del DETALLE.xlsx (columnas: FARMER, MARKDOWN, MD, ADS, BN, CHURN, ORD, BRAND_NAMEâ€¦)\n\nMostrando embudo clÃ¡sico desde hoja Productividad.")
 
     raw_prod = st.session_state.get("_productividad_raw")
     if raw_prod is None:
-        st.warning("⚠️ Tampoco hay datos de Productividad. Sube el Sheet Maestro.")
+        st.warning("âš ï¸ Tampoco hay datos de Productividad. Sube el Sheet Maestro.")
         st.stop()
 
     df = raw_prod.copy()
@@ -468,8 +468,8 @@ else:
     ADS_COL, ADS_TIPO_COL, ADS_NEVER_COL = 35, 36, 39
     CHURN_COL, CHURN_REAC_COL = 40, 46
 
-    ADS_POSITIVE  = {"upselling", "reactivación", "retention"}
-    ADS_NEVER_POS = {"activo con coinversión", "activo sin coinversión"}
+    ADS_POSITIVE  = {"upselling", "reactivaciÃ³n", "retention"}
+    ADS_NEVER_POS = {"activo con coinversiÃ³n", "activo sin coinversiÃ³n"}
 
     def is_contacted(row):
         return str(row[CONTACT_COL]).strip().upper() != "NO"
@@ -514,14 +514,14 @@ else:
 
     df_conv = pd.DataFrame(results)
     if df_conv.empty:
-        st.error("Sin datos de conversión en la hoja Productividad.")
+        st.error("Sin datos de conversiÃ³n en la hoja Productividad.")
         st.stop()
 
     df_conv["Quartil"] = df_conv["email"].map(lambda e: quartiles.get(e, "Q4"))
 
     # Quick summary
     col_md, col_ads, col_churn = st.columns(3)
-    for col, palanca, icon in [(col_md,"MD","💰"), (col_ads,"Ads","📢"), (col_churn,"Churn","🔄")]:
+    for col, palanca, icon in [(col_md,"MD","ðŸ’°"), (col_ads,"Ads","ðŸ“¢"), (col_churn,"Churn","ðŸ”„")]:
         sub = df_conv[df_conv["Palanca"] == palanca]
         if sub.empty:
             with col: st.metric(f"{icon} {palanca}", "Sin datos")
@@ -542,11 +542,11 @@ else:
             </div>""", unsafe_allow_html=True)
 
     st.markdown("---")
-    tabs = st.tabs(["💰 MD (Markdown)", "📢 Ads", "🔄 Churn (Retención)"])
+    tabs = st.tabs(["ðŸ’° MD (Markdown)", "ðŸ“¢ Ads", "ðŸ”„ Churn (RetenciÃ³n)"])
     for tab, palanca in zip(tabs, ["MD", "Ads", "Churn"]):
         with tab:
             sub = df_conv[df_conv["Palanca"] == palanca].sort_values("Conv. total %", ascending=False)
-            if sub.empty: st.info(f"Sin datos de conversión para {palanca}."); continue
+            if sub.empty: st.info(f"Sin datos de conversiÃ³n para {palanca}."); continue
             avg_t = sub["Conv. total %"].mean()
             colors = ["#00C9A7" if v >= avg_t else "#EF4444" for v in sub["Conv. total %"]]
             fig = go.Figure(go.Bar(
@@ -567,3 +567,4 @@ else:
                 display.style.map(_color_conv, subset=["Conv. total %", "Conv. efectiva %"]),
                 use_container_width=True, hide_index=True
             )
+

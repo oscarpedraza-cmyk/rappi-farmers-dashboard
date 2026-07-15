@@ -1,11 +1,11 @@
-"""
+﻿"""
 pages/11_Cartera.py
 Optimizaciones aplicadas:
-  1. Conversión de fechas Excel serial VECTORIZADA — sin .apply(), corre en C puro.
-  2. @st.cache_data en procesar_recencia_cartera() — groupby pesado se ejecuta UNA sola vez.
-  3. st.data_editor reemplaza el iframe de components.html() — nativo, sin concatenación
-     de strings, sin cálculo manual de altura.
-  4. Filtros maestros movidos al sidebar — canvas principal limpio para KPIs y charts.
+  1. ConversiÃ³n de fechas Excel serial VECTORIZADA â€” sin .apply(), corre en C puro.
+  2. @st.cache_data en procesar_recencia_cartera() â€” groupby pesado se ejecuta UNA sola vez.
+  3. st.data_editor reemplaza el iframe de components.html() â€” nativo, sin concatenaciÃ³n
+     de strings, sin cÃ¡lculo manual de altura.
+  4. Filtros maestros movidos al sidebar â€” canvas principal limpio para KPIs y charts.
 """
 
 from __future__ import annotations
@@ -23,10 +23,10 @@ from core.loader import refresh_net_rev_adj, FARMER_NAMES, FARMERS_EMAILS
 from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 
-# ── Page config ───────────────────────────────────────────────────────────────
+# â”€â”€ Page config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.set_page_config(
-    page_title="Cartera — Rappi Farmers",
-    page_icon="🗂️",
+    page_title="Cartera â€” Rappi Farmers",
+    page_icon="🌍",
     layout="wide", initial_sidebar_state="expanded",
 )
 st.markdown(inject_global_css(), unsafe_allow_html=True)
@@ -34,7 +34,7 @@ email, is_supervisor = require_auth()
 render_topbar()
 
 
-# ── Auto-load from DB if session is fresh ─────────────────────────────────────
+# â”€â”€ Auto-load from DB if session is fresh â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if "farmers_data" not in st.session_state:
     from core.db import load_latest_state
     latest = load_latest_state()
@@ -52,7 +52,7 @@ if "farmers_data" not in st.session_state:
             except Exception:
                 pass
     else:
-        st.warning("⏳ El supervisor aún no ha cargado datos. Vuelve más tarde o contacta a Oscar Pedraza.")
+        st.warning("â³ El supervisor aÃºn no ha cargado datos. Vuelve mÃ¡s tarde o contacta a Oscar Pedraza.")
         st.stop()
 
 farmers_data = st.session_state["farmers_data"]
@@ -64,49 +64,49 @@ except Exception:
     pass
 
 
-# ── Bucket constants ──────────────────────────────────────────────────────────
+# â”€â”€ Bucket constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 BUCKET_CONFIG = {
-    "Reciente":               {"color": "#00B341", "bg": "#D1FAE5", "emoji": "🟢"},
-    "No reciente":            {"color": "#F59E0B", "bg": "#FEF3C7", "emoji": "🟡"},
-    "Sin contacto reciente":  {"color": "#EF4444", "bg": "#FEE2E2", "emoji": "🔴"},
-    "Imposible contacto":     {"color": "#7C3AED", "bg": "#EDE9FE", "emoji": "🚫"},
-    "Sin contacto en el mes": {"color": "#6B7280", "bg": "#F3F4F6", "emoji": "⚫"},
+    "Reciente":               {"color": "#00B341", "bg": "#D1FAE5", "emoji": "ðŸŸ¢"},
+    "No reciente":            {"color": "#F59E0B", "bg": "#FEF3C7", "emoji": "ðŸŸ¡"},
+    "Sin contacto reciente":  {"color": "#EF4444", "bg": "#FEE2E2", "emoji": "ðŸ”´"},
+    "Imposible contacto":     {"color": "#7C3AED", "bg": "#EDE9FE", "emoji": "ðŸš«"},
+    "Sin contacto en el mes": {"color": "#6B7280", "bg": "#F3F4F6", "emoji": "âš«"},
 }
 BUCKET_ORDER = list(BUCKET_CONFIG.keys())
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 1. CONVERSIÓN DE FECHAS VECTORIZADA
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 1. CONVERSIÃ“N DE FECHAS VECTORIZADA
 #    Tres estrategias en cascada, todas sin .apply():
-#      A) datetime64 nativo  — uploads directos desde Excel
-#      B) epoch-ms int64     — round-trip pd.to_json / pd.read_json
-#      C) Excel serial float — celdas sin formato en Excel (ej. 46048 = 2026-01-15)
-#         VECTORIZADO con pd.to_datetime(unit='D', origin='1899-12-30') sobre máscara bool
-# ══════════════════════════════════════════════════════════════════════════════
+#      A) datetime64 nativo  â€” uploads directos desde Excel
+#      B) epoch-ms int64     â€” round-trip pd.to_json / pd.read_json
+#      C) Excel serial float â€” celdas sin formato en Excel (ej. 46048 = 2026-01-15)
+#         VECTORIZADO con pd.to_datetime(unit='D', origin='1899-12-30') sobre mÃ¡scara bool
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 def _to_dates_robust(series: pd.Series) -> pd.Series:
     """
     Convierte una Series a DatetimeSeries manejando los 3 formatos de entrada
     posibles. El path de Excel serial usa operaciones vectorizadas nativas de
-    pandas (C speed), sin ningún .apply() en Python puro.
+    pandas (C speed), sin ningÃºn .apply() en Python puro.
     """
     try:
         result = pd.to_datetime(series, errors="coerce")
 
         if pd.api.types.is_numeric_dtype(series):
             valid = result.dropna()
-            # Si las fechas parseadas son sospechosamente antiguas (≈1970), fueron malinterpretadas
+            # Si las fechas parseadas son sospechosamente antiguas (â‰ˆ1970), fueron malinterpretadas
             if len(valid) > 0 and valid.dt.year.median() < 2000:
 
-                # Estrategia B: epoch-ms (caso más frecuente tras JSON round-trip)
+                # Estrategia B: epoch-ms (caso mÃ¡s frecuente tras JSON round-trip)
                 r2 = pd.to_datetime(series, unit="ms", errors="coerce")
                 v2 = r2.dropna()
                 if len(v2) > 0 and v2.dt.year.median() >= 2000:
                     return r2
 
-                # Estrategia C: Excel serial date — VECTORIZADA (sin .apply)
-                # pd.to_datetime(n, unit='D', origin='1899-12-30') = 1899-12-30 + n días
+                # Estrategia C: Excel serial date â€” VECTORIZADA (sin .apply)
+                # pd.to_datetime(n, unit='D', origin='1899-12-30') = 1899-12-30 + n dÃ­as
                 numeric = pd.to_numeric(series, errors="coerce")
-                mask    = (numeric >= 20_000) & (numeric <= 60_000)  # rango ~1954–2064
+                mask    = (numeric >= 20_000) & (numeric <= 60_000)  # rango ~1954â€“2064
                 r3      = pd.Series(pd.NaT, index=series.index, dtype="datetime64[ns]")
                 if mask.any():
                     r3[mask] = pd.to_datetime(
@@ -124,13 +124,13 @@ def _to_dates_robust(series: pd.Series) -> pd.Series:
         return pd.Series(pd.NaT, index=series.index)
 
 
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 # 2. PROCESADOR DE RECENCIA CON @st.cache_data
-#    Función pura: recibe df_prod (DataFrame) + ref_ts (Timestamp).
-#    Streamlit hashea el contenido del DataFrame para determinar si el caché
+#    FunciÃ³n pura: recibe df_prod (DataFrame) + ref_ts (Timestamp).
+#    Streamlit hashea el contenido del DataFrame para determinar si el cachÃ©
 #    sigue vigente. El groupby/aggregation pesado corre UNA sola vez; los
-#    cambios de filtros en el sidebar NO relanzan esta función.
-# ══════════════════════════════════════════════════════════════════════════════
+#    cambios de filtros en el sidebar NO relanzan esta funciÃ³n.
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 @st.cache_data(show_spinner=False)
 def procesar_recencia_cartera(df_prod: pd.DataFrame, ref_ts: pd.Timestamp):
     """
@@ -138,10 +138,10 @@ def procesar_recencia_cartera(df_prod: pd.DataFrame, ref_ts: pd.Timestamp):
 
     Retorna
     -------
-    last_contact_fb    : dict[(farmer_email, brand_id) → pd.Timestamp]
-    last_contact_brand : dict[brand_id → pd.Timestamp]
-    brand_all_no       : set[brand_id] donde TODOS los follows del período fueron NO
-    debug              : dict con información diagnóstica para el supervisor
+    last_contact_fb    : dict[(farmer_email, brand_id) â†’ pd.Timestamp]
+    last_contact_brand : dict[brand_id â†’ pd.Timestamp]
+    brand_all_no       : set[brand_id] donde TODOS los follows del perÃ­odo fueron NO
+    debug              : dict con informaciÃ³n diagnÃ³stica para el supervisor
     """
     last_contact_fb    = {}
     last_contact_brand = {}
@@ -156,14 +156,14 @@ def procesar_recencia_cartera(df_prod: pd.DataFrame, ref_ts: pd.Timestamp):
     # Columna de fecha: preferir col 10 (Date), caer a col 9 (Week/Date)
     date_col = 10 if 10 in df_prod.columns else (9 if 9 in df_prod.columns else None)
     if date_col is None:
-        debug["error"] = "No se encontró columna de fecha (col 9 o 10) en Productividad."
+        debug["error"] = "No se encontrÃ³ columna de fecha (col 9 o 10) en Productividad."
         return last_contact_fb, last_contact_brand, brand_all_no, debug
 
     df_d = df_prod[[4, 14, 15, date_col]].copy()
     df_d.columns = ["contactado", "farmer", "code", "date"]
     df_d["date"] = _to_dates_robust(df_d["date"])
 
-    # Si col 10 dio fechas malas (aún ~1970), probar col 9 como fallback
+    # Si col 10 dio fechas malas (aÃºn ~1970), probar col 9 como fallback
     _valid = df_d["date"].dropna()
     if (len(_valid) == 0 or _valid.dt.year.median() < 2000) and date_col == 10 and 9 in df_prod.columns:
         df_d["date"] = _to_dates_robust(df_prod[9])
@@ -172,7 +172,7 @@ def procesar_recencia_cartera(df_prod: pd.DataFrame, ref_ts: pd.Timestamp):
     debug["raw_rows"]      = len(df_d)
     debug["valid_dates"]   = int(df_d["date"].notna().sum())
     debug["date_range"]    = (
-        f"{df_d['date'].min().date()} → {df_d['date'].max().date()}"
+        f"{df_d['date'].min().date()} â†’ {df_d['date'].max().date()}"
         if df_d["date"].notna().any() else "ninguna"
     )
     debug["ref_date"] = str(ref_ts.date())
@@ -189,7 +189,7 @@ def procesar_recencia_cartera(df_prod: pd.DataFrame, ref_ts: pd.Timestamp):
     debug["rows_in_30d"]  = len(df_30)
     debug["unique_codes"] = int(df_30["code"].nunique())
 
-    # ── Último contacto por (farmer, brand) — vectorizado ────────────────────
+    # â”€â”€ Ãšltimo contacto por (farmer, brand) â€” vectorizado â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     fb_max = (
         df_30.groupby(["farmer", "code"])["date"]
         .max()
@@ -200,13 +200,13 @@ def procesar_recencia_cartera(df_prod: pd.DataFrame, ref_ts: pd.Timestamp):
         for row in fb_max.to_dict("records")
     }
 
-    # ── Último contacto por brand (cualquier farmer) — vectorizado ────────────
+    # â”€â”€ Ãšltimo contacto por brand (cualquier farmer) â€” vectorizado â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     last_contact_brand = df_30.groupby("code")["date"].max().to_dict()
 
-    # ── Imposible contacto — vectorizado ─────────────────────────────────────
-    # Marcas donde TODOS los follows en el período fueron ¿Contactado?=NO.
-    # Estrategia: contar filas totales vs. filas con contactado != "NO" por código.
-    # Los códigos sin ninguna fila en code_si (contactado≠NO) son imposibles.
+    # â”€â”€ Imposible contacto â€” vectorizado â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    # Marcas donde TODOS los follows en el perÃ­odo fueron Â¿Contactado?=NO.
+    # Estrategia: contar filas totales vs. filas con contactado != "NO" por cÃ³digo.
+    # Los cÃ³digos sin ninguna fila en code_si (contactadoâ‰ NO) son imposibles.
     code_total = df_30.groupby("code")["contactado"].count()
     code_si    = (
         df_30[df_30["contactado"] != "NO"]
@@ -221,7 +221,7 @@ def procesar_recencia_cartera(df_prod: pd.DataFrame, ref_ts: pd.Timestamp):
     return last_contact_fb, last_contact_brand, brand_all_no, debug
 
 
-# ── Fecha de referencia ───────────────────────────────────────────────────────
+# â”€â”€ Fecha de referencia â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 today = date.today()
 try:
     max_day  = calendar.monthrange(today.year, today.month)[1]
@@ -231,16 +231,16 @@ except Exception:
 ref_ts = pd.Timestamp(ref_date)
 
 
-# ── Validar y parsear Cartera ─────────────────────────────────────────────────
+# â”€â”€ Validar y parsear Cartera â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 cartera_json = st.session_state.get("_cartera_raw")
 if not cartera_json:
     st.error("""
     **Sin datos de Cartera.**
 
     Para habilitar esta vista:
-    1. Ve a la página principal (sidebar)
-    2. Carga el Sheet Maestro que incluya la pestaña **Cartera**
-    3. Los datos quedarán disponibles para todo el equipo automáticamente
+    1. Ve a la pÃ¡gina principal (sidebar)
+    2. Carga el Sheet Maestro que incluya la pestaÃ±a **Cartera**
+    3. Los datos quedarÃ¡n disponibles para todo el equipo automÃ¡ticamente
     """)
     st.stop()
 
@@ -248,7 +248,7 @@ try:
     df_cart = pd.read_json(io.StringIO(cartera_json))
     df_cart.columns = [str(c).strip() for c in df_cart.columns]
 except Exception as e:
-    st.error(f"❌ Error al leer datos de cartera: {e}")
+    st.error(f"âŒ Error al leer datos de cartera: {e}")
     st.stop()
 
 _cols_lower = {c.lower(): c for c in df_cart.columns}
@@ -263,7 +263,7 @@ CAMBIO_COL  = _cols_lower.get("cambio_cartera")
 
 if not FARMER_COL or not ID_COL:
     st.error(
-        "❌ No se encontraron columnas necesarias en la hoja Cartera. "
+        "âŒ No se encontraron columnas necesarias en la hoja Cartera. "
         "Se esperan: **COUNTRY_BRAND_ID** y **BRAND_OWNER_EMAIL_NUEVO**. "
         f"Columnas encontradas: {', '.join(df_cart.columns.tolist())}"
     )
@@ -276,14 +276,14 @@ if df_cart.empty:
     st.warning("No se encontraron marcas asignadas a farmers del equipo activo.")
     st.stop()
 
-# Coerción numérica una sola vez, antes de cualquier filtro
+# CoerciÃ³n numÃ©rica una sola vez, antes de cualquier filtro
 if GMV_COL:
     df_cart[GMV_COL] = pd.to_numeric(df_cart[GMV_COL], errors="coerce")
 if ORDERS_COL:
     df_cart[ORDERS_COL] = pd.to_numeric(df_cart[ORDERS_COL], errors="coerce")
 
 
-# ── Cargar Productividad + ejecutar procesador cacheado ───────────────────────
+# â”€â”€ Cargar Productividad + ejecutar procesador cacheado â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 df_prod = st.session_state.get("_productividad_raw")
 if df_prod is None:
     try:
@@ -305,22 +305,22 @@ else:
     last_contact_fb    = {}
     last_contact_brand = {}
     brand_all_no       = set()
-    _prod_debug        = {"warning": "Productividad no disponible — recencia no calculada"}
+    _prod_debug        = {"warning": "Productividad no disponible â€” recencia no calculada"}
 
 
-# ── Asignación de buckets ─────────────────────────────────────────────────────
+# â”€â”€ AsignaciÃ³n de buckets â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def assign_bucket(farmer_email, brand_id):
     """
     Retorna (bucket_name, days_int_or_None).
 
     Prioridad:
-      1. Sin follow en 30d                        → Sin contacto en el mes
-      2. Tiene follows pero TODOS son NO           → Imposible contacto
-      3. Tiene follows con ≥1 SI, por recencia:
-           días < 8                               → Reciente
-           8 ≤ días < 20                          → No reciente
-           20 ≤ días < 30                         → Sin contacto reciente
-           días ≥ 30                              → Sin contacto en el mes
+      1. Sin follow en 30d                        â†’ Sin contacto en el mes
+      2. Tiene follows pero TODOS son NO           â†’ Imposible contacto
+      3. Tiene follows con â‰¥1 SI, por recencia:
+           dÃ­as < 8                               â†’ Reciente
+           8 â‰¤ dÃ­as < 20                          â†’ No reciente
+           20 â‰¤ dÃ­as < 30                         â†’ Sin contacto reciente
+           dÃ­as â‰¥ 30                              â†’ Sin contacto en el mes
     """
     key  = (str(farmer_email).lower(), str(brand_id))
     last = last_contact_fb.get(key) or last_contact_brand.get(str(brand_id))
@@ -344,23 +344,23 @@ df_cart["bucket"]     = [r[0] for r in _bucket_results]
 df_cart["days_since"] = [r[1] for r in _bucket_results]
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 4. SIDEBAR — FILTROS MAESTROS
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 4. SIDEBAR â€” FILTROS MAESTROS
 #    Canvas principal queda exclusivamente para KPIs, charts y tabla de datos.
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 farmer_emails_in_data = sorted(df_cart[FARMER_COL].unique())
 
 with st.sidebar:
     st.markdown("---")
-    st.markdown("### 🗂️ Filtros de Cartera")
+    st.markdown("### ðŸ—‚ï¸ Filtros de Cartera")
 
     # Selector de farmer (solo supervisor)
     if is_supervisor:
-        farmer_opts = ["⭐ Todo el equipo"] + [
+        farmer_opts = ["â­ Todo el equipo"] + [
             FARMER_NAMES.get(e, e.split("@")[0].title()) for e in farmer_emails_in_data
         ]
-        sel = st.selectbox("👤 Farmer", farmer_opts, key="cartera_farmer_sel")
-        if sel == "⭐ Todo el equipo":
+        sel = st.selectbox("ðŸ‘¤ Farmer", farmer_opts, key="cartera_farmer_sel")
+        if sel == "â­ Todo el equipo":
             df_view    = df_cart.copy()
             view_email = None
         else:
@@ -376,7 +376,7 @@ with st.sidebar:
 
     # Filtro de estado (bucket)
     bucket_filter = st.multiselect(
-        "📊 Estado",
+        "ðŸ“Š Estado",
         options=BUCKET_ORDER,
         default=BUCKET_ORDER,
         key="cartera_bucket_filter",
@@ -384,43 +384,43 @@ with st.sidebar:
 
     # Ordenamiento
     sort_sel = st.selectbox(
-        "🔃 Ordenar por",
-        ["Días sin contacto ↓", "GMV ↓", "Nombre ↑"],
+        "ðŸ”ƒ Ordenar por",
+        ["DÃ­as sin contacto â†“", "GMV â†“", "Nombre â†‘"],
         key="cartera_sort",
     )
 
     st.markdown("---")
-    st.caption(f"📅 Referencia: día {dia_corte} del mes ({ref_date.isoformat()})")
+    st.caption(f"ðŸ“… Referencia: dÃ­a {dia_corte} del mes ({ref_date.isoformat()})")
 
 
 # Guard: farmer sin marcas asignadas
 if not is_supervisor and df_view.empty:
-    st.info("📭 No hay marcas asignadas a tu cartera en este período.")
+    st.info("ðŸ“­ No hay marcas asignadas a tu cartera en este perÃ­odo.")
     st.stop()
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# CANVAS PRINCIPAL — Header + KPIs + Charts + Tabla + Callouts
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# CANVAS PRINCIPAL â€” Header + KPIs + Charts + Tabla + Callouts
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 st.markdown("""
 <div class="rb-page-header">
-    <h1>🗂️ Cartera</h1>
-    <p>Recencia de contacto por marca · Referencia: día de corte del mes</p>
+    <h1>ðŸ—‚ï¸ Cartera</h1>
+    <p>Recencia de contacto por marca Â· Referencia: dÃ­a de corte del mes</p>
 </div>
 """, unsafe_allow_html=True)
 
 # Expander de debug (solo supervisor)
 if is_supervisor:
-    with st.expander("🔧 Debug — Productividad × Cartera (solo supervisor)", expanded=False):
+    with st.expander("ðŸ”§ Debug â€” Productividad Ã— Cartera (solo supervisor)", expanded=False):
         st.json(_prod_debug)
         st.write(f"**`_productividad_raw` cargado:** {df_prod is not None}")
         if df_prod is not None:
             st.write(
-                f"**Filas Productividad:** {len(df_prod)} · "
-                f"**Columnas (≤20):** {[c for c in df_prod.columns if c <= 20]}"
+                f"**Filas Productividad:** {len(df_prod)} Â· "
+                f"**Columnas (â‰¤20):** {[c for c in df_prod.columns if c <= 20]}"
             )
 
-# ── KPI Metrics ───────────────────────────────────────────────────────────────
+# â”€â”€ KPI Metrics â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 n_total    = len(df_view)
 counts     = df_view["bucket"].value_counts()
 n_rec      = int(counts.get("Reciente", 0))
@@ -431,23 +431,23 @@ n_nunca    = int(counts.get("Sin contacto en el mes", 0))
 pct_riesgo = round((n_sin_rec + n_impos + n_nunca) / max(n_total, 1) * 100, 1)
 
 c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
-with c1: st.metric("📦 Total",        f"{n_total:,}")
-with c2: st.metric("🟢 Reciente",     n_rec,        help="Contactadas hace < 8 días")
-with c3: st.metric("🟡 No reciente",  n_no_rec,     help="Último contacto hace 8–20 días")
-with c4: st.metric("🔴 Sin reciente", n_sin_rec,    help="Último contacto hace 20–30 días")
-with c5: st.metric("🚫 Imposible",    n_impos,
-                   help="Tiene follows en el período pero TODOS dieron ¿Contactado?=NO")
-with c6: st.metric("⚫ Sin contacto", n_nunca,      help="Sin ningún follow en los últimos 30 días")
-with c7: st.metric("⚠️ % en riesgo",  f"{pct_riesgo}%",
+with c1: st.metric("ðŸ“¦ Total",        f"{n_total:,}")
+with c2: st.metric("ðŸŸ¢ Reciente",     n_rec,        help="Contactadas hace < 8 dÃ­as")
+with c3: st.metric("ðŸŸ¡ No reciente",  n_no_rec,     help="Ãšltimo contacto hace 8â€“20 dÃ­as")
+with c4: st.metric("ðŸ”´ Sin reciente", n_sin_rec,    help="Ãšltimo contacto hace 20â€“30 dÃ­as")
+with c5: st.metric("ðŸš« Imposible",    n_impos,
+                   help="Tiene follows en el perÃ­odo pero TODOS dieron Â¿Contactado?=NO")
+with c6: st.metric("âš« Sin contacto", n_nunca,      help="Sin ningÃºn follow en los Ãºltimos 30 dÃ­as")
+with c7: st.metric("âš ï¸ % en riesgo",  f"{pct_riesgo}%",
                    delta=f"{n_sin_rec + n_impos + n_nunca} marcas", delta_color="inverse")
 
 st.markdown("---")
 
-# ── Charts ────────────────────────────────────────────────────────────────────
+# â”€â”€ Charts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 chart_col, breakdown_col = st.columns([1, 2])
 
 with chart_col:
-    st.markdown("### Distribución")
+    st.markdown("### DistribuciÃ³n")
     fig_pie = go.Figure(go.Pie(
         labels=["Reciente", "No reciente", "Sin reciente", "Imposible", "Sin contacto"],
         values=[n_rec, n_no_rec, n_sin_rec, n_impos, n_nunca],
@@ -540,35 +540,35 @@ with breakdown_col:
 st.markdown("---")
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# 3. TABLA DE MARCAS — st.data_editor
-#    Reemplaza components.html() + concatenación de strings en bucle for.
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# 3. TABLA DE MARCAS â€” st.data_editor
+#    Reemplaza components.html() + concatenaciÃ³n de strings en bucle for.
 #    Beneficios:
-#      • Sin iframe de altura calculada manualmente
-#      • Sin saturación de memoria del navegador con ~120KB de HTML concatenado
-#      • Tipado nativo: Int64 nullable, float para GMV, str para categorías
-#      • column_config: SelectboxColumn para Estado, NumberColumn con formato
-#        monetario y de días, TextColumn para Marca con ancho grande
-# ══════════════════════════════════════════════════════════════════════════════
+#      â€¢ Sin iframe de altura calculada manualmente
+#      â€¢ Sin saturaciÃ³n de memoria del navegador con ~120KB de HTML concatenado
+#      â€¢ Tipado nativo: Int64 nullable, float para GMV, str para categorÃ­as
+#      â€¢ column_config: SelectboxColumn para Estado, NumberColumn con formato
+#        monetario y de dÃ­as, TextColumn para Marca con ancho grande
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
 # Aplicar filtros y ordenamiento (sidebar)
 df_filtered = df_view[df_view["bucket"].isin(bucket_filter)].copy()
 
-if sort_sel == "Días sin contacto ↓":
+if sort_sel == "DÃ­as sin contacto â†“":
     df_filtered = df_filtered.sort_values("days_since", ascending=False, na_position="last")
-elif sort_sel == "GMV ↓" and GMV_COL:
+elif sort_sel == "GMV â†“" and GMV_COL:
     df_filtered = df_filtered.sort_values(GMV_COL, ascending=False, na_position="last")
 elif NAME_COL:
     df_filtered = df_filtered.sort_values(NAME_COL, ascending=True, na_position="last")
 
 df_filtered = df_filtered.reset_index(drop=True)
 
-# Fila de estado + botón CSV
+# Fila de estado + botÃ³n CSV
 info_col, dl_col = st.columns([4, 1])
 with info_col:
     st.markdown(
         f"**{len(df_filtered):,} marcas** en los filtros seleccionados"
-        + (" · mostrando las primeras **500**" if len(df_filtered) > 500 else "")
+        + (" Â· mostrando las primeras **500**" if len(df_filtered) > 500 else "")
     )
 with dl_col:
     @st.cache_data(show_spinner=False)
@@ -578,10 +578,10 @@ with dl_col:
     dl_cols = [c for c in [NAME_COL, COUNTRY_COL, FARMER_COL, "bucket", "days_since",
                             GMV_COL, ORDERS_COL, LIDER_COL] if c]
     st.download_button(
-        "⬇️ CSV",
+        "â¬‡ï¸ CSV",
         data=_to_csv(df_filtered[dl_cols].rename(columns={
             "bucket":    "Estado",
-            "days_since":"Días sin contacto",
+            "days_since":"DÃ­as sin contacto",
             FARMER_COL:  "Farmer",
         })),
         file_name=f"cartera_{ref_date.isoformat()}.csv",
@@ -589,16 +589,16 @@ with dl_col:
         use_container_width=True,
     )
 
-# ── Construir DataFrame de visualización ─────────────────────────────────────
+# â”€â”€ Construir DataFrame de visualizaciÃ³n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 _rows    = df_filtered.head(500)
 _emoji   = {b: cfg["emoji"] for b, cfg in BUCKET_CONFIG.items()}
 _display = {}
 
 if NAME_COL:
-    _display["Marca"] = _rows[NAME_COL].fillna("—").astype(str)
+    _display["Marca"] = _rows[NAME_COL].fillna("â€”").astype(str)
 
 if COUNTRY_COL:
-    _display["País"] = _rows[COUNTRY_COL].fillna("—").astype(str)
+    _display["PaÃ­s"] = _rows[COUNTRY_COL].fillna("â€”").astype(str)
 
 # Columna Farmer solo para vista "Todo el equipo" del supervisor
 if is_supervisor and view_email is None:
@@ -606,11 +606,11 @@ if is_supervisor and view_email is None:
         lambda e: FARMER_NAMES.get(str(e), str(e).split("@")[0].title())
     )
 
-# Estado con emoji para jerarquía visual (coincide con las opciones del SelectboxColumn)
-_display["Estado"] = _rows["bucket"].map(lambda b: f"{_emoji.get(b, '⚪')} {b}")
+# Estado con emoji para jerarquÃ­a visual (coincide con las opciones del SelectboxColumn)
+_display["Estado"] = _rows["bucket"].map(lambda b: f"{_emoji.get(b, 'âšª')} {b}")
 
-# Días: float64 con NaN → celda vacía; NumberColumn format="%d días" muestra entero
-_display["Días sin contacto"] = pd.to_numeric(_rows["days_since"], errors="coerce")
+# DÃ­as: float64 con NaN â†’ celda vacÃ­a; NumberColumn format="%d dÃ­as" muestra entero
+_display["DÃ­as sin contacto"] = pd.to_numeric(_rows["days_since"], errors="coerce")
 
 if GMV_COL:
     _display["GMV L28D"] = _rows[GMV_COL]
@@ -623,29 +623,29 @@ if CAMBIO_COL:
 
 df_display = pd.DataFrame(_display)
 
-# ── Configuración de columnas ─────────────────────────────────────────────────
+# â”€â”€ ConfiguraciÃ³n de columnas â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 col_cfg = {}
 
 if "Marca" in df_display.columns:
     col_cfg["Marca"] = st.column_config.TextColumn("Marca", width="large")
 
-if "País" in df_display.columns:
-    col_cfg["País"] = st.column_config.TextColumn("País", width="small")
+if "PaÃ­s" in df_display.columns:
+    col_cfg["PaÃ­s"] = st.column_config.TextColumn("PaÃ­s", width="small")
 
 if "Farmer" in df_display.columns:
     col_cfg["Farmer"] = st.column_config.TextColumn("Farmer", width="medium")
 
-# SelectboxColumn: muestra las opciones válidas del negocio con sus emojis
+# SelectboxColumn: muestra las opciones vÃ¡lidas del negocio con sus emojis
 col_cfg["Estado"] = st.column_config.SelectboxColumn(
     "Estado",
     options=[f"{BUCKET_CONFIG[b]['emoji']} {b}" for b in BUCKET_ORDER],
     width="medium",
 )
 
-# NumberColumn con sufijo " días" — printf-style format
-col_cfg["Días sin contacto"] = st.column_config.NumberColumn(
-    "Días sin contacto",
-    format="%d días",
+# NumberColumn con sufijo " dÃ­as" â€” printf-style format
+col_cfg["DÃ­as sin contacto"] = st.column_config.NumberColumn(
+    "DÃ­as sin contacto",
+    format="%d dÃ­as",
     min_value=0,
     width="small",
 )
@@ -667,7 +667,7 @@ if "Orders L28D" in df_display.columns:
 if "Cambio cartera" in df_display.columns:
     col_cfg["Cambio cartera"] = st.column_config.TextColumn("Cambio cartera", width="small")
 
-# Renderizar tabla nativa — sin iframe, sin HTML manual, sin cálculo de altura
+# Renderizar tabla nativa â€” sin iframe, sin HTML manual, sin cÃ¡lculo de altura
 st.data_editor(
     df_display,
     column_config=col_cfg,
@@ -679,82 +679,83 @@ st.data_editor(
 )
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# CALLOUT SECTIONS — Alertas por pérdida de GMV
-# ══════════════════════════════════════════════════════════════════════════════
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+# CALLOUT SECTIONS â€” Alertas por pÃ©rdida de GMV
+# â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
-# ── Imposible contacto ────────────────────────────────────────────────────────
+# â”€â”€ Imposible contacto â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 df_impos = df_view[df_view["bucket"] == "Imposible contacto"].copy()
 if GMV_COL:
     df_impos = df_impos.sort_values(GMV_COL, ascending=False, na_position="last")
 
 if not df_impos.empty:
     st.markdown("---")
-    st.markdown("## 🚫 Imposible contacto — mayor GMV primero")
+    st.markdown("## ðŸš« Imposible contacto â€” mayor GMV primero")
     st.caption(
-        "Estas marcas tienen follows registrados en el período pero **todos** obtuvieron "
-        "¿Contactado? = NO. El farmer está intentando pero no logra contactar."
+        "Estas marcas tienen follows registrados en el perÃ­odo pero **todos** obtuvieron "
+        "Â¿Contactado? = NO. El farmer estÃ¡ intentando pero no logra contactar."
     )
     for row in df_impos.head(20).to_dict("records"):
-        brand   = str(row.get(NAME_COL, "—")).strip() if NAME_COL else "—"
+        brand   = str(row.get(NAME_COL, "â€”")).strip() if NAME_COL else "â€”"
         days_r  = row.get("days_since")
-        days_s  = f"{int(days_r)}d" if days_r is not None and not (isinstance(days_r, float) and pd.isna(days_r)) else "—"
+        days_s  = f"{int(days_r)}d" if days_r is not None and not (isinstance(days_r, float) and pd.isna(days_r)) else "â€”"
         gmv_raw = row.get(GMV_COL) if GMV_COL else None
         try:
-            gmv_s = f"${float(gmv_raw):,.0f}" if gmv_raw is not None and not pd.isna(gmv_raw) else "—"
+            gmv_s = f"${float(gmv_raw):,.0f}" if gmv_raw is not None and not pd.isna(gmv_raw) else "â€”"
         except Exception:
-            gmv_s = "—"
+            gmv_s = "â€”"
         farmer_part = ""
         if is_supervisor and view_email is None:
             fn = FARMER_NAMES.get(
                 str(row.get(FARMER_COL, "")),
                 str(row.get(FARMER_COL, "")).split("@")[0].title()
             )
-            farmer_part = f" · <span style='color:#6B7280'>{fn}</span>"
+            farmer_part = f" Â· <span style='color:#6B7280'>{fn}</span>"
         st.markdown(
-            f"- **{brand}** · GMV: <span style='color:#7C3AED;font-weight:700'>{gmv_s}</span>"
-            f" · Último intento: {days_s}{farmer_part}",
+            f"- **{brand}** Â· GMV: <span style='color:#7C3AED;font-weight:700'>{gmv_s}</span>"
+            f" Â· Ãšltimo intento: {days_s}{farmer_part}",
             unsafe_allow_html=True,
         )
     if len(df_impos) > 20:
-        st.caption(f"... y {len(df_impos) - 20} más. Descarga el CSV para la lista completa.")
+        st.caption(f"... y {len(df_impos) - 20} mÃ¡s. Descarga el CSV para la lista completa.")
     st.warning(
-        "💡 **Acción sugerida:** revisar si el número de contacto es correcto, "
+        "ðŸ’¡ **AcciÃ³n sugerida:** revisar si el nÃºmero de contacto es correcto, "
         "si la marca sigue activa, o si se puede intentar por otro canal "
         "(WhatsApp, email, visita presencial). "
-        "Escalar al líder si persiste después de 3 intentos fallidos."
+        "Escalar al lÃ­der si persiste despuÃ©s de 3 intentos fallidos."
     )
 
-# ── Sin contacto en el mes ────────────────────────────────────────────────────
+# â”€â”€ Sin contacto en el mes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 df_nunca = df_view[df_view["bucket"] == "Sin contacto en el mes"].copy()
 if GMV_COL:
     df_nunca = df_nunca.sort_values(GMV_COL, ascending=False, na_position="last")
 
 if not df_nunca.empty:
     st.markdown("---")
-    st.markdown("## ⚠️ Sin contacto en el mes — mayor GMV primero")
-    st.caption("Estas marcas no tienen ningún follow registrado en los últimos 30 días.")
+    st.markdown("## âš ï¸ Sin contacto en el mes â€” mayor GMV primero")
+    st.caption("Estas marcas no tienen ningÃºn follow registrado en los Ãºltimos 30 dÃ­as.")
     for row in df_nunca.head(20).to_dict("records"):
-        brand   = str(row.get(NAME_COL, "—")).strip() if NAME_COL else "—"
+        brand   = str(row.get(NAME_COL, "â€”")).strip() if NAME_COL else "â€”"
         gmv_raw = row.get(GMV_COL) if GMV_COL else None
         try:
-            gmv_s = f"${float(gmv_raw):,.0f}" if gmv_raw is not None and not pd.isna(gmv_raw) else "—"
+            gmv_s = f"${float(gmv_raw):,.0f}" if gmv_raw is not None and not pd.isna(gmv_raw) else "â€”"
         except Exception:
-            gmv_s = "—"
+            gmv_s = "â€”"
         farmer_part = ""
         if is_supervisor and view_email is None:
             fn = FARMER_NAMES.get(
                 str(row.get(FARMER_COL, "")),
                 str(row.get(FARMER_COL, "")).split("@")[0].title()
             )
-            farmer_part = f" · <span style='color:#6B7280'>{fn}</span>"
+            farmer_part = f" Â· <span style='color:#6B7280'>{fn}</span>"
         st.markdown(
-            f"- **{brand}** · GMV: <span style='color:#EF4444;font-weight:700'>{gmv_s}</span>{farmer_part}",
+            f"- **{brand}** Â· GMV: <span style='color:#EF4444;font-weight:700'>{gmv_s}</span>{farmer_part}",
             unsafe_allow_html=True,
         )
     if len(df_nunca) > 20:
-        st.caption(f"... y {len(df_nunca) - 20} más. Descarga el CSV para la lista completa.")
+        st.caption(f"... y {len(df_nunca) - 20} mÃ¡s. Descarga el CSV para la lista completa.")
     st.info(
-        "💡 **Acción sugerida:** contactar esta semana y registrar el follow en Productividad. "
+        "ðŸ’¡ **AcciÃ³n sugerida:** contactar esta semana y registrar el follow en Productividad. "
         "Priorizar por mayor GMV para proteger revenue."
     )
+

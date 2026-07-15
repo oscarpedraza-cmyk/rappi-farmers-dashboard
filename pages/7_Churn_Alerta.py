@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 import streamlit as st
 import io
 import pandas as pd
@@ -14,15 +14,15 @@ from core.style import inject_global_css
 from core.db import load_latest_state
 
 st.set_page_config(
-    page_title="Alerta Temprana de Churn — Rappi Farmers",
-    page_icon="🚀",
+    page_title="Alerta Temprana de Churn â€” Rappi Farmers",
+    page_icon="🌍",
     layout="wide", initial_sidebar_state="expanded",
 )
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
 render_topbar()
 
-# ── Data bootstrap ────────────────────────────────────────────────────────────
+# â”€â”€ Data bootstrap â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if "farmers_data" not in st.session_state:
     latest = load_latest_state()
     if latest:
@@ -39,7 +39,7 @@ if "farmers_data" not in st.session_state:
         if latest.get("cartera_raw"):
             st.session_state["_cartera_raw"] = latest["cartera_raw"]
     else:
-        st.warning("⏳ El supervisor aún no ha cargado datos. Vuelve más tarde o contacta a Oscar Pedraza.")
+        st.warning("â³ El supervisor aÃºn no ha cargado datos. Vuelve mÃ¡s tarde o contacta a Oscar Pedraza.")
         st.stop()
 
 dia_corte = st.session_state.get("dia_corte", 13)
@@ -53,27 +53,27 @@ except Exception:
     ref_date = today
 ref_ts = pd.Timestamp(ref_date)
 
-# ── Header ────────────────────────────────────────────────────────────────────
+# â”€â”€ Header â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 st.markdown("""
 <div class="rb-page-header">
-    <h1>🚨 Alerta Temprana de Churn</h1>
-    <p>Marcas con alto GMV sin contacto en 2+ semanas. Score = GMV_L28D × semanas_sin_contacto — prioriza dónde llamar hoy.</p>
+    <h1>ðŸš¨ Alerta Temprana de Churn</h1>
+    <p>Marcas con alto GMV sin contacto en 2+ semanas. Score = GMV_L28D Ã— semanas_sin_contacto â€” prioriza dÃ³nde llamar hoy.</p>
 </div>
 """, unsafe_allow_html=True)
 
-# ── Cartera check ─────────────────────────────────────────────────────────────
+# â”€â”€ Cartera check â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 cartera_json = st.session_state.get("_cartera_raw")
 df_prod      = st.session_state.get("_productividad_raw")
 
 if not cartera_json:
-    st.error("**Sin datos de Cartera.** Carga el Sheet Maestro con la pestaña **Cartera**.")
+    st.error("**Sin datos de Cartera.** Carga el Sheet Maestro con la pestaÃ±a **Cartera**.")
     st.stop()
 
 try:
     df_cart = pd.read_json(io.StringIO(cartera_json))
     df_cart.columns = [str(c).strip() for c in df_cart.columns]
 except Exception as e:
-    st.error(f"❌ Error al leer Cartera: {e}")
+    st.error(f"âŒ Error al leer Cartera: {e}")
     st.stop()
 
 _cols_lower = {c.lower(): c for c in df_cart.columns}
@@ -86,7 +86,7 @@ ORDERS_COL  = _cols_lower.get("orders_l28d")
 
 if not FARMER_COL or not ID_COL:
     st.error(
-        "❌ Columnas **BRAND_OWNER_EMAIL_NUEVO** o **COUNTRY_BRAND_ID** no encontradas en Cartera. "
+        "âŒ Columnas **BRAND_OWNER_EMAIL_NUEVO** o **COUNTRY_BRAND_ID** no encontradas en Cartera. "
         f"Columnas disponibles: {', '.join(df_cart.columns.tolist())}"
     )
     st.stop()
@@ -101,10 +101,10 @@ if ORDERS_COL:
 if ID_COL:
     df_cart[ID_COL] = df_cart[ID_COL].astype(str)
 
-# ── Recencia desde Productividad ──────────────────────────────────────────────
+# â”€â”€ Recencia desde Productividad â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 @st.cache_data(show_spinner=False)
 def compute_last_contact(df_prod_json: str, ref_str: str) -> dict:
-    """Returns dict[brand_id → last_contact_timestamp] for last 30 days."""
+    """Returns dict[brand_id â†’ last_contact_timestamp] for last 30 days."""
     ref = pd.Timestamp(ref_str)
     try:
         df = pd.read_json(io.StringIO(df_prod_json))
@@ -145,7 +145,7 @@ def compute_last_contact(df_prod_json: str, ref_str: str) -> dict:
     return df_30.groupby("code")["date"].max().to_dict()
 
 
-# Convert productividad DataFrame → JSON for cache key
+# Convert productividad DataFrame â†’ JSON for cache key
 _prod_json_key = None
 if df_prod is not None:
     try:
@@ -157,9 +157,9 @@ last_contact_brand: dict = {}
 if _prod_json_key:
     last_contact_brand = compute_last_contact(_prod_json_key, str(ref_ts))
 else:
-    st.warning("⚠️ Sin datos de Productividad — la recencia se mostrará como 'desconocida'.")
+    st.warning("âš ï¸ Sin datos de Productividad â€” la recencia se mostrarÃ¡ como 'desconocida'.")
 
-# ── Calcular días sin contacto y score ───────────────────────────────────────
+# â”€â”€ Calcular dÃ­as sin contacto y score â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 def _days_since(brand_id: str) -> float | None:
     ts = last_contact_brand.get(str(brand_id))
     if ts is None:
@@ -176,9 +176,9 @@ df_cart["score"] = (
     gmv_vals.where(df_cart["semanas_sc"].notna(), 0.0) * df_cart["semanas_sc"].fillna(0.0)
 ).astype(float)
 
-# ── Sidebar filters ───────────────────────────────────────────────────────────
+# â”€â”€ Sidebar filters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 with st.sidebar:
-    st.markdown("### 🔍 Filtros")
+    st.markdown("### ðŸ” Filtros")
     if is_supervisor:
         farmer_opts = ["Todos"] + [
             FARMER_NAMES.get(e, e.split("@")[0].title())
@@ -188,11 +188,11 @@ with st.sidebar:
     else:
         sel_farmer = FARMER_NAMES.get(email.strip().lower(), email)
 
-    min_weeks = st.slider("Mín. semanas sin contacto", 1, 8, 2, key="churn_weeks")
-    min_gmv   = st.number_input("Mín. GMV L28D ($)", min_value=0, value=0, step=500,
+    min_weeks = st.slider("MÃ­n. semanas sin contacto", 1, 8, 2, key="churn_weeks")
+    min_gmv   = st.number_input("MÃ­n. GMV L28D ($)", min_value=0, value=0, step=500,
                                 key="churn_min_gmv")
 
-# ── Filtrar ───────────────────────────────────────────────────────────────────
+# â”€â”€ Filtrar â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 mask_weeks = df_cart["semanas_sc"] >= min_weeks
 mask_gmv   = (gmv_vals >= min_gmv) if min_gmv > 0 else pd.Series(True, index=df_cart.index)
 df_risk = df_cart[mask_weeks & mask_gmv].copy()
@@ -206,31 +206,31 @@ elif not is_supervisor:
 
 df_risk = df_risk.sort_values("score", ascending=False).reset_index(drop=True)
 
-# ── KPIs ─────────────────────────────────────────────────────────────────────
+# â”€â”€ KPIs â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 total_riesgo  = len(df_risk)
 gmv_riesgo    = float(gmv_vals[df_risk.index].sum()) if GMV_COL else 0.0
 avg_weeks     = df_risk["semanas_sc"].mean() if not df_risk.empty else 0.0
 max_score     = float(df_risk["score"].max()) if not df_risk.empty else 0.0
 
 c1, c2, c3, c4 = st.columns(4)
-c1.metric("🚨 Marcas en alerta",    total_riesgo)
-c2.metric("💰 GMV en riesgo L28D", f"${gmv_riesgo:,.0f}")
-c3.metric("📅 Sem. prom. sin contacto", f"{avg_weeks:.1f}" if total_riesgo else "—")
-c4.metric("🔥 Score máximo",        f"{max_score:,.0f}" if total_riesgo else "—")
+c1.metric("ðŸš¨ Marcas en alerta",    total_riesgo)
+c2.metric("ðŸ’° GMV en riesgo L28D", f"${gmv_riesgo:,.0f}")
+c3.metric("ðŸ“… Sem. prom. sin contacto", f"{avg_weeks:.1f}" if total_riesgo else "â€”")
+c4.metric("ðŸ”¥ Score mÃ¡ximo",        f"{max_score:,.0f}" if total_riesgo else "â€”")
 
 st.markdown("---")
 
-# ── Tabla principal ───────────────────────────────────────────────────────────
+# â”€â”€ Tabla principal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 if df_risk.empty:
-    st.success("✅ No hay marcas en alerta con los filtros seleccionados.")
+    st.success("âœ… No hay marcas en alerta con los filtros seleccionados.")
 else:
     st.markdown(f"### {total_riesgo} marcas en riesgo de churn")
 
     disp: dict = {}
     if NAME_COL:
-        disp["Marca"]   = df_risk[NAME_COL].fillna("—").astype(str)
+        disp["Marca"]   = df_risk[NAME_COL].fillna("â€”").astype(str)
     if COUNTRY_COL:
-        disp["País"]    = df_risk[COUNTRY_COL].fillna("—").astype(str)
+        disp["PaÃ­s"]    = df_risk[COUNTRY_COL].fillna("â€”").astype(str)
     disp["Farmer"]      = df_risk[FARMER_COL].map(
         lambda e: FARMER_NAMES.get(e, e.split("@")[0].title())
     )
@@ -246,23 +246,23 @@ else:
 
     col_cfg = {
         "Marca":            st.column_config.TextColumn("Marca", width="large"),
-        "País":             st.column_config.TextColumn("País", width="small"),
+        "PaÃ­s":             st.column_config.TextColumn("PaÃ­s", width="small"),
         "Farmer":           st.column_config.TextColumn("Farmer", width="medium"),
-        "GMV L28D":         st.column_config.NumberColumn("💰 GMV L28D", format="$%,.0f"),
+        "GMV L28D":         st.column_config.NumberColumn("ðŸ’° GMV L28D", format="$%,.0f"),
         "Orders L28D":      st.column_config.NumberColumn("Orders L28D", format="%d"),
-        "Sem. sin contacto":st.column_config.NumberColumn("⏱ Sem. sin contacto", format="%.1f"),
+        "Sem. sin contacto":st.column_config.NumberColumn("â± Sem. sin contacto", format="%.1f"),
         "Score":            st.column_config.ProgressColumn(
-                                "🔥 Score riesgo", format="%.0f",
+                                "ðŸ”¥ Score riesgo", format="%.0f",
                                 min_value=0, max_value=max_sc),
     }
     st.data_editor(df_disp, use_container_width=True, hide_index=True,
                    disabled=True, column_config=col_cfg)
 
-    st.caption("Score = GMV L28D × semanas sin contacto — mayor score = mayor urgencia de llamar hoy")
+    st.caption("Score = GMV L28D Ã— semanas sin contacto â€” mayor score = mayor urgencia de llamar hoy")
 
-    # ── Top alerta por farmer (callout) ───────────────────────────────────────
+    # â”€â”€ Top alerta por farmer (callout) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     st.markdown("---")
-    st.markdown("### 📞 Llamadas prioritarias por farmer")
+    st.markdown("### ðŸ“ž Llamadas prioritarias por farmer")
     farmer_top = (
         df_risk.groupby(FARMER_COL, group_keys=False)
         .apply(lambda g: g.nlargest(1, "score"))
@@ -272,7 +272,7 @@ else:
         top_sorted["_gmv"] = gmv_vals
     for rec in top_sorted.to_dict("records"):
         fname  = FARMER_NAMES.get(rec[FARMER_COL], rec[FARMER_COL])
-        brand  = str(rec[NAME_COL]) if NAME_COL else "—"
+        brand  = str(rec[NAME_COL]) if NAME_COL else "â€”"
         gmv_v  = float(rec.get("_gmv") or 0) if GMV_COL else 0
         weeks  = rec["semanas_sc"]
         score  = rec["score"]
@@ -280,9 +280,10 @@ else:
         st.markdown(
             f"<div style='background:#FEF2F2;border-left:4px solid {color};"
             f"border-radius:8px;padding:0.6rem 1rem;margin-bottom:0.4rem'>"
-            f"<b>{fname}</b> — <b>{brand}</b>: "
-            f"<span style='color:{color}'>⏱ {weeks:.1f} sem. sin contacto</span> · "
-            f"💰 ${gmv_v:,.0f} GMV · Score: {score:,.0f}"
+            f"<b>{fname}</b> â€” <b>{brand}</b>: "
+            f"<span style='color:{color}'>â± {weeks:.1f} sem. sin contacto</span> Â· "
+            f"ðŸ’° ${gmv_v:,.0f} GMV Â· Score: {score:,.0f}"
             f"</div>",
             unsafe_allow_html=True,
         )
+
