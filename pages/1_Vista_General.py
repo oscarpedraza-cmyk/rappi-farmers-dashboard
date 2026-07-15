@@ -310,7 +310,7 @@ fig.update_layout(
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)",
     xaxis=dict(side="top", tickfont=dict(size=11)),
-    yaxis=dict(tickfont=dict(size=11)),
+    yaxis=dict(tickfont=dict(size=11), autorange="reversed"),
 )
 st.plotly_chart(fig, use_container_width=True)
 
