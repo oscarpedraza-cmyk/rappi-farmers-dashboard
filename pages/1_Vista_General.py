@@ -177,68 +177,140 @@ with qc2:
                 unsafe_allow_html=True,
             )
 
-# ── Heatmap por métrica ───────────────────────────────────────────────────────
+# ── Heatmap por cuartil (relativo por métrica) ───────────────────────────────
 st.markdown("---")
 st.markdown("## Mapa de calor del equipo")
 st.caption(
-    "🟢 Ads Revenue = verde cuando va al ritmo o por encima del mes (Net Rev Adj ≥ 0). "
-    "🟡/🔴 si el pace actual no llegaría al 100% a fin de mes."
+    "Colores por cuartil relativo dentro de cada métrica: "
+    "🟢 Q1 (top 25%) · 🔵 Q2 · 🟠 Q3 · 🔴 Q4 (bottom 25%). "
+    "La columna **Cuartil** refleja el ranking global del farmer."
 )
 
-metrics_list = list(METRICS_DISPLAY.keys())
-farmers_list = df["name"].tolist()
+# Direction: True = higher value is better (Q1 = highest)
+#            False = lower value is better (Q1 = lowest)
+METRIC_DIRECTION = {
+    "Churn":          True,   # higher ATT_Churn = better retention
+    "MD Total":       True,
+    "MD Pro":         True,
+    "Ads Bookings":   True,
+    "Ads Revenue":    True,
+    "Net Rev Adj":    True,   # positive pp = on-pace or above
+    "Pitch Integral": True,
+    "No Contactados": False,  # lower no-contact % = better
+}
 
-color_map = {"red": 0, "yellow": 1, "green": 2, "gray": -1}
+def _quartile_z(series: pd.Series, higher_is_better: bool = True) -> pd.Series:
+    """Return z value per element: 3=Q1/best, 2=Q2, 1=Q3, 0=Q4/worst, -1=S/D."""
+    valid = series.dropna()
+    if len(valid) == 0:
+        return pd.Series(-1, index=series.index, dtype=float)
+    q25 = float(valid.quantile(0.25))
+    q50 = float(valid.quantile(0.50))
+    q75 = float(valid.quantile(0.75))
+
+    def _z(v):
+        if v is None or (isinstance(v, float) and pd.isna(v)):
+            return -1
+        if higher_is_better:
+            if v >= q75: return 3
+            if v >= q50: return 2
+            if v >= q25: return 1
+            return 0
+        else:
+            if v <= q25: return 3
+            if v <= q50: return 2
+            if v <= q75: return 1
+            return 0
+
+    return series.map(_z)
+
+# Sort farmers: Q1 at top, Q4 at bottom, then by score within quartile
+_q_order = {"Q1": 0, "Q2": 1, "Q3": 2, "Q4": 3}
+df_heat = df.sort_values(
+    ["quartile", "score"],
+    key=lambda s: s.map(_q_order) if s.name == "quartile" else -s,
+    ascending=[True, False],
+).reset_index(drop=True)
+
+metrics_list = list(METRICS_DISPLAY.keys())
+farmers_list = df_heat["name"].tolist()
+
+# ── Build z and text matrices ─────────────────────────────────────────────────
+# Precompute per-metric quartile z-series
+_metric_z: dict[str, pd.Series] = {}
+for _m, (_key, _fmt) in METRICS_DISPLAY.items():
+    _col = f"val_{_m}"
+    _metric_z[_m] = _quartile_z(df_heat[_col], METRIC_DIRECTION.get(_m, True))
+
+# Overall quartile column (Q1→3, Q2→2, Q3→1, Q4→0)
+_overall_q_z = df_heat["quartile"].map({"Q1": 3, "Q2": 2, "Q3": 1, "Q4": 0}).tolist()
+_overall_q_text = df_heat["quartile"].tolist()
+
+# Columns: "Cuartil" first, then metrics
+x_labels = ["Cuartil"] + metrics_list
+
 z = []
 text = []
-for row in df.to_dict("records"):
-    z_row = []
-    t_row = []
-    for metric in metrics_list:
-        sem = row[f"sem_{metric}"]
+for i, row in df_heat.iterrows():
+    z_row   = [_overall_q_z[list(df_heat.index).index(i)]]
+    t_row   = [_overall_q_text[list(df_heat.index).index(i)]]
+    for metric, (_key, _fmt) in METRICS_DISPLAY.items():
         val = row[f"val_{metric}"]
-        z_row.append(color_map.get(sem, -1))
-        if val is None:
+        z_row.append(int(_metric_z[metric].loc[i]))
+        if val is None or (isinstance(val, float) and pd.isna(val)):
             t_row.append("S/D")
-        elif METRICS_DISPLAY[metric][1] == "decimal":
+        elif _fmt == "decimal":
             t_row.append(f"{val*100:.1f}%")
-        elif METRICS_DISPLAY[metric][1] == "pp":
+        elif _fmt == "pp":
             t_row.append(f"{val:+.1f}pp")
         else:
             t_row.append(f"{val:.1f}%")
     z.append(z_row)
     text.append(t_row)
 
-# Discrete colorscale for z in {-1=gray, 0=red, 1=yellow, 2=green}.
-# With zmin=-1, zmax=2 (range=3) the normalised positions of the midpoints
-# between adjacent z-values are: (-1,0)→0.167, (0,1)→0.500, (1,2)→0.833.
-# The old scale had the yellow→green boundary at 0.66/0.67 but z=1 maps to
-# exactly 0.667 → it fell in the green band. Fixed below with exact midpoints.
+# ── Colorscale: z ∈ {-1=gray, 0=Q4/red, 1=Q3/orange, 2=Q2/blue, 3=Q1/green}
+# With zmin=-1, zmax=3 (range=4), midpoints at 0.125, 0.375, 0.625, 0.875
 colorscale = [
-    [0.000, "#9CA3AF"],  # z=-1 → gray  (no data)
-    [0.166, "#9CA3AF"],
-    [0.167, "#EF4444"],  # z=0  → red
-    [0.499, "#EF4444"],
-    [0.500, "#F59E0B"],  # z=1  → yellow  (≥ 0.500, safely covers 0.667)
-    [0.832, "#F59E0B"],
-    [0.833, "#00B341"],  # z=2  → green
-    [1.000, "#00B341"],
+    [0.000, "#9CA3AF"],  # -1 → S/D gray
+    [0.124, "#9CA3AF"],
+    [0.125, "#EF4444"],  #  0 → Q4 red
+    [0.374, "#EF4444"],
+    [0.375, "#F97316"],  #  1 → Q3 orange
+    [0.624, "#F97316"],
+    [0.625, "#3B82F6"],  #  2 → Q2 blue
+    [0.874, "#3B82F6"],
+    [0.875, "#16A34A"],  #  3 → Q1 green
+    [1.000, "#16A34A"],
 ]
 
 fig = go.Figure(data=go.Heatmap(
-    z=z, x=metrics_list, y=farmers_list,
+    z=z, x=x_labels, y=farmers_list,
     text=text, texttemplate="%{text}",
     textfont={"size": 11, "color": "white", "family": "sans-serif"},
     colorscale=colorscale, showscale=False,
     hovertemplate="%{y} | %{x}: %{text}<extra></extra>",
-    zmin=-1, zmax=2,
+    zmin=-1, zmax=3,
 ))
+
+# Horizontal separator lines between quartile groups
+_q_boundaries = []
+_prev_q = None
+for _idx, _qv in enumerate(df_heat["quartile"].tolist()):
+    if _prev_q is not None and _qv != _prev_q:
+        _q_boundaries.append(_idx - 0.5)
+    _prev_q = _qv
+for _yb in _q_boundaries:
+    fig.add_hline(
+        y=_yb, line_color="white", line_width=2.5, line_dash="solid",
+    )
+
 fig.update_layout(
-    height=max(400, len(farmers_list) * 35),
+    height=max(400, len(farmers_list) * 38),
     margin=dict(l=10, r=10, t=30, b=10),
     plot_bgcolor="rgba(0,0,0,0)",
     paper_bgcolor="rgba(0,0,0,0)",
-    xaxis=dict(side="top"),
+    xaxis=dict(side="top", tickfont=dict(size=11)),
+    yaxis=dict(tickfont=dict(size=11)),
 )
 st.plotly_chart(fig, use_container_width=True)
 
