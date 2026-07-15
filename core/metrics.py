@@ -13,23 +13,15 @@ Penalty ADS: exclude aliados with ADS investment >= 70% of GMV
 """
 from __future__ import annotations
 
-# ── Weights and bounds ────────────────────────────────────────────────────────
-WEIGHTS = {
-    "ADS_Rev":  0.35,
-    "MD_Total": 0.20,
-    "MD_Pro":   0.20,
-    "Churn":    0.25,
-}
-
-BOUNDS = {
-    "ADS_Rev":  (0.80, 1.00),   # capped at 100%
-    "MD_Total": (0.80, 1.50),
-    "MD_Pro":   (0.80, 1.50),
-    "Churn":    (0.80, 1.50),
-}
-
-QUALIFIER_PRODUCTIVIDAD = 0.90   # must be >= 90%
-REVENUE_SHARE_CAP_MONTHLY = 2000  # USD
+# Business rules live in config.scoring; re-exported here so existing imports
+# (from core.metrics import WEIGHTS, BOUNDS, …) keep working unchanged.
+from config import scoring
+from config.scoring import (  # noqa: F401  (re-export for backward compatibility)
+    BOUNDS,
+    QUALIFIER_PRODUCTIVIDAD,
+    REVENUE_SHARE_CAP_MONTHLY,
+    WEIGHTS,
+)
 
 
 # ── Traffic-light helpers ─────────────────────────────────────────────────────
@@ -48,9 +40,9 @@ def semaforo_att(att_decimal):
     """ATT as decimal (0–1.5). Red < 0.90, yellow 0.90-0.95, green >= 0.95."""
     if att_decimal is None:
         return "gray"
-    if att_decimal < 0.90:
+    if att_decimal < scoring.ATT_RED:
         return "red"
-    if att_decimal < 0.95:
+    if att_decimal < scoring.ATT_YELLOW:
         return "yellow"
     return "green"
 
@@ -59,9 +51,9 @@ def semaforo_pitch(pct_decimal):
     """Pitch Integral. Red < 0.50, yellow 0.50-0.65, green >= 0.65."""
     if pct_decimal is None:
         return "gray"
-    if pct_decimal < 0.50:
+    if pct_decimal < scoring.PITCH_RED:
         return "red"
-    if pct_decimal < 0.65:
+    if pct_decimal < scoring.PITCH_YELLOW:
         return "yellow"
     return "green"
 
@@ -70,9 +62,9 @@ def semaforo_net_rev(adj_pp):
     """Net Revenue Adjusted in pp. Red < -5, yellow -5 to 0, green >= 0."""
     if adj_pp is None:
         return "gray"
-    if adj_pp < -5:
+    if adj_pp < scoring.NET_REV_RED:
         return "red"
-    if adj_pp < 0:
+    if adj_pp < scoring.NET_REV_YELLOW:
         return "yellow"
     return "green"
 
@@ -81,9 +73,9 @@ def semaforo_no_contactados(pct):
     """% no contactados. Red > 40%, yellow 30-40%, green <= 30%."""
     if pct is None:
         return "gray"
-    if pct > 40:
+    if pct > scoring.NO_CONTACT_RED:
         return "red"
-    if pct > 30:
+    if pct > scoring.NO_CONTACT_YELLOW:
         return "yellow"
     return "green"
 
@@ -103,9 +95,9 @@ def semaforo_recurrencia_no(pct):
     """
     if pct is None:
         return "gray"
-    if pct >= 30:
+    if pct >= scoring.RECURRENCIA_GREEN:
         return "green"
-    if pct >= 15:
+    if pct >= scoring.RECURRENCIA_YELLOW:
         return "yellow"
     return "red"
 
@@ -238,7 +230,7 @@ def calcular_variable_score(
             score_kpi = (clamped - low) / (high - low)
             contributions[kpi] = round(score_kpi * weight * 100, 2)
             total_score += score_kpi * weight
-            kpi_statuses[kpi] = "gana" if att >= 0.90 else "parcial"
+            kpi_statuses[kpi] = "gana" if att >= scoring.KPI_EARNING_THRESHOLD else "parcial"
 
     max_possible = sum(WEIGHTS[k] for k in kpis if kpis[k] is not None)
     variable_pct = (total_score / max_possible * 100) if max_possible > 0 else 0
@@ -263,11 +255,11 @@ def calcular_revenue_share_ads(att_rev_ads_decimal):
     """
     if att_rev_ads_decimal is None:
         return {"pct": 0, "label": "Sin dato", "tier": "gray"}
-    if att_rev_ads_decimal < 0.90:
+    if att_rev_ads_decimal < scoring.REV_SHARE_MIN_ATT:
         return {"pct": 0, "label": "No aplica (< 90%)", "tier": "red"}
-    if att_rev_ads_decimal <= 1.00:
+    if att_rev_ads_decimal <= scoring.REV_SHARE_TIER1_MAX:
         return {"pct": 10, "label": "10% Revenue Share", "tier": "yellow"}
-    if att_rev_ads_decimal <= 1.20:
+    if att_rev_ads_decimal <= scoring.REV_SHARE_TIER2_MAX:
         return {"pct": 20, "label": "20% Revenue Share", "tier": "green"}
     return {"pct": 30, "label": "30% Revenue Share 🔥", "tier": "green"}
 

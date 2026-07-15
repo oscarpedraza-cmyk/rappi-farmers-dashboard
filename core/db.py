@@ -10,19 +10,24 @@ import os
 import sqlite3
 import streamlit as st
 from datetime import date, datetime
-from pathlib import Path
 
-# â"€â"€ Config â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
-DB_PATH = Path(__file__).parent.parent / "data" / "history.db"
-GSHEET_ID           = os.environ.get("GSHEET_ID")          # set in Render env vars
-GSHEET_TAB          = os.environ.get("GSHEET_TAB", "Historial_Dashboard")
-GSHEET_LATEST_TAB   = os.environ.get("GSHEET_LATEST_TAB", "Latest_State")
-GSHEET_METRICAS_TAB = os.environ.get("GSHEET_METRICAS_TAB", "Metricas_Weekly")
+# Storage identifiers now live in config.storage; imported as module-level names
+# so the rest of this module (and its tests) keep referencing DB_PATH / GSHEET_*
+# exactly as before.
+from config.storage import (
+    DB_PATH,
+    GSHEET_ID,
+    GSHEET_LATEST_TAB,
+    GSHEET_METRICAS_TAB,
+    GSHEET_TAB,
+    GSHEET_CELL_LIMIT,
+    GSHEET_OPTIONAL_RAW_KEYS,
+)
 
 logger = logging.getLogger(__name__)
 
 
-# â"€â"€ SQLite backend (local dev) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+# ── SQLite backend (local dev) ────────────────────────────────────────────────
 def _conn():
     DB_PATH.parent.mkdir(exist_ok=True)
     return sqlite3.connect(str(DB_PATH))
@@ -91,7 +96,7 @@ def _get_dates_sqlite() -> list:
     return [r[0] for r in rows]
 
 
-# â"€â"€ Google Sheets backend (Render production) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+# ── Google Sheets backend (Render production) ────────────────────────────────
 def _gsheet_client():
     """Returns gspread client using service account from GOOGLE_CREDS env var."""
     try:
@@ -107,7 +112,8 @@ def _gsheet_client():
         ]
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
         return gspread.authorize(creds)
-    except Exception:
+    except Exception as e:
+        logger.warning("[db] _gsheet_client auth failed: %s", e)
         return None
 
 
@@ -120,7 +126,8 @@ def _get_or_create_sheet(client):
             ws = sh.add_worksheet(title=GSHEET_TAB, rows=5000, cols=10)
             ws.append_row(["snap_date", "dia_corte", "farmer", "data_json", "created_at"])
         return ws
-    except Exception:
+    except Exception as e:
+        logger.warning("[db] _get_or_create_sheet failed: %s", e)
         return None
 
 
@@ -149,7 +156,8 @@ def _save_gsheet(snap_date: date, dia_corte: int, farmers_data: dict):
         ]
         ws.append_rows(new_rows)
         return True
-    except Exception:
+    except Exception as e:
+        logger.warning("[db] _save_gsheet failed: %s", e)
         return False
 
 
@@ -173,7 +181,8 @@ def _get_gsheet(farmer: str = None, weeks_back: int = 8) -> list:
             entry["dia_corte"] = int(row[1]) if row[1] else None
             result.append(entry)
         return sorted(result, key=lambda x: x["snap_date"], reverse=True)
-    except Exception:
+    except Exception as e:
+        logger.warning("[db] _get_gsheet failed: %s", e)
         return []
 
 
@@ -188,11 +197,12 @@ def _get_dates_gsheet() -> list:
         all_rows = ws.get_all_values()
         dates = sorted({row[0] for row in all_rows[1:] if row}, reverse=True)
         return dates
-    except Exception:
+    except Exception as e:
+        logger.warning("[db] _get_dates_gsheet failed: %s", e)
         return []
 
 
-# â"€â"€ Public API (auto-selects backend) â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+# ── Public API (auto-selects backend) ────────────────────────────────────────
 def _use_gsheet():
     return bool(GSHEET_ID and os.environ.get("GOOGLE_CREDS"))
 
@@ -233,7 +243,7 @@ def get_farmer_trend(farmer: str, metric_keys: list) -> list:
     return trend
 
 
-# â"€â"€ Google Sheets: Latest_State tab â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+# ── Google Sheets: Latest_State tab ──────────────────────────────────────────
 def _get_or_create_latest_sheet(client):
     """Return (or create) the Latest_State worksheet."""
     try:
@@ -264,9 +274,9 @@ def _save_latest_gsheet(payload: dict) -> bool:
         # Try full payload first
         full_json = json.dumps(payload, default=str)
         # GSheet cell limit is ~50 000 chars; split off raw strings if needed
-        if len(full_json) > 49_000:
+        if len(full_json) > GSHEET_CELL_LIMIT:
             compact = {k: v for k, v in payload.items()
-                       if k not in ("productividad_raw", "att_prod_raw", "conversion_raw", "cartera_raw")}
+                       if k not in GSHEET_OPTIONAL_RAW_KEYS}
             payload_json = json.dumps(compact, default=str)
         else:
             payload_json = full_json
@@ -301,12 +311,12 @@ def _load_latest_gsheet():
         return None
 
 
-# â"€â"€ Process-level shared cache (survives across user sessions in same process) â"€â"€
+# ── Process-level shared cache (survives across user sessions in same process) ───
 @st.cache_resource
 def _process_cache() -> dict:
     """
     Single dict shared by ALL user sessions in this Streamlit process.
-    Oscar writes here â†' Maria and the whole team reads it instantly.
+# ── Oscar writes here †' Maria and the whole team reads it instantly. ────────
     """
     return {}
 
@@ -321,9 +331,9 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
     """
     Persists the most recent upload so all farmer sessions can read it.
     Saves to:
-      1. st.cache_resource (instant â€" shared across all sessions in same process)
-      2. Google Sheets (survives Streamlit Cloud redeploys â€" primary persistent store)
-      3. SQLite (backup â€" survives local process restarts)
+# ── 1. st.cache_resource (instant  shared across all sessions in same process) ───
+# ── 2. Google Sheets (survives Streamlit Cloud redeploys  primary persistent store) ───
+# ── 3. SQLite (backup  survives local process restarts) ──────────────────────
     """
     payload = {
         "farmers_data":      farmers_data,
@@ -379,8 +389,8 @@ def _filter_excluded(state: dict) -> dict:
         fd = state.get("farmers_data")
         if isinstance(fd, dict) and EXCLUDED_EMAILS:
             state = {**state, "farmers_data": {k: v for k, v in fd.items() if k not in EXCLUDED_EMAILS}}
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("[db] _filter_excluded failed, returning unfiltered state: %s", e)
     return state
 
 
@@ -447,7 +457,7 @@ def get_consecutive_red_weeks(farmer: str, metric_key: str, red_threshold: float
     return count
 
 
-# â"€â"€ WBR: Checklist semanal persistente â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+# ── WBR: Checklist semanal persistente ───────────────────────────────────────
 def _init_wbr_tables():
     init_db()
     with _conn() as con:
@@ -562,7 +572,7 @@ def delete_disciplinario(farmer_email: str):
         logger.error("[db] disciplinario delete error: %s", e)
 
 
-# â"€â"€ WBR: Llamados de atenciÃ³n â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+# ── WBR: Llamados de atenciÃ³n ───────────────────────────────────────────────
 def _init_llamados_table():
     init_db()
     with _conn() as con:
@@ -631,7 +641,7 @@ def delete_llamado(llamado_id: int):
         logger.error("[db] delete_llamado error: %s", e)
 
 
-# â"€â"€ WBR: Documento semanal persistente â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+# ── WBR: Documento semanal persistente ───────────────────────────────────────
 def _init_wbr_doc_table():
     init_db()
     with _conn() as con:
@@ -677,7 +687,7 @@ def load_wbr_doc(week_key: str) -> dict:
         return {}
 
 
-# â"€â"€ MÃ©tricas Semanales â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€â"€
+# ── MÃ©tricas Semanales ──────────────────────────────────────────────────────
 def _init_metricas_table():
     init_db()
     with _conn() as con:
@@ -754,7 +764,7 @@ def _load_metricas_gsheet():
 def save_metricas_weekly(records: list) -> bool:
     """
     Persist accumulated farmer-level metricas (list of dicts).
-    Saves to: process cache â†' GSheet â†' SQLite.
+# ── Saves to: process cache †' GSheet †' SQLite. ─────────────────────────────
     """
     # 1. Process cache
     cache = _process_cache()
@@ -786,7 +796,7 @@ def save_metricas_weekly(records: list) -> bool:
 def load_metricas_weekly():
     """
     Returns list of farmer-level metricas dicts, or None if nothing saved.
-    Reads from: process cache â†' GSheet â†' SQLite.
+# ── Reads from: process cache †' GSheet †' SQLite. ───────────────────────────
     """
     # 1. Process cache
     cache = _process_cache()

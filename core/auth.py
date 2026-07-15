@@ -22,10 +22,8 @@ from pathlib import Path
 from typing import Optional
 import streamlit as st
 from core.loader import FARMERS_EMAILS, EXCLUDED_EMAILS, FARMER_NAMES
-
-SUPERVISOR_EMAIL = "oscar.pedraza@rappi.com"
-SUPERVISOR_NAME  = "Oscar Pedraza"
-SESSION_TTL      = 6 * 3600   # seconds — 6 hours
+from config.team import SUPERVISOR_EMAIL, SUPERVISOR_NAME
+from config.storage import SESSION_TTL_SECONDS as SESSION_TTL
 
 
 # ── Server-side token store (survives browser refresh, cleared on server restart) ──
@@ -286,18 +284,7 @@ def render_topbar(updated_at: str = "", dia_corte: int = None, progreso_pct: flo
     Shows: logo + brand | user info | meta chips (date, progress).
     """
     name      = get_auth_name()
-    email     = st.session_state.get("auth_email", "")
-    is_sup    = st.session_state.get("auth_is_supervisor", False)
-    role      = "Supervisor" if is_sup else "Farmer"
-    role_icon = "🔑" if is_sup else "👤"
     today_str = date.today().strftime("%d %b %Y")
-
-    logo_path = Path(__file__).parent.parent / "assets" / "rappi_logo.png"
-    if logo_path.exists():
-        b64 = base64.b64encode(logo_path.read_bytes()).decode()
-        logo_html = f'<img src="data:image/png;base64,{b64}" height="28" style="display:block">'
-    else:
-        logo_html = '<span style="font-size:1.2rem;font-weight:900;color:#FF441B">rappi</span>'
 
     chips_html = f'<span class="rb-meta-chip">📅 {today_str}</span>'
     if updated_at:
