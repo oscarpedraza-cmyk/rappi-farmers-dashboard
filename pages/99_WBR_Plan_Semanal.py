@@ -29,7 +29,7 @@ from core.db import (
     save_wbr_doc, load_wbr_doc,
 )
 
-st.set_page_config(page_title="WBR Plan Semanal — Rappi Farmers", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="WBR Plan Semanal — Rappi Farmers", page_icon="🌍", layout="wide", initial_sidebar_state="expanded")
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email_auth, is_supervisor = require_auth()
 render_topbar()

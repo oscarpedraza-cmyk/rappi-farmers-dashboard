@@ -32,7 +32,7 @@ def _is_one(s: pd.Series) -> pd.Series:
 
 st.set_page_config(
     page_title="Vista Farmer — Rappi Farmers",
-    page_icon="🚀",
+    page_icon="🌍",
     layout="wide", initial_sidebar_state="expanded",
 )
 st.markdown(inject_global_css(), unsafe_allow_html=True)
