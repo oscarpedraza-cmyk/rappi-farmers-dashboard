@@ -322,7 +322,10 @@ if is_supervisor:
                         _att_error = str(_e)
 
                     _prev_state     = load_latest_state() or {}
-                    _asig_preserved = asig_from_maestro_json or _prev_state.get("asignacion_raw")
+                    # asignacion_raw survives GSheets size limit; cartera_raw may be dropped.
+                    # Use cartera_raw_json as fallback so Cartera page always finds data.
+                    _asig_preserved = (asig_from_maestro_json or cartera_raw_json
+                                       or _prev_state.get("asignacion_raw"))
                     save_latest_state(
                         farmers_data           = farmers_data,
                         dia_corte              = dia_corte_in,

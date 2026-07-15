@@ -42,8 +42,9 @@ if "farmers_data" not in st.session_state:
         st.session_state["farmers_data"] = latest["farmers_data"]
         st.session_state["dia_corte"]    = latest["dia_corte"]
         st.session_state["dias_mes"]     = latest["dias_mes"]
-        if latest.get("cartera_raw"):
-            st.session_state["_cartera_raw"] = latest["cartera_raw"]
+        _cartera_src = latest.get("cartera_raw") or latest.get("asignacion_raw")
+        if _cartera_src:
+            st.session_state["_cartera_raw"] = _cartera_src
         if latest.get("productividad_raw"):
             try:
                 _df = pd.read_json(io.StringIO(latest["productividad_raw"]))
