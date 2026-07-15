@@ -372,6 +372,18 @@ def save_latest_state(farmers_data: dict, dia_corte: int, dias_mes: int,
     return True
 
 
+def _filter_excluded(state: dict) -> dict:
+    """Remove excluded farmers from a loaded state snapshot."""
+    try:
+        from core.loader import EXCLUDED_EMAILS
+        fd = state.get("farmers_data")
+        if isinstance(fd, dict) and EXCLUDED_EMAILS:
+            state = {**state, "farmers_data": {k: v for k, v in fd.items() if k not in EXCLUDED_EMAILS}}
+    except Exception:
+        pass
+    return state
+
+
 def load_latest_state():
     """
     Returns the dict saved by save_latest_state, or None if nothing saved yet.
@@ -384,7 +396,7 @@ def load_latest_state():
     # 1. Try process-level cache first (fastest, most current)
     cache = _process_cache()
     if cache.get("latest"):
-        return cache["latest"]
+        return _filter_excluded(cache["latest"])
 
     # 2. Try Google Sheets (survives Streamlit Cloud redeploys)
     if _use_gsheet():
@@ -392,7 +404,7 @@ def load_latest_state():
             result = _load_latest_gsheet()
             if result:
                 cache["latest"] = result   # warm up process cache
-                return result
+                return _filter_excluded(result)
         except Exception as e:
             logger.error("[db] load_latest_state gsheet error: %s", e)
 
@@ -415,7 +427,7 @@ def load_latest_state():
         result = json.loads(row[0])
         # Warm up the process cache so next calls are instant
         cache["latest"] = result
-        return result
+        return _filter_excluded(result)
     except Exception as e:
         logger.error("[db] load_latest_state error: %s", e)
         return None
