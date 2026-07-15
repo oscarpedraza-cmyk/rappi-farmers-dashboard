@@ -498,28 +498,31 @@ section[data-testid="stSidebar"],
 /* ── Expander ────────────────────────────────────────────────────────────────── */
 [data-testid="stExpander"] {{
     background: {BG_CARD} !important; border: 1.5px solid {C_BORDER} !important;
-    border-radius: 14px !important;
+    border-radius: 14px !important; overflow: hidden !important;
 }}
 [data-testid="stExpander"] details > summary {{
-    list-style: none; cursor: pointer; display: flex;
-    align-items: center; padding: 10px 14px;
-    border-radius: 12px; user-select: none; gap: 6px;
-    background: {BG_CARD_2};
+    list-style: none !important; cursor: pointer !important;
+    display: flex !important; align-items: center !important;
+    padding: 10px 14px !important; border-radius: 12px !important;
+    user-select: none !important; background: {BG_CARD_2} !important;
+    position: relative !important;
 }}
-[data-testid="stExpander"] details > summary::-webkit-details-marker {{ display: none; }}
-[data-testid="stExpander"] details > summary > :first-child {{
-    font-size: 0 !important; width: 14px !important; min-width: 14px !important;
-    height: 14px !important; overflow: hidden;
+[data-testid="stExpander"] details > summary::-webkit-details-marker {{ display: none !important; }}
+/* Hide Streamlit's built-in SVG arrow — it overlaps the label */
+[data-testid="stExpander"] details > summary svg {{ display: none !important; }}
+/* Custom chevron via ::after (right-aligned) */
+[data-testid="stExpander"] details > summary::before {{ display: none !important; }}
+[data-testid="stExpander"] details > summary::after {{
+    content: '' !important; display: inline-block !important;
+    width: 6px !important; height: 6px !important;
+    border-right: 2px solid {C_MUTED} !important;
+    border-bottom: 2px solid {C_MUTED} !important;
+    transform: rotate(-45deg) !important; flex-shrink: 0 !important;
+    margin-left: auto !important; transition: transform 0.13s ease !important;
 }}
-[data-testid="stExpander"] details > summary > :first-child svg {{
-    width: 14px !important; height: 14px !important; display: block;
+[data-testid="stExpander"] details[open] > summary::after {{
+    transform: rotate(45deg) !important;
 }}
-[data-testid="stExpander"] details > summary::before {{
-    content: ''; display: inline-block; width: 5px; height: 5px;
-    border-right: 1.5px solid {C_MUTED}; border-bottom: 1.5px solid {C_MUTED};
-    transform: rotate(-45deg); flex-shrink: 0; transition: transform 0.12s ease;
-}}
-[data-testid="stExpander"] details[open] > summary::before {{ transform: rotate(45deg); }}
 
 /* ── Plotly ──────────────────────────────────────────────────────────────────── */
 .js-plotly-plot {{ background: {BG_CARD} !important; border-radius: 14px !important; }}

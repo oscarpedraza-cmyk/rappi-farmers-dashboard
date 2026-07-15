@@ -219,7 +219,7 @@ if farmer_df.empty:
     <div class="rb-empty-state">
         <div class="rb-empty-icon">📊</div>
         <h3>Sin métricas semanales</h3>
-        <p>Cargá el archivo <b>Metrics Weekly</b> en <b>Carga de Datos</b> para comenzar el análisis.</p>
+        <p>Cargá el archivo <b>Metrics Weekly</b> usando el expander de arriba para comenzar el análisis.</p>
     </div>
     """, unsafe_allow_html=True)
     st.stop()
@@ -231,24 +231,25 @@ all_countries = [c for c in sorted(farmer_df["country"].unique()) if c in ("AR",
 all_farmers_emails = sorted(e for e in farmer_df["farmer"].unique() if e not in ("Total", "nan", ""))
 
 with st.container():
-    st.markdown('<div class="rb-filter-bar">', unsafe_allow_html=True)
-    st.markdown('<div class="rb-filter-title">Filtros globales</div>', unsafe_allow_html=True)
     fcol1, fcol2, fcol3, fcol4 = st.columns([1, 2, 3, 3])
     with fcol1:
         sel_country = st.radio("País", ["Todos"] + all_countries, key="sp_country", horizontal=True)
     with fcol2:
-        sel_week = st.selectbox("Semana", all_weeks, key="sp_week",
+        # Guard: if the persisted key is no longer in all_weeks, reset it
+        _prev_week = st.session_state.get("sp_week")
+        _default_week_idx = 0 if _prev_week not in all_weeks else all_weeks.index(_prev_week)
+        sel_week = st.selectbox("Semana", all_weeks, index=_default_week_idx, key="sp_week",
                                 format_func=lambda w: f"Sem. {w}")
     with fcol3:
+        _default_metrics = [m for m in ["Orders","GMV","CVR (%)","Revenue"] if m in all_metrics] or all_metrics[:4]
         sel_metrics = st.multiselect(
             "Métricas", all_metrics,
-            default=[m for m in ["Orders","GMV","CVR (%)","Revenue"] if m in all_metrics] or all_metrics[:4],
+            default=_default_metrics,
             key="sp_metrics",
         )
     with fcol4:
         sel_farmers = st.multiselect("Farmers", all_farmers_emails,
                                       format_func=_name, key="sp_farmers")
-    st.markdown('</div>', unsafe_allow_html=True)
 
 if not sel_metrics:
     sel_metrics = all_metrics[:4]
