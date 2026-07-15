@@ -21,7 +21,6 @@ FARMERS_EMAILS = [
     "esteban.castano@rappi.com",
     "luisfernando.hernandez@rappi.com",
     "alejandro.salamanca@rappi.com",
-    "luis.ibarra@rappi.com",
     "angie.contreras@rappi.com",
     "diana.saavedra@rappi.com",
     "maria.pedraza@rappi.com",
@@ -31,6 +30,7 @@ FARMERS_EMAILS = [
 # Farmers excluidos (renuncia, licencia, etc.) — no aparecen en el dashboard
 EXCLUDED_EMAILS = {
     "vanesa.fernandez@rappi.com",   # renuncia voluntaria mayo 2026
+    "luis.ibarra@rappi.com",        # salida julio 2026
 }
 
 FARMER_NAMES = {
@@ -43,7 +43,6 @@ FARMER_NAMES = {
     "esteban.castano@rappi.com": "Esteban Castaño",
     "luisfernando.hernandez@rappi.com": "Luis Fernando Hernández",
     "alejandro.salamanca@rappi.com": "Alejandro Salamanca",
-    "luis.ibarra@rappi.com": "Luis Ibarra",
     "angie.contreras@rappi.com": "Angie Contreras",
     "diana.saavedra@rappi.com": "Diana Saavedra",
     "maria.pedraza@rappi.com": "Maria Pedraza",
@@ -61,7 +60,6 @@ SLACK_IDS = {
     "esteban.castano@rappi.com": "U09488QUV19",
     "luisfernando.hernandez@rappi.com": "UMEALSBS7",
     "alejandro.salamanca@rappi.com": "U095P47BZ5X",
-    "luis.ibarra@rappi.com": "U09NYKPPNG5",
     "angie.contreras@rappi.com": "U08H6NS5J2C",
     "diana.saavedra@rappi.com": "U0AAUHTG9DH",
     "maria.pedraza@rappi.com": "U09TT5M0CR2",
