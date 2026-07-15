@@ -259,14 +259,19 @@ def render_sidebar_user_badge():
     is_sup = st.session_state.get("auth_is_supervisor", False)
     role   = "🔑 Supervisor" if is_sup else "👤 Farmer"
 
+    initial = name[0].upper() if name else "R"
     st.sidebar.markdown(f"""
-    <div style="background:#F8F9FB;border-radius:10px;
-                padding:0.6rem 0.8rem;margin-bottom:0.5rem;
-                border:1px solid #E2E8F0;border-left:3px solid #FF441B">
-        <div style="font-size:0.62rem;color:#94A3B8;margin-bottom:2px;text-transform:uppercase;
-                    letter-spacing:0.6px;font-weight:600">{role}</div>
-        <div style="font-weight:700;color:#0F172A;font-size:0.85rem">{name}</div>
-        <div style="font-size:0.68rem;color:#64748B">{email}</div>
+    <div style="display:flex;align-items:center;gap:8px;background:#f8fafc;
+                border:1px solid #e2e8f0;border-radius:20px;
+                padding:5px 10px 5px 6px;margin-bottom:0.5rem">
+        <div style="width:24px;height:24px;border-radius:50%;
+                    background:linear-gradient(135deg,#ff441f,#ff6b47);
+                    display:flex;align-items:center;justify-content:center;
+                    color:white;font-weight:900;font-size:10px;flex-shrink:0">{initial}</div>
+        <div>
+            <div style="font-size:11px;font-weight:700;color:#334155;white-space:nowrap">{name}</div>
+            <div style="font-size:10px;color:#94a3b8">{role} · {email.split('@')[0]}</div>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -301,26 +306,23 @@ def render_topbar(updated_at: str = "", dia_corte: int = None, progreso_pct: flo
         chips_html += (f'<span class="rb-meta-chip" style="margin-left:6px">'
                        f'📊 Corte día {dia_corte} · {progreso_pct:.0f}% del mes</span>')
 
+    first_letter = name[0].upper() if name else "R"
     col_bar, col_btn = st.columns([12, 1])
     with col_bar:
         st.markdown(f"""
         <div class="rb-topbar">
             <div class="rb-topbar-brand">
-                {logo_html}
+                <div class="rb-brand-icon">{first_letter}</div>
                 <div>
-                    <div class="brand-name">Rappi <span>Farmers</span></div>
-                    <div style="font-size:0.65rem;color:#9CA3AF;
-                                margin-top:1px;letter-spacing:0.3px">Dashboard AR / UY</div>
+                    <div class="brand-name">Rappi Farmers</div>
+                    <div class="brand-sub">Dashboard AR / UY</div>
                 </div>
             </div>
-            <div style="display:flex;align-items:center;gap:10px">
+            <div style="display:flex;align-items:center;gap:8px">
                 {chips_html}
                 <div class="rb-user-badge">
-                    <div class="rb-status-dot"></div>
-                    <div>
-                        <div class="user-name">{role_icon} {name}</div>
-                        <div class="user-role">{role} · {email.split('@')[0]}</div>
-                    </div>
+                    <div class="user-avatar">{first_letter}</div>
+                    <span class="user-name">{name.split()[0]}</span>
                 </div>
             </div>
         </div>

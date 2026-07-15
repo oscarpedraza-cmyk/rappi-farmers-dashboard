@@ -1,40 +1,40 @@
 """
-core/style.py — Rappi Farmers Design System (Executive Edition)
-Clean, minimal executive aesthetic with Rappi coral identity.
+core/style.py — Rappi Farmers Design System (Auditor PRO Theme)
 """
 from __future__ import annotations
 
 # ── Design tokens ─────────────────────────────────────────────────────────────
-BG_PAGE    = "#F8F9FB"   # page canvas — ultra-light blue-white
-BG_CARD    = "#FFFFFF"   # card / chart surface
-BG_NAV     = "#FFFFFF"   # top navbar
+BG_PAGE    = "#f1f5f9"   # slate-100 canvas — mismo que Auditor PRO
+BG_CARD    = "#FFFFFF"   # card / surface
+BG_CARD_2  = "#f8fafc"   # muted card / alternating rows
+BG_NAV     = "#FFFFFF"   # topbar
 BG_SIDEBAR = "#FFFFFF"   # sidebar
-C_RED      = "#FF441B"   # Rappi coral — primary accent
-C_RED_DARK = "#E03A16"   # hover / pressed
-C_RED_SOFT = "#FFF1EE"   # coral tint
-C_GREEN    = "#16A34A"   # success (more refined green)
-C_AMBER    = "#D97706"   # warning (deeper amber)
+C_RED      = "#ff441f"   # Rappi coral
+C_RED_DARK = "#e03a17"   # hover
+C_RED_SOFT = "#fff7ed"   # coral warm tint (auditor PRO #fff7ed)
+C_GREEN    = "#16A34A"   # success
+C_AMBER    = "#D97706"   # warning
 C_BLUE     = "#2563EB"   # info
-C_TEXT     = "#0F172A"   # primary text (darker for contrast)
-C_TEXT_2   = "#334155"   # secondary text
-C_MUTED    = "#64748B"   # muted text
-C_BORDER   = "#E2E8F0"   # borders (slightly cooler)
+C_TEXT     = "#0F172A"   # primary text
+C_TEXT_2   = "#334155"   # secondary
+C_MUTED    = "#64748B"   # muted
+C_MUTED_2  = "#94a3b8"   # very muted — section labels
+C_BORDER   = "#E2E8F0"   # border
 C_BORDER_2 = "#CBD5E1"   # stronger border
-C_SHADOW   = "rgba(15,23,42,0.05)"  # base shadow
+C_SHADOW   = "rgba(15,23,42,0.05)"
 C_BG_RED   = "#FEF2F2"
 C_BG_YEL   = "#FFFBEB"
 C_BG_GRN   = "#F0FDF4"
+C_GRAD     = "linear-gradient(135deg,#ff441f,#ff6b47)"  # Rappi gradient
 
 
 def inject_global_css() -> str:
     return f"""
 <style>
-/* ── Fonts ──────────────────────────────────────────────────────────────────── */
-@import url('https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&display=swap');
-
+/* ── Base ────────────────────────────────────────────────────────────────────── */
 html, body, [class*="css"], [class*="st-"] {{
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif !important;
-    font-size: 14px;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif !important;
+    font-size: 13px;
     color: {C_TEXT};
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -42,8 +42,8 @@ html, body, [class*="css"], [class*="st-"] {{
 
 /* ── Keyframes ───────────────────────────────────────────────────────────────── */
 @keyframes fadeIn {{
-    from {{ opacity: 0; transform: translateY(6px); }}
-    to   {{ opacity: 1; transform: translateY(0);   }}
+    from {{ opacity: 0; transform: translateY(4px); }}
+    to   {{ opacity: 1; transform: translateY(0); }}
 }}
 @keyframes pulse {{
     0%, 100% {{ box-shadow: 0 0 0 0 rgba(22,163,74,0.4); }}
@@ -60,9 +60,9 @@ html, body, [class*="css"], [class*="st-"] {{
 .stApp {{ background: {BG_PAGE} !important; }}
 .main .block-container {{
     background: {BG_PAGE} !important;
-    padding-top: 0.4rem !important;
-    padding-left: 1.6rem !important;
-    padding-right: 1.6rem !important;
+    padding-top: 0.35rem !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
     max-width: 1440px !important;
 }}
 
@@ -100,20 +100,34 @@ section[data-testid="stSidebar"],
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
 [data-testid="stSidebar"] h3 {{ color: {C_TEXT} !important; }}
-[data-testid="stSidebar"] hr {{ border-color: {C_BORDER} !important; }}
+[data-testid="stSidebar"] hr {{
+    border: none !important;
+    border-top: 1px solid {C_BORDER} !important;
+}}
 [data-testid="stSidebar"] .stButton > button {{
-    background: {C_RED_SOFT} !important;
-    color: {C_RED} !important;
-    border: 1px solid rgba(255,68,27,0.2) !important;
+    background: {BG_PAGE} !important;
+    color: {C_MUTED} !important;
+    border: 1px solid {C_BORDER} !important;
+    box-shadow: none !important;
 }}
 
-/* Nav links */
+/* ── Sidebar nav ─────────────────────────────────────────────────────────────── */
+[data-testid="stSidebarNav"]::before {{
+    content: "PÁGINAS";
+    display: block;
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 1.6px;
+    color: {C_MUTED_2};
+    padding: 0 0.85rem 0.3rem;
+    text-transform: uppercase;
+}}
 [data-testid="stSidebarNav"] a {{
     color: {C_MUTED} !important;
     border-radius: 7px !important;
-    font-size: 0.85rem !important;
+    font-size: 0.82rem !important;
     font-weight: 500 !important;
-    padding: 0.38rem 0.8rem !important;
+    padding: 0.35rem 0.8rem !important;
     transition: background 0.15s, color 0.15s;
 }}
 [data-testid="stSidebarNav"] a:hover {{
@@ -127,192 +141,257 @@ section[data-testid="stSidebar"],
 }}
 [data-testid="stSidebarNav"] svg {{ display: none; }}
 
-/* ── Top Navbar ──────────────────────────────────────────────────────────────── */
+/* ── Sidebar brand footer ────────────────────────────────────────────────────── */
+.rb-sidebar-footer {{
+    font-size: 0.68rem;
+    color: {C_MUTED_2};
+    padding: 0.4rem 0.3rem 0.2rem;
+    letter-spacing: 0.2px;
+    line-height: 1.5;
+}}
+.rb-sidebar-footer strong {{ color: {C_RED}; }}
+
+/* ── Topbar ──────────────────────────────────────────────────────────────────── */
 .rb-topbar {{
     background: {BG_CARD};
-    border: 1px solid {C_BORDER};
-    border-radius: 10px;
-    padding: 0.65rem 1.2rem;
+    border-bottom: 1px solid {C_BORDER};
+    padding: 0.55rem 1rem;
     display: flex;
     align-items: center;
     justify-content: space-between;
     margin-bottom: 1rem;
-    box-shadow: 0 1px 2px {C_SHADOW};
-    animation: fadeIn 0.25s ease both;
+    animation: fadeIn 0.2s ease both;
+    border-radius: 10px;
+    border: 1px solid {C_BORDER};
 }}
 .rb-topbar-brand {{ display: flex; align-items: center; gap: 10px; }}
-.rb-topbar-brand .brand-name {{
-    font-size: 0.95rem; font-weight: 800; color: {C_TEXT} !important; letter-spacing: -0.3px;
+.rb-topbar-brand .rb-brand-icon {{
+    width: 32px; height: 32px; border-radius: 8px;
+    background: {C_GRAD};
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 900; color: white; font-size: 14px;
+    flex-shrink: 0;
 }}
-.rb-topbar-brand .brand-name span {{ color: {C_RED} !important; }}
-.rb-topbar-right {{ display: flex; align-items: center; gap: 10px; }}
+.rb-topbar-brand .brand-name {{
+    font-size: 14px; font-weight: 800;
+    color: {C_TEXT} !important; letter-spacing: -0.3px; line-height: 1;
+}}
+.rb-topbar-brand .brand-sub {{
+    font-size: 9px; color: {C_MUTED_2}; text-transform: uppercase;
+    letter-spacing: 0.07em; margin-top: 2px;
+}}
 .rb-user-badge {{
     display: flex; align-items: center; gap: 7px;
-    background: {C_RED_SOFT}; border: 1px solid rgba(255,68,27,0.15);
-    border-radius: 8px; padding: 0.35rem 0.75rem;
+    background: {BG_CARD_2}; border: 1px solid {C_BORDER};
+    border-radius: 20px; padding: 4px 10px 4px 6px;
 }}
-.rb-user-badge .user-name {{ font-size: 0.83rem; font-weight: 600; color: {C_TEXT}; }}
-.rb-user-badge .user-role {{ font-size: 0.67rem; color: {C_MUTED}; }}
+.rb-user-badge .user-avatar {{
+    width: 24px; height: 24px; border-radius: 50%;
+    background: {C_GRAD};
+    display: flex; align-items: center; justify-content: center;
+    color: white; font-weight: 900; font-size: 10px; flex-shrink: 0;
+}}
+.rb-user-badge .user-name {{
+    font-size: 11px; font-weight: 700; color: {C_TEXT_2};
+    max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}}
+.rb-user-badge .user-role {{
+    font-size: 10px; color: {C_MUTED_2};
+}}
 .rb-status-dot {{
     width: 7px; height: 7px; background: {C_GREEN}; border-radius: 50%;
     animation: pulse 2.5s ease-in-out infinite;
 }}
 .rb-meta-chip {{
-    font-size: 0.69rem; color: {C_MUTED}; background: {BG_PAGE};
-    border: 1px solid {C_BORDER}; border-radius: 5px; padding: 2px 7px;
+    font-size: 10px; color: {C_MUTED}; background: {BG_CARD_2};
+    border: 1px solid {C_BORDER}; border-radius: 5px; padding: 2px 8px;
+}}
+
+/* ── Logout button ───────────────────────────────────────────────────────────── */
+.rb-logout-btn .stButton > button {{
+    background: {BG_PAGE} !important;
+    border: 1px solid {C_BORDER} !important;
+    color: {C_MUTED} !important;
+    font-size: 11px !important;
+    font-weight: 700 !important;
+    padding: 5px 11px !important;
+    box-shadow: none !important;
+    min-height: 0 !important;
+    line-height: 1.4 !important;
+    border-radius: 8px !important;
+}}
+.rb-logout-btn .stButton > button:hover {{
+    background: #fef2f2 !important;
+    color: {C_RED} !important;
+    border-color: rgba(255,68,31,0.35) !important;
+    box-shadow: none !important;
+    transform: none !important;
 }}
 
 /* ── Page header ─────────────────────────────────────────────────────────────── */
 .rb-page-header {{
     background: {BG_CARD};
-    border: 1px solid {C_BORDER};
-    border-left: 4px solid {C_RED};
-    border-radius: 10px;
-    padding: 0.9rem 1.3rem;
+    border: 1.5px solid {C_BORDER};
+    border-left: 3px solid {C_RED};
+    border-radius: 14px;
+    padding: 0.85rem 1.2rem;
     margin-bottom: 1rem;
-    animation: fadeIn 0.22s ease both;
-    box-shadow: 0 1px 2px {C_SHADOW};
+    animation: fadeIn 0.2s ease both;
 }}
 .rb-page-header h1 {{
-    margin: 0; font-size: 1.25rem; font-weight: 700;
-    color: {C_TEXT}; letter-spacing: -0.3px;
+    margin: 0; font-size: 15px; font-weight: 800; color: {C_TEXT}; letter-spacing: -0.3px;
 }}
 .rb-page-header p {{
-    margin: 0.15rem 0 0; font-size: 0.8rem; color: {C_MUTED}; line-height: 1.5;
+    margin: 0.2rem 0 0; font-size: 12px; color: {C_MUTED}; line-height: 1.5;
 }}
 
 /* ── Cards ───────────────────────────────────────────────────────────────────── */
 .rb-card {{
     background: {BG_CARD};
-    border: 1px solid {C_BORDER};
-    border-radius: 10px;
-    padding: 1.1rem 1.3rem;
-    box-shadow: 0 1px 3px {C_SHADOW};
+    border: 1.5px solid {C_BORDER};
+    border-radius: 14px;
+    padding: 1rem 1.2rem;
     margin-bottom: 0.75rem;
-    animation: fadeIn 0.28s ease both;
+    animation: fadeIn 0.25s ease both;
 }}
 
-/* KPI metric card */
+/* ── Section title — Auditor PRO style (UPPERCASE + trailing line) ─────────── */
+.rb-section-title {{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: {C_MUTED_2};
+    margin: 1.1rem 0 0.65rem;
+}}
+.rb-section-title::after {{
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: {C_BORDER};
+}}
+.rb-caption {{ font-size: 11px; color: {C_MUTED_2}; }}
+
+/* ── KPI metric card ─────────────────────────────────────────────────────────── */
 .rb-metric {{
-    background: {BG_CARD};
-    border: 1px solid {C_BORDER};
-    border-radius: 10px;
-    padding: 0.9rem 1.1rem;
-    box-shadow: 0 1px 2px {C_SHADOW};
-    text-align: center;
-    animation: fadeIn 0.28s ease both;
+    background: {BG_CARD_2};
+    border: 1.5px solid {C_BORDER};
+    border-radius: 13px;
+    padding: 14px 16px;
+    text-align: left;
+    animation: fadeIn 0.25s ease both;
 }}
 .rb-metric .rb-metric-label {{
-    font-size: 0.65rem; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.5px; color: {C_MUTED}; margin-bottom: 4px;
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: {C_MUTED_2}; margin-bottom: 5px;
 }}
 .rb-metric .rb-metric-value {{
-    font-size: 1.8rem; font-weight: 800; color: {C_TEXT};
+    font-size: 17px; font-weight: 900; color: {C_TEXT};
     line-height: 1.1; font-variant-numeric: tabular-nums;
 }}
 .rb-metric .rb-metric-sub {{
-    font-size: 0.71rem; color: {C_MUTED}; margin-top: 3px;
+    font-size: 11px; color: {C_MUTED}; margin-top: 3px;
 }}
 
-/* Executive stat block */
+/* ── Stat block ──────────────────────────────────────────────────────────────── */
 .rb-stat {{
-    background: {BG_CARD}; border: 1px solid {C_BORDER};
-    border-radius: 10px; padding: 1rem 1.2rem;
-    box-shadow: 0 1px 2px {C_SHADOW};
+    background: {BG_CARD}; border: 1.5px solid {C_BORDER};
+    border-radius: 14px; padding: 14px 16px;
 }}
-.rb-stat-label {{ font-size: 0.68rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.6px; color: {C_MUTED}; margin-bottom: 3px; }}
-.rb-stat-value {{ font-size: 2rem; font-weight: 800; color: {C_TEXT}; line-height: 1; font-variant-numeric: tabular-nums; }}
-.rb-stat-delta {{ font-size: 0.75rem; margin-top: 4px; font-weight: 500; }}
+.rb-stat-label {{
+    font-size: 9px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.05em; color: {C_MUTED_2}; margin-bottom: 4px;
+}}
+.rb-stat-value {{
+    font-size: 22px; font-weight: 900; color: {C_TEXT}; line-height: 1;
+    font-variant-numeric: tabular-nums;
+}}
+.rb-stat-delta {{ font-size: 12px; margin-top: 4px; font-weight: 600; }}
 
-/* Upload status row */
+/* ── Upload status row ───────────────────────────────────────────────────────── */
 .rb-upload-row {{
     display: grid;
     grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
     gap: 0;
     align-items: center;
-    padding: 0.65rem 1rem;
+    padding: 10px 14px;
     border-bottom: 1px solid {C_BORDER};
-    font-size: 0.82rem;
+    font-size: 12px;
 }}
 .rb-upload-row:last-child {{ border-bottom: none; }}
-.rb-upload-row:hover {{ background: #F8F9FB; }}
+.rb-upload-row:hover {{ background: {BG_CARD_2}; }}
 .rb-upload-header {{
-    background: {BG_PAGE}; font-size: 0.68rem; font-weight: 700;
-    text-transform: uppercase; letter-spacing: 0.5px; color: {C_MUTED};
+    background: {BG_PAGE}; font-size: 10px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.07em; color: {C_MUTED_2};
 }}
 
-/* Filter bar */
+/* ── Filter bar ──────────────────────────────────────────────────────────────── */
 .rb-filter-bar {{
     background: {BG_CARD};
-    border: 1px solid {C_BORDER};
-    border-radius: 10px;
-    padding: 0.8rem 1.2rem;
+    border: 1.5px solid {C_BORDER};
+    border-radius: 14px;
+    padding: 12px 16px;
     margin-bottom: 1rem;
-    box-shadow: 0 1px 2px {C_SHADOW};
 }}
 .rb-filter-title {{
-    font-size: 0.68rem; font-weight: 700; text-transform: uppercase;
-    letter-spacing: 0.6px; color: {C_MUTED}; margin-bottom: 0.5rem;
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.06em; color: {C_MUTED_2}; margin-bottom: 0.5rem;
 }}
 
-/* Section title */
-.rb-section-title {{
-    font-size: 0.9rem; font-weight: 700; color: {C_TEXT};
-    margin: 1rem 0 0.5rem; letter-spacing: -0.2px;
-}}
-.rb-caption {{ font-size: 0.73rem; color: {C_MUTED}; }}
-
-/* Upload section */
+/* ── Upload section ──────────────────────────────────────────────────────────── */
 .rb-upload-section {{
-    background: {BG_CARD}; border: 1px solid {C_BORDER};
-    border-radius: 10px; padding: 1rem 1.3rem;
-    box-shadow: 0 1px 2px {C_SHADOW}; margin-bottom: 0.75rem;
+    background: {BG_CARD}; border: 1.5px solid {C_BORDER};
+    border-radius: 14px; padding: 1rem 1.2rem;
+    margin-bottom: 0.75rem;
 }}
 
-/* ── Semáforo table ───────────────────────────────────────────────────────────── */
+/* ── Semáforo table ──────────────────────────────────────────────────────────── */
 .semaforo-table tr:hover td {{ background: {C_RED_SOFT} !important; transition: background 0.12s; }}
-.semaforo-table {{ border-radius: 10px; overflow: hidden; }}
+.semaforo-table {{ border-radius: 14px; overflow: hidden; }}
 
-/* ── Last update banner ───────────────────────────────────────────────────────── */
+/* ── Last update banner ──────────────────────────────────────────────────────── */
 .last-update-banner {{
     background: {BG_CARD}; border-left: 3px solid {C_RED};
-    border-radius: 0 8px 8px 0; padding: 0.45rem 0.9rem;
-    margin-bottom: 0.85rem; font-size: 0.8rem; color: {C_TEXT};
-    box-shadow: 0 1px 2px {C_SHADOW};
+    border-radius: 0 8px 8px 0; padding: 6px 14px;
+    margin-bottom: 12px; font-size: 12px; color: {C_TEXT};
 }}
 
-/* ── Native Streamlit metrics ─────────────────────────────────────────────────── */
+/* ── Native Streamlit metrics ────────────────────────────────────────────────── */
 [data-testid="metric-container"] {{
-    background: {BG_CARD} !important;
-    border: 1px solid {C_BORDER} !important;
-    border-radius: 10px !important;
-    padding: 0.85rem 1.1rem !important;
-    box-shadow: 0 1px 3px {C_SHADOW} !important;
-    animation: fadeIn 0.28s ease both !important;
+    background: {BG_CARD_2} !important;
+    border: 1.5px solid {C_BORDER} !important;
+    border-radius: 13px !important;
+    padding: 14px 16px !important;
+    animation: fadeIn 0.25s ease both !important;
 }}
 [data-testid="metric-container"] [data-testid="stMetricValue"] {{
-    font-weight: 800 !important; color: {C_TEXT} !important;
+    font-weight: 900 !important; color: {C_TEXT} !important;
     font-variant-numeric: tabular-nums !important;
+    font-size: 1.4rem !important;
 }}
 [data-testid="metric-container"] [data-testid="stMetricLabel"] {{
-    font-size: 0.7rem !important; font-weight: 600 !important;
-    color: {C_MUTED} !important; text-transform: uppercase; letter-spacing: 0.5px;
+    font-size: 9px !important; font-weight: 700 !important;
+    color: {C_MUTED_2} !important; text-transform: uppercase;
+    letter-spacing: 0.05em;
 }}
 [data-testid="metric-container"] [data-testid="stMetricDelta"] svg {{ display: none; }}
 
 /* ── Buttons ─────────────────────────────────────────────────────────────────── */
 .stButton > button {{
-    border-radius: 8px !important; font-weight: 600 !important;
-    font-size: 0.84rem !important;
-    transition: all 0.18s ease !important;
-    background: {C_RED} !important;
-    border-color: {C_RED} !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    font-size: 12px !important;
+    transition: all 0.15s ease !important;
+    background: {C_GRAD} !important;
+    border: none !important;
     color: white !important;
 }}
 .stButton > button:hover {{
-    background: {C_RED_DARK} !important;
-    border-color: {C_RED_DARK} !important;
-    box-shadow: 0 3px 10px rgba(255,68,27,0.28) !important;
+    opacity: 0.9 !important;
+    box-shadow: 0 4px 12px rgba(255,68,31,0.3) !important;
     transform: translateY(-1px) !important;
 }}
 .stButton > button:active {{
@@ -320,15 +399,29 @@ section[data-testid="stSidebar"],
     box-shadow: none !important;
 }}
 
+/* ── Secondary / ghost button ────────────────────────────────────────────────── */
+.rb-btn-secondary .stButton > button {{
+    background: {BG_PAGE} !important;
+    color: {C_MUTED} !important;
+    border: 1px solid {C_BORDER} !important;
+    font-weight: 700 !important;
+    box-shadow: none !important;
+}}
+.rb-btn-secondary .stButton > button:hover {{
+    background: {C_BORDER} !important;
+    transform: none !important;
+    box-shadow: none !important;
+}}
+
 /* ── File uploader ────────────────────────────────────────────────────────────── */
 [data-testid="stFileUploader"] {{
     background: {C_RED_SOFT} !important;
-    border: 2px dashed rgba(255,68,27,0.35) !important;
-    border-radius: 10px !important;
+    border: 2px dashed rgba(255,68,31,0.3) !important;
+    border-radius: 12px !important;
     transition: border-color 0.15s, background 0.15s;
 }}
 [data-testid="stFileUploader"]:hover {{
-    background: rgba(255,68,27,0.07) !important;
+    background: rgba(255,68,31,0.07) !important;
     border-color: {C_RED} !important;
 }}
 [data-testid="stFileUploaderDropzone"] button span:first-child {{ display: none !important; }}
@@ -336,43 +429,82 @@ section[data-testid="stSidebar"],
 [data-testid="stFileUploaderDropzoneInstructions"] > div > span:last-child {{ display: none !important; }}
 
 /* ── Tabs ─────────────────────────────────────────────────────────────────────── */
-[data-testid="stTab"] {{ font-weight: 600 !important; font-size: 0.84rem !important; color: {C_MUTED} !important; }}
+[data-testid="stTab"] {{
+    font-weight: 600 !important; font-size: 12px !important; color: {C_MUTED} !important;
+}}
 [data-testid="stTab"]:hover {{ color: {C_RED} !important; }}
 [data-testid="stTab"][aria-selected="true"] {{
-    border-bottom: 2px solid {C_RED} !important; color: {C_RED} !important;
+    border-bottom: 2.5px solid {C_RED} !important; color: {C_RED} !important;
 }}
 
-/* ── Dataframe ───────────────────────────────────────────────────────────────── */
-[data-testid="stDataFrame"] thead tr,
-[data-testid="stDataEditor"] thead tr {{ background: {BG_PAGE} !important; }}
+/* ── Dataframe — dark header, auditor PRO style ──────────────────────────────── */
+[data-testid="stDataFrame"] thead tr th,
+[data-testid="stDataEditor"] thead tr th {{
+    background: {C_TEXT} !important;
+    color: white !important;
+    font-size: 10px !important;
+    font-weight: 700 !important;
+    text-transform: uppercase !important;
+    letter-spacing: 0.04em !important;
+    padding: 9px 12px !important;
+}}
 [data-testid="stDataFrame"] tbody tr,
-[data-testid="stDataEditor"] tbody tr {{ border-bottom: 1px solid {C_BORDER} !important; }}
+[data-testid="stDataEditor"] tbody tr {{
+    border-bottom: 1px solid {C_BORDER} !important;
+}}
+[data-testid="stDataFrame"] tbody tr:nth-child(even),
+[data-testid="stDataEditor"] tbody tr:nth-child(even) {{
+    background: {BG_CARD_2} !important;
+}}
 [data-testid="stDataFrame"] tbody tr:hover,
-[data-testid="stDataEditor"] tbody tr:hover {{ background: {C_RED_SOFT} !important; }}
+[data-testid="stDataEditor"] tbody tr:hover {{
+    background: {C_RED_SOFT} !important;
+}}
 
 /* ── Inputs ──────────────────────────────────────────────────────────────────── */
 [data-testid="stNumberInput"] input,
 [data-testid="stTextInput"] input,
 [data-testid="stSelectbox"] > div > div {{
-    border-radius: 7px !important; border-color: {C_BORDER} !important;
+    border-radius: 8px !important; border-color: {C_BORDER} !important;
+    font-size: 13px !important;
     transition: border-color 0.15s, box-shadow 0.15s;
 }}
 [data-testid="stNumberInput"] input:focus-visible,
 [data-testid="stTextInput"] input:focus-visible {{
     border-color: {C_RED} !important;
-    box-shadow: 0 0 0 3px rgba(255,68,27,0.12) !important;
+    box-shadow: 0 0 0 3px rgba(255,68,31,0.12) !important;
     outline: none;
+}}
+[data-testid="stSelectbox"] > div > div:focus-within,
+[data-testid="stMultiSelect"] > div > div:focus-within {{
+    border-color: {C_RED} !important;
+    box-shadow: 0 0 0 2px rgba(255,68,31,0.12) !important;
+}}
+[data-testid="stMultiSelect"] span[data-baseweb="tag"] {{
+    background: {C_RED_SOFT} !important;
+    border-color: rgba(255,68,31,0.25) !important;
+    color: {C_RED} !important;
+    font-size: 11px !important;
+    border-radius: 5px !important;
+}}
+
+/* ── Radio buttons ───────────────────────────────────────────────────────────── */
+[data-testid="stRadio"] label,
+[data-testid="stRadio"] [data-testid="stMarkdownContainer"] p {{
+    font-size: 12px !important;
+    color: {C_TEXT_2} !important;
 }}
 
 /* ── Expander ────────────────────────────────────────────────────────────────── */
 [data-testid="stExpander"] {{
-    background: {BG_CARD} !important; border: 1px solid {C_BORDER} !important;
-    border-radius: 10px !important; box-shadow: 0 1px 2px {C_SHADOW} !important;
+    background: {BG_CARD} !important; border: 1.5px solid {C_BORDER} !important;
+    border-radius: 14px !important;
 }}
 [data-testid="stExpander"] details > summary {{
     list-style: none; cursor: pointer; display: flex;
-    align-items: center; padding: 0.48rem 0.75rem;
-    border-radius: 8px; user-select: none; gap: 6px;
+    align-items: center; padding: 10px 14px;
+    border-radius: 12px; user-select: none; gap: 6px;
+    background: {BG_CARD_2};
 }}
 [data-testid="stExpander"] details > summary::-webkit-details-marker {{ display: none; }}
 [data-testid="stExpander"] details > summary > :first-child {{
@@ -390,136 +522,78 @@ section[data-testid="stSidebar"],
 [data-testid="stExpander"] details[open] > summary::before {{ transform: rotate(45deg); }}
 
 /* ── Plotly ──────────────────────────────────────────────────────────────────── */
-.js-plotly-plot {{ background: {BG_CARD} !important; border-radius: 10px !important; }}
+.js-plotly-plot {{ background: {BG_CARD} !important; border-radius: 14px !important; }}
 
 /* ── Alerts ──────────────────────────────────────────────────────────────────── */
 [data-testid="stAlert"] {{
-    border-radius: 8px !important; font-size: 0.84rem !important;
+    border-radius: 10px !important; font-size: 12px !important;
     border-left-width: 3px !important;
+}}
+[data-testid="stAlert"] [data-testid="stMarkdownContainer"] {{
+    font-size: 12px !important;
 }}
 
 /* ── HR divider ──────────────────────────────────────────────────────────────── */
 hr {{
     border: none !important;
     border-top: 1px solid {C_BORDER} !important;
-    margin: 0.75rem 0 !important;
+    margin: 0.7rem 0 !important;
     opacity: 1 !important;
 }}
 
 /* ── Section headings (markdown ## ###) ──────────────────────────────────────── */
+.main .block-container h1,
+.main .block-container h2,
+.main .block-container h3,
+.main .block-container h4 {{
+    font-family: 'Segoe UI', system-ui, sans-serif !important;
+}}
 .main .block-container h1 {{
-    font-size: 1.15rem !important; font-weight: 700 !important;
+    font-size: 15px !important; font-weight: 800 !important;
     color: {C_TEXT} !important; letter-spacing: -0.3px !important;
-    margin: 1.1rem 0 0.55rem !important;
-    padding-bottom: 0.45rem !important;
+    margin: 1rem 0 0.5rem !important;
+    padding-bottom: 8px !important;
     border-bottom: 1px solid {C_BORDER} !important;
-    line-height: 1.3 !important;
 }}
 .main .block-container h2 {{
-    font-size: 0.95rem !important; font-weight: 700 !important;
-    color: {C_TEXT} !important; letter-spacing: -0.15px !important;
-    margin: 1rem 0 0.45rem !important; line-height: 1.3 !important;
+    font-size: 13px !important; font-weight: 800 !important;
+    color: {C_TEXT} !important; margin: 0.9rem 0 0.4rem !important;
 }}
 .main .block-container h3 {{
-    font-size: 0.88rem !important; font-weight: 600 !important;
-    color: {C_TEXT_2} !important; margin: 0.8rem 0 0.4rem !important;
-    line-height: 1.3 !important;
+    font-size: 12px !important; font-weight: 700 !important;
+    color: {C_TEXT_2} !important; margin: 0.7rem 0 0.35rem !important;
 }}
 .main .block-container h4 {{
-    font-size: 0.82rem !important; font-weight: 600 !important;
-    color: {C_MUTED} !important; text-transform: uppercase !important;
-    letter-spacing: 0.5px !important; margin: 0.75rem 0 0.35rem !important;
+    font-size: 10px !important; font-weight: 700 !important;
+    color: {C_MUTED_2} !important; text-transform: uppercase !important;
+    letter-spacing: 0.07em !important; margin: 0.65rem 0 0.3rem !important;
 }}
 
-/* ── Logout button ───────────────────────────────────────────────────────────── */
-.rb-logout-btn .stButton > button {{
-    background: transparent !important;
-    border: 1px solid {C_BORDER} !important;
-    color: {C_MUTED} !important;
-    font-size: 0.8rem !important;
-    padding: 0.28rem 0.6rem !important;
-    box-shadow: none !important;
-    min-height: 0 !important;
-    line-height: 1.4 !important;
-}}
-.rb-logout-btn .stButton > button:hover {{
-    background: #FFF1EE !important;
-    color: {C_RED} !important;
-    border-color: rgba(255,68,27,0.35) !important;
-    box-shadow: none !important;
-    transform: none !important;
-}}
-
-/* ── Sidebar brand footer ────────────────────────────────────────────────────── */
-.rb-sidebar-footer {{
-    font-size: 0.68rem; color: {C_MUTED};
-    padding: 0.4rem 0.3rem 0.2rem;
-    letter-spacing: 0.2px;
-    line-height: 1.5;
-}}
-.rb-sidebar-footer strong {{ color: {C_RED}; }}
-
-/* ── Sidebar nav label (group header) ────────────────────────────────────────── */
-[data-testid="stSidebarNav"]::before {{
-    content: "PÁGINAS";
-    display: block;
-    font-size: 0.58rem;
-    font-weight: 700;
-    letter-spacing: 1.8px;
-    color: {C_BORDER_2};
-    padding: 0 0.85rem 0.35rem;
-    text-transform: uppercase;
-}}
-
-/* ── Selectbox / multiselect refinement ──────────────────────────────────────── */
-[data-testid="stSelectbox"] > div > div:focus-within,
-[data-testid="stMultiSelect"] > div > div:focus-within {{
-    border-color: {C_RED} !important;
-    box-shadow: 0 0 0 2px rgba(255,68,27,0.12) !important;
-}}
-[data-testid="stMultiSelect"] span[data-baseweb="tag"] {{
-    background: {C_RED_SOFT} !important;
-    border-color: rgba(255,68,27,0.25) !important;
-    color: {C_RED} !important;
-    font-size: 0.72rem !important;
-    border-radius: 5px !important;
-}}
-
-/* ── Radio buttons ───────────────────────────────────────────────────────────── */
-[data-testid="stRadio"] label {{
-    font-size: 0.82rem !important;
-    color: {C_TEXT_2} !important;
-}}
-[data-testid="stRadio"] [data-testid="stMarkdownContainer"] p {{
-    font-size: 0.82rem !important;
-}}
+/* ── Caption text ────────────────────────────────────────────────────────────── */
+.stCaption {{ color: {C_MUTED_2} !important; font-size: 11px !important; }}
 
 /* ── Empty state ─────────────────────────────────────────────────────────────── */
 .rb-empty-state {{
     background: {BG_CARD};
-    border: 1px dashed {C_BORDER_2};
-    border-radius: 12px;
-    padding: 2rem 1.5rem;
+    border: 2px dashed {C_BORDER};
+    border-radius: 24px;
+    padding: 56px 32px;
     text-align: center;
     margin: 1rem 0;
 }}
-.rb-empty-state .rb-empty-icon {{ font-size: 2rem; margin-bottom: 0.5rem; }}
-.rb-empty-state h3 {{ color: {C_TEXT} !important; font-size: 1rem !important; margin: 0 0 0.3rem !important; }}
-.rb-empty-state p {{ color: {C_MUTED}; font-size: 0.82rem; margin: 0; }}
-
-/* ── Caption text ────────────────────────────────────────────────────────────── */
-.stCaption {{ color: {C_MUTED} !important; font-size: 0.74rem !important; }}
-
-/* ── Info/warning/error alerts ───────────────────────────────────────────────── */
-[data-testid="stAlert"] [data-testid="stMarkdownContainer"] {{
-    font-size: 0.83rem !important;
+.rb-empty-state .rb-empty-icon {{ font-size: 3.25rem; margin-bottom: 0.75rem; }}
+.rb-empty-state h3 {{
+    color: {C_TEXT} !important; font-size: 15px !important;
+    font-weight: 800 !important; margin: 0 0 0.4rem !important;
+    border: none !important; padding: 0 !important;
 }}
+.rb-empty-state p {{ color: {C_MUTED}; font-size: 12px; margin: 0; line-height: 1.6; }}
 
 /* ── Scrollbar ───────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {{ width: 4px; height: 4px; }}
 ::-webkit-scrollbar-track {{ background: {BG_PAGE}; }}
-::-webkit-scrollbar-thumb {{ background: #CBD5E1; border-radius: 3px; }}
-::-webkit-scrollbar-thumb:hover {{ background: #94A3B8; }}
+::-webkit-scrollbar-thumb {{ background: {C_BORDER_2}; border-radius: 3px; }}
+::-webkit-scrollbar-thumb:hover {{ background: {C_MUTED_2}; }}
 
 /* ── Staggered metric animation ──────────────────────────────────────────────── */
 [data-testid="column"]:nth-child(1) [data-testid="metric-container"] {{ animation-delay: 0.04s; }}
