@@ -297,10 +297,10 @@ if is_supervisor:
                             except Exception as _ce:
                                 logger.error("[app] Cartera load error: %s", _ce)
 
-                        # Asignación tab in Maestro — eliminates separate file upload
+                        # Asignación tab in Maestro — also matches "Cartera"
                         _asig_sheet = next(
                             (s for s in xl.sheet_names
-                             if s.strip().lower() in ("asignación", "asignacion")), None
+                             if s.strip().lower() in ("asignación", "asignacion", "cartera")), None
                         )
                         if _asig_sheet:
                             try:
