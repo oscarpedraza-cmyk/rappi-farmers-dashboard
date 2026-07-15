@@ -241,10 +241,9 @@ with st.container():
         sel_week = st.selectbox("Semana", all_weeks, index=_default_week_idx, key="sp_week",
                                 format_func=lambda w: f"Sem. {w}")
     with fcol3:
-        _default_metrics = [m for m in ["Orders","GMV","CVR (%)","Revenue"] if m in all_metrics] or all_metrics[:4]
         sel_metrics = st.multiselect(
             "Métricas", all_metrics,
-            default=_default_metrics,
+            default=all_metrics,
             key="sp_metrics",
         )
     with fcol4:
@@ -252,7 +251,7 @@ with st.container():
                                       format_func=_name, key="sp_farmers")
 
 if not sel_metrics:
-    sel_metrics = all_metrics[:4]
+    sel_metrics = all_metrics
 
 
 def _apply_f(df: pd.DataFrame, week: str | None = None) -> pd.DataFrame:
@@ -402,3 +401,137 @@ else:
         for _empty_col in _cols[len(_chunk):]:
             with _empty_col:
                 st.empty()
+
+# ── CAÍDAS GRAVES — semana anterior inmediata ─────────────────────────────────
+# Siempre compara las dos últimas semanas disponibles en el dataset filtrado.
+_all_weeks_sorted = sorted(_ts_df["week"].unique())
+if len(_all_weeks_sorted) >= 2:
+    _w_curr = _all_weeks_sorted[-1]   # semana más reciente
+    _w_prev = _all_weeks_sorted[-2]   # inmediatamente anterior
+
+    _curr_df = _ts_df[_ts_df["week"] == _w_curr]
+    _prev_df = _ts_df[_ts_df["week"] == _w_prev]
+
+    # Cruzar por (farmer, metric): buscar vs_lw en la semana actual
+    # vs_lw ya es el delta vs semana anterior, así que lo usamos directamente.
+    _drops = []
+    for _fe in _ts_farmers:
+        for _m in _ts_metrics:
+            _row = _curr_df[(_curr_df["farmer"] == _fe) & (_curr_df["metric"] == _m)]
+            if _row.empty:
+                continue
+            _vs = _row.iloc[0]["vs_lw"]
+            _val = _row.iloc[0]["value"]
+            try:
+                _vs_f = float(_vs)
+            except (TypeError, ValueError):
+                continue
+            if _vs_f <= ALARM_RED:
+                # Valor previo para contexto
+                _prev_row = _prev_df[(_prev_df["farmer"] == _fe) & (_prev_df["metric"] == _m)]
+                _val_prev = _prev_row.iloc[0]["value"] if not _prev_row.empty else None
+                _drops.append({
+                    "farmer":   _fe,
+                    "metric":   _m,
+                    "vs_lw":    _vs_f,
+                    "value":    _val,
+                    "val_prev": _val_prev,
+                })
+
+    st.markdown('<div style="height:1.5rem"></div>', unsafe_allow_html=True)
+    st.markdown(
+        f'<div style="text-align:center;margin:0.5rem 0 1.2rem">'
+        f'<span style="font-size:0.68rem;text-transform:uppercase;letter-spacing:3px;'
+        f'font-weight:800;color:#EF4444;border-bottom:2.5px solid #EF4444;'
+        f'padding-bottom:4px">&#9660; CA&#205;DAS GRAVES &mdash; Sem. {_w_curr} vs Sem. {_w_prev}</span>'
+        f'</div>',
+        unsafe_allow_html=True,
+    )
+
+    if not _drops:
+        st.markdown(
+            '<div style="text-align:center;padding:1.5rem;color:#16A34A;font-size:0.9rem;font-weight:600">'
+            '&#10003; Sin caídas graves (&le;-10%) en la última semana.'
+            '</div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        _drops_df = pd.DataFrame(_drops).sort_values("vs_lw")
+
+        # ── Tabla resumen de caídas ────────────────────────────────────────────
+        _drop_rows_html = ""
+        for _, _dr in _drops_df.iterrows():
+            _fname  = _name(_dr["farmer"])
+            _pct    = f"{_dr['vs_lw']*100:+.1f}%"
+            _val_s  = _fmt_val(_dr["metric"], _dr["value"])
+            _prev_s = _fmt_val(_dr["metric"], _dr["val_prev"]) if _dr["val_prev"] is not None else "—"
+            _severity = "#7F1D1D" if _dr["vs_lw"] <= -0.20 else "#991B1B"
+            _bg = "#FEF2F2" if _dr["vs_lw"] <= -0.20 else "#FFF5F5"
+            _drop_rows_html += (
+                f'<div style="display:grid;grid-template-columns:2fr 1.6fr 1fr 1fr 1fr;'
+                f'background:{_bg};border-bottom:1px solid #FEE2E2;align-items:center">'
+                f'<div style="padding:7px 10px;font-size:0.78rem;font-weight:600;color:#0F172A">{_fname}</div>'
+                f'<div style="padding:7px 8px;font-size:0.78rem;color:#374151">{_dr["metric"]}</div>'
+                f'<div style="padding:7px 8px;font-size:0.82rem;font-weight:800;color:{_severity};text-align:right">{_pct}</div>'
+                f'<div style="padding:7px 8px;font-size:0.78rem;color:#374151;text-align:right">{_prev_s}</div>'
+                f'<div style="padding:7px 8px;font-size:0.78rem;font-weight:600;color:#0F172A;text-align:right">{_val_s}</div>'
+                f'</div>'
+            )
+
+        _header_html = (
+            '<div style="display:grid;grid-template-columns:2fr 1.6fr 1fr 1fr 1fr;'
+            'background:#1E293B;border-radius:8px 8px 0 0">'
+            '<div style="padding:7px 10px;font-size:0.6rem;text-transform:uppercase;letter-spacing:1.5px;color:#fff;font-weight:700">Farmer</div>'
+            '<div style="padding:7px 8px;font-size:0.6rem;text-transform:uppercase;letter-spacing:1.5px;color:#fff;font-weight:700">Métrica</div>'
+            '<div style="padding:7px 8px;font-size:0.6rem;text-transform:uppercase;letter-spacing:1.5px;color:#FCA5A5;font-weight:700;text-align:right">vs LW</div>'
+            '<div style="padding:7px 8px;font-size:0.6rem;text-transform:uppercase;letter-spacing:1.5px;color:#94A3B8;font-weight:700;text-align:right">Sem. anterior</div>'
+            '<div style="padding:7px 8px;font-size:0.6rem;text-transform:uppercase;letter-spacing:1.5px;color:#fff;font-weight:700;text-align:right">Sem. actual</div>'
+            '</div>'
+        )
+
+        st.markdown(
+            f'<div style="border-radius:8px;overflow:hidden;border:1px solid #FEE2E2;'
+            f'box-shadow:0 1px 4px rgba(239,68,68,0.12)">'
+            f'{_header_html}{_drop_rows_html}</div>',
+            unsafe_allow_html=True,
+        )
+
+        # ── Heatmap de caídas: farmer × métrica ───────────────────────────────
+        st.markdown('<div style="height:1rem"></div>', unsafe_allow_html=True)
+        _pivot = _drops_df.pivot_table(
+            index="farmer", columns="metric", values="vs_lw", aggfunc="min"
+        )
+        _pivot.index = [_name(e) for e in _pivot.index]
+        _z = _pivot.values.tolist()
+        _text = [
+            [f"{v*100:+.1f}%" if v is not None and not pd.isna(v) else "" for v in row]
+            for row in _z
+        ]
+        _fig_heat = go.Figure(go.Heatmap(
+            z=_z,
+            x=list(_pivot.columns),
+            y=list(_pivot.index),
+            text=_text,
+            texttemplate="%{text}",
+            textfont=dict(size=11, color="#fff"),
+            colorscale=[
+                [0.0,  "#7F1D1D"],
+                [0.35, "#DC2626"],
+                [0.7,  "#F87171"],
+                [1.0,  "#FECACA"],
+            ],
+            showscale=False,
+            zmin=min(_drops_df["vs_lw"].min(), -0.30),
+            zmax=ALARM_RED,
+            hovertemplate="%{y} · %{x}: %{text}<extra></extra>",
+        ))
+        _fig_heat.update_layout(
+            height=max(180, len(_pivot) * 36 + 60),
+            margin=dict(l=0, r=0, t=8, b=8),
+            plot_bgcolor="rgba(0,0,0,0)",
+            paper_bgcolor="rgba(0,0,0,0)",
+            xaxis=dict(side="top", tickfont=dict(size=10), showgrid=False),
+            yaxis=dict(tickfont=dict(size=10), showgrid=False),
+        )
+        st.plotly_chart(_fig_heat, use_container_width=True, key="drops_heat",
+                        config={"displayModeBar": False})
