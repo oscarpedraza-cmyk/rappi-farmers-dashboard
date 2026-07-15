@@ -247,8 +247,14 @@ with st.container():
             key="sp_metrics",
         )
     with fcol4:
-        sel_farmers = st.multiselect("Farmers", all_farmers_emails,
-                                      format_func=_name, key="sp_farmers")
+        _TOTAL_PAIS = "__total_pais__"
+        _farmer_opts = [_TOTAL_PAIS] + list(all_farmers_emails)
+        def _name_ext(e):
+            return "🌎 Total País" if e == _TOTAL_PAIS else _name(e)
+        sel_farmers_raw = st.multiselect("Farmers", _farmer_opts,
+                                          format_func=_name_ext, key="sp_farmers")
+        _show_total_only = _TOTAL_PAIS in sel_farmers_raw
+        sel_farmers = [f for f in sel_farmers_raw if f != _TOTAL_PAIS]
 
 if not sel_metrics:
     sel_metrics = all_metrics
@@ -260,7 +266,8 @@ def _apply_f(df: pd.DataFrame, week: str | None = None) -> pd.DataFrame:
         out = out[out["week"] == week]
     if sel_country != "Todos":
         out = out[out["country"] == sel_country]
-    if sel_farmers:
+    # When "Total País" is the only selection, don't filter by farmer
+    if sel_farmers and not _show_total_only:
         out = out[out["farmer"].isin(sel_farmers)]
     if sel_metrics:
         out = out[out["metric"].isin(sel_metrics)]
@@ -321,39 +328,45 @@ else:
 
                 _fig = go.Figure()
 
-                # One line per farmer
-                for _idx, _fe in enumerate(_ts_farmers):
-                    _fd = _mdf[_mdf["farmer"] == _fe].sort_values("week")
-                    if _fd.empty:
-                        continue
-                    _fig.add_trace(go.Scatter(
-                        x=_fd["week"],
-                        y=_fd["value"],
-                        mode="lines+markers",
-                        name=_name(_fe),
-                        line=dict(color=_PALETTE[_idx % len(_PALETTE)], width=1.5),
-                        marker=dict(size=4),
-                        hovertemplate=(
-                            f"<b>{_name(_fe)}</b><br>%{{x}}<br>"
-                            f"{_metric}: %{{y:,.2f}}<extra></extra>"
-                        ),
-                    ))
+                # Individual farmer lines (skipped when "Total País" is selected)
+                if not _show_total_only:
+                    for _idx, _fe in enumerate(_ts_farmers):
+                        _fd = _mdf[_mdf["farmer"] == _fe].sort_values("week")
+                        if _fd.empty:
+                            continue
+                        _fig.add_trace(go.Scatter(
+                            x=_fd["week"],
+                            y=_fd["value"],
+                            mode="lines+markers",
+                            name=_name(_fe),
+                            line=dict(color=_PALETTE[_idx % len(_PALETTE)], width=1.5),
+                            marker=dict(size=4),
+                            hovertemplate=(
+                                f"<b>{_name(_fe)}</b><br>%{{x}}<br>"
+                                f"{_metric}: %{{y:,.2f}}<extra></extra>"
+                            ),
+                        ))
 
-                # Team average per week — always uses the full-team df, not the filtered one
+                # Country aggregate — always shown; thicker + labeled "Total País" when solo
                 _avg_w = (
                     _ts_df_team[_ts_df_team["metric"] == _metric]
                     .groupby("week")["value"].mean()
                     .reset_index()
                     .sort_values("week")
                 )
+                _avg_label = "🌎 Total País" if _show_total_only else "Prom. equipo"
+                _avg_width  = 3 if _show_total_only else 2.5
                 _fig.add_trace(go.Scatter(
                     x=_avg_w["week"],
                     y=_avg_w["value"],
-                    mode="lines",
-                    name="Prom. equipo",
-                    line=dict(color="#1E293B", width=2.5, dash="dash"),
+                    mode="lines+markers" if _show_total_only else "lines",
+                    name=_avg_label,
+                    line=dict(color=C_RAPPI if _show_total_only else "#1E293B",
+                              width=_avg_width,
+                              dash="solid" if _show_total_only else "dash"),
+                    marker=dict(size=6) if _show_total_only else {},
                     hovertemplate=(
-                        f"<b>Prom. equipo</b><br>%{{x}}<br>"
+                        f"<b>{_avg_label}</b><br>%{{x}}<br>"
                         f"{_metric}: %{{y:,.2f}}<extra></extra>"
                     ),
                 ))
