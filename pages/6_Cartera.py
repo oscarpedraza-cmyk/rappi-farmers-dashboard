@@ -343,6 +343,19 @@ _bucket_results = [assign_bucket(r[FARMER_COL], r[ID_COL])
 df_cart["bucket"]     = [r[0] for r in _bucket_results]
 df_cart["days_since"] = [r[1] for r in _bucket_results]
 
+# Último contacto efectivo (fecha) — para columna en tabla
+def _last_date(farmer_email, brand_id):
+    key = (str(farmer_email).lower(), str(brand_id))
+    ts  = last_contact_fb.get(key) or last_contact_brand.get(str(brand_id))
+    if ts is None or pd.isna(ts):
+        return None
+    return pd.Timestamp(ts).date()
+
+df_cart["last_contact_date"] = [
+    _last_date(r[FARMER_COL], r[ID_COL])
+    for r in df_cart[[FARMER_COL, ID_COL]].to_dict("records")
+]
+
 
 # ══════════════════════════════════════════════════════════════════════════════
 # 4. SIDEBAR — FILTROS MAESTROS
@@ -612,6 +625,12 @@ _display["Estado"] = _rows["bucket"].map(lambda b: f"{_emoji.get(b, '⚪')} {b}"
 # Días: float64 con NaN → celda vacía; NumberColumn format="%d días" muestra entero
 _display["Días sin contacto"] = pd.to_numeric(_rows["days_since"], errors="coerce")
 
+# Fecha exacta del último contacto registrado en Productividad
+_display["Último contacto"] = pd.to_datetime(
+    _rows["last_contact_date"].apply(lambda d: str(d) if d is not None else None),
+    errors="coerce",
+)
+
 if GMV_COL:
     _display["GMV L28D"] = _rows[GMV_COL]
 
@@ -650,6 +669,12 @@ col_cfg["Días sin contacto"] = st.column_config.NumberColumn(
     width="small",
 )
 
+col_cfg["Último contacto"] = st.column_config.DateColumn(
+    "Último contacto",
+    format="DD/MM/YYYY",
+    width="small",
+)
+
 if "GMV L28D" in df_display.columns:
     col_cfg["GMV L28D"] = st.column_config.NumberColumn(
         "GMV L28D",
@@ -678,6 +703,87 @@ st.data_editor(
     key="cartera_table",
 )
 
+
+# ══════════════════════════════════════════════════════════════════════════════
+# HISTORIAL DE CONTACTOS — cruce directo con Productividad
+# ══════════════════════════════════════════════════════════════════════════════
+if df_prod is not None:
+    st.markdown("---")
+    st.markdown("### 📞 Últimos contactos registrados")
+
+    _date_col = 10 if 10 in df_prod.columns else (9 if 9 in df_prod.columns else None)
+    if _date_col is not None:
+        # Columnas disponibles en productividad para el log
+        _log_col_map = {_date_col: "Fecha", 14: "Farmer", 15: "Brand ID", 4: "Contactado"}
+        _available   = [c for c in _log_col_map if c in df_prod.columns]
+        # Columnas extra opcionales (nombre contacto, notas, etc.)
+        _extra_names = {3: "Nombre contacto", 5: "Canal", 6: "Notas"}
+        for _ec, _en in _extra_names.items():
+            if _ec in df_prod.columns:
+                _available.append(_ec)
+                _log_col_map[_ec] = _en
+
+        _log = df_prod[_available].copy()
+        _log.columns = [_log_col_map[c] for c in _available]
+
+        # Fecha robusta
+        _log["Fecha"] = _to_dates_robust(_log["Fecha"])
+        _log = _log.dropna(subset=["Fecha"])
+
+        # Filtrar a brands de la vista actual
+        _view_ids = set(df_view[ID_COL].astype(str).unique())
+        _log      = _log[_log["Brand ID"].astype(str).isin(_view_ids)]
+
+        # Filtrar por farmer si no es supervisor o hay farmer seleccionado
+        if not is_supervisor or view_email is not None:
+            _fe = (view_email or email).lower()
+            _log = _log[_log["Farmer"].astype(str).str.strip().str.lower() == _fe]
+
+        _log = _log.sort_values("Fecha", ascending=False).reset_index(drop=True)
+
+        # Enriquecer con nombre de marca
+        if NAME_COL and ID_COL:
+            _brand_map = df_cart.set_index(ID_COL)[NAME_COL].to_dict()
+            _log.insert(1, "Marca", _log["Brand ID"].astype(str).map(_brand_map).fillna(_log["Brand ID"]))
+
+        # Nombre corto del farmer
+        _log["Farmer"] = (
+            _log["Farmer"].astype(str).str.strip().str.lower()
+            .map(lambda e: FARMER_NAMES.get(e, e.split("@")[0].replace(".", " ").title()))
+        )
+
+        _log["Contactado"] = _log["Contactado"].astype(str).str.strip().str.upper()
+
+        n_log = len(_log)
+        _log_show = _log.head(100)
+
+        # Column config del log
+        _log_cfg = {
+            "Fecha":      st.column_config.DateColumn("Fecha", format="DD/MM/YYYY", width="small"),
+            "Contactado": st.column_config.TextColumn("Contactado", width="small"),
+            "Farmer":     st.column_config.TextColumn("Farmer", width="medium"),
+        }
+        if "Marca" in _log_show.columns:
+            _log_cfg["Marca"] = st.column_config.TextColumn("Marca", width="large")
+        if "Nombre contacto" in _log_show.columns:
+            _log_cfg["Nombre contacto"] = st.column_config.TextColumn("Nombre contacto", width="medium")
+        if "Canal" in _log_show.columns:
+            _log_cfg["Canal"] = st.column_config.TextColumn("Canal", width="small")
+        if "Notas" in _log_show.columns:
+            _log_cfg["Notas"] = st.column_config.TextColumn("Notas", width="large")
+
+        st.caption(
+            f"{n_log:,} contactos en el período filtrado"
+            + (" · mostrando los últimos 100" if n_log > 100 else "")
+        )
+        st.dataframe(
+            _log_show,
+            use_container_width=True,
+            hide_index=True,
+            column_config=_log_cfg,
+        )
+    else:
+        st.info("No se encontró columna de fecha en Productividad para mostrar el historial.")
 
 # ══════════════════════════════════════════════════════════════════════════════
 # CALLOUT SECTIONS — Alertas por pérdida de GMV
