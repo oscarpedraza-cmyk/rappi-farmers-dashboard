@@ -353,6 +353,7 @@ else:
                     .groupby("week")["value"].mean()
                     .reset_index()
                     .sort_values("week")
+                    .reset_index(drop=True)
                 )
                 _avg_label = "🌎 Total País" if _show_total_only else "Prom. equipo"
                 _avg_width  = 3 if _show_total_only else 2.5
@@ -370,6 +371,51 @@ else:
                         f"{_metric}: %{{y:,.2f}}<extra></extra>"
                     ),
                 ))
+
+                # Alarm markers on Total País line — week-over-week drops
+                if _show_total_only and len(_avg_w) >= 2:
+                    _alarm_x_red, _alarm_y_red, _alarm_txt_red   = [], [], []
+                    _alarm_x_yel, _alarm_y_yel, _alarm_txt_yel   = [], [], []
+                    for _i in range(1, len(_avg_w)):
+                        _v_prev = _avg_w.loc[_i - 1, "value"]
+                        _v_curr = _avg_w.loc[_i,     "value"]
+                        if _v_prev and _v_prev != 0:
+                            _chg = (_v_curr - _v_prev) / abs(_v_prev)
+                            _lbl = f"▼ {_chg:.1%}"
+                            if _chg <= ALARM_RED:
+                                _alarm_x_red.append(_avg_w.loc[_i, "week"])
+                                _alarm_y_red.append(_v_curr)
+                                _alarm_txt_red.append(_lbl)
+                            elif _chg <= ALARM_YELLOW:
+                                _alarm_x_yel.append(_avg_w.loc[_i, "week"])
+                                _alarm_y_yel.append(_v_curr)
+                                _alarm_txt_yel.append(_lbl)
+                    if _alarm_x_red:
+                        _fig.add_trace(go.Scatter(
+                            x=_alarm_x_red, y=_alarm_y_red,
+                            mode="markers+text",
+                            name="⚠️ Caída grave (≥10%)",
+                            marker=dict(symbol="triangle-down", size=14,
+                                        color="#EF4444", line=dict(color="#fff", width=1.5)),
+                            text=_alarm_txt_red,
+                            textposition="bottom center",
+                            textfont=dict(size=9, color="#EF4444"),
+                            hovertemplate="<b>Caída grave</b><br>%{x}<br>%{text}<extra></extra>",
+                            showlegend=True,
+                        ))
+                    if _alarm_x_yel:
+                        _fig.add_trace(go.Scatter(
+                            x=_alarm_x_yel, y=_alarm_y_yel,
+                            mode="markers+text",
+                            name="⚠️ Caída moderada (≥5%)",
+                            marker=dict(symbol="triangle-down", size=11,
+                                        color="#D97706", line=dict(color="#fff", width=1.5)),
+                            text=_alarm_txt_yel,
+                            textposition="bottom center",
+                            textfont=dict(size=9, color="#D97706"),
+                            hovertemplate="<b>Caída moderada</b><br>%{x}<br>%{text}<extra></extra>",
+                            showlegend=True,
+                        ))
 
                 # Highlight the selected week
                 if sel_week in _ts_weeks:
