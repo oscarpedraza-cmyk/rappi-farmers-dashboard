@@ -1,4 +1,4 @@
-﻿from __future__ import annotations
+from __future__ import annotations
 import streamlit as st
 import io
 import pandas as pd
@@ -16,22 +16,22 @@ from core.loader import refresh_net_rev_adj
 from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
 
-st.set_page_config(page_title="Vista General â€” Rappi Farmers", page_icon="🌍", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Vista General — Rappi Farmers", page_icon="🚀", layout="wide", initial_sidebar_state="expanded")
 st.markdown(inject_global_css(), unsafe_allow_html=True)
 email, is_supervisor = require_auth()
 render_topbar()
 
-# â”€â”€ Acceso restringido al supervisor â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Acceso restringido al supervisor ─────────────────────────────────────────
 if not is_supervisor:
     st.markdown("""
     <div style="background:#FEF2F2;border:1px solid #FCA5A5;border-left:4px solid #EF4444;
                 border-radius:12px;padding:1.5rem 1.8rem;margin-top:2rem;text-align:center">
-        <div style="font-size:2rem;margin-bottom:0.5rem">ðŸ”’</div>
+        <div style="font-size:2rem;margin-bottom:0.5rem">🔒</div>
         <div style="font-size:1.1rem;font-weight:700;color:#991B1B;margin-bottom:0.3rem">
             Acceso restringido
         </div>
         <div style="color:#7F1D1D;font-size:0.88rem">
-            Esta secciÃ³n es exclusiva del supervisor.<br>
+            Esta sección es exclusiva del supervisor.<br>
             Si crees que esto es un error, contacta a Oscar Pedraza.
         </div>
     </div>
@@ -41,8 +41,8 @@ if not is_supervisor:
 
 st.markdown("""
 <div class="rb-page-header">
-    <h1>ðŸ“Š Vista General â€” Gerencia Comercial</h1>
-    <p>AnÃ¡lisis macro: Â¿dÃ³nde estÃ¡ roto el equipo y quÃ© palanca duele mÃ¡s?</p>
+    <h1>📊 Vista General — Gerencia Comercial</h1>
+    <p>Análisis macro: ¿dónde está roto el equipo y qué palanca duele más?</p>
 </div>
 """, unsafe_allow_html=True)
 
@@ -61,7 +61,7 @@ if "farmers_data" not in st.session_state:
             except Exception:
                 pass
     else:
-        st.warning("â³ El supervisor aÃºn no ha cargado datos para este perÃ­odo. Vuelve mÃ¡s tarde o contacta a Oscar Pedraza.")
+        st.warning("⏳ El supervisor aún no ha cargado datos para este período. Vuelve más tarde o contacta a Oscar Pedraza.")
         st.stop()
 
 farmers_data = st.session_state["farmers_data"]
@@ -88,7 +88,7 @@ METRICS_DISPLAY = {
     "No Contactados": ("pct_no_contactados",  "pct_raw"),
 }
 
-# â”€â”€ Build team dataframe â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Build team dataframe ──────────────────────────────────────────────────────
 rows = []
 for farmer, data in farmers_data.items():
     sems = get_all_semaforos(data)
@@ -116,7 +116,7 @@ scores_dict = {r["email"]: r["score"] for r in rows}
 quartiles = assign_quartiles(scores_dict)
 df["quartile"] = df["email"].map(quartiles)
 
-# â”€â”€ Scoreboard â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Scoreboard ────────────────────────────────────────────────────────────────
 st.markdown("## Scoreboard del equipo")
 col1, col2, col3, col4, col5 = st.columns(5)
 
@@ -126,24 +126,24 @@ greens_count  = (df["tier"] == "green").sum()
 no_qualifier  = (~df["qualifies"]).sum()
 avg_variable  = df["variable_pct"].mean()
 
-with col1: st.metric("ðŸ”´ En rojo",       int(reds_count))
-with col2: st.metric("ðŸŸ¡ En amarillo",   int(yellows_count))
-with col3: st.metric("ðŸŸ¢ En verde",      int(greens_count))
-with col4: st.metric("â›” Sin qualifier", int(no_qualifier),
-                     help="Productividad < 90% â†’ pierden variable")
-with col5: st.metric("ðŸ’° Variable promedio", f"{avg_variable:.0f}%")
+with col1: st.metric("🔴 En rojo",       int(reds_count))
+with col2: st.metric("🟡 En amarillo",   int(yellows_count))
+with col3: st.metric("🟢 En verde",      int(greens_count))
+with col4: st.metric("⛔ Sin qualifier", int(no_qualifier),
+                     help="Productividad < 90% → pierden variable")
+with col5: st.metric("💰 Variable promedio", f"{avg_variable:.0f}%")
 
-# â”€â”€ Quartile distribution visual â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Quartile distribution visual ─────────────────────────────────────────────
 st.markdown("---")
-st.markdown("## DistribuciÃ³n por cuartil")
+st.markdown("## Distribución por cuartil")
 
-q_labels = ["Q1 ðŸ†", "Q2 âœ…", "Q3 âš ï¸", "Q4 ðŸš¨"]
+q_labels = ["Q1 🏆", "Q2 ✅", "Q3 ⚠️", "Q4 🚨"]
 q_keys   = ["Q1",    "Q2",    "Q3",    "Q4"]
 q_colors = ["#16A34A", "#3B82F6", "#D97706", "#EF4444"]
 q_counts = [int((df["quartile"] == q).sum()) for q in q_keys]
 q_names  = [df[df["quartile"] == q]["name"].tolist() for q in q_keys]
 
-# Bar chart â€” horizontal
+# Bar chart — horizontal
 fig_q = go.Figure(go.Bar(
     x=q_counts,
     y=q_labels,
@@ -177,12 +177,12 @@ with qc2:
                 unsafe_allow_html=True,
             )
 
-# â”€â”€ Heatmap por mÃ©trica â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Heatmap por métrica ───────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown("## Mapa de calor del equipo")
 st.caption(
-    "ðŸŸ¢ Ads Revenue = verde cuando va al ritmo o por encima del mes (Net Rev Adj â‰¥ 0). "
-    "ðŸŸ¡/ðŸ”´ si el pace actual no llegarÃ­a al 100% a fin de mes."
+    "🟢 Ads Revenue = verde cuando va al ritmo o por encima del mes (Net Rev Adj ≥ 0). "
+    "🟡/🔴 si el pace actual no llegaría al 100% a fin de mes."
 )
 
 metrics_list = list(METRICS_DISPLAY.keys())
@@ -211,17 +211,17 @@ for row in df.to_dict("records"):
 
 # Discrete colorscale for z in {-1=gray, 0=red, 1=yellow, 2=green}.
 # With zmin=-1, zmax=2 (range=3) the normalised positions of the midpoints
-# between adjacent z-values are: (-1,0)â†’0.167, (0,1)â†’0.500, (1,2)â†’0.833.
-# The old scale had the yellowâ†’green boundary at 0.66/0.67 but z=1 maps to
-# exactly 0.667 â†’ it fell in the green band. Fixed below with exact midpoints.
+# between adjacent z-values are: (-1,0)→0.167, (0,1)→0.500, (1,2)→0.833.
+# The old scale had the yellow→green boundary at 0.66/0.67 but z=1 maps to
+# exactly 0.667 → it fell in the green band. Fixed below with exact midpoints.
 colorscale = [
-    [0.000, "#9CA3AF"],  # z=-1 â†’ gray  (no data)
+    [0.000, "#9CA3AF"],  # z=-1 → gray  (no data)
     [0.166, "#9CA3AF"],
-    [0.167, "#EF4444"],  # z=0  â†’ red
+    [0.167, "#EF4444"],  # z=0  → red
     [0.499, "#EF4444"],
-    [0.500, "#F59E0B"],  # z=1  â†’ yellow  (â‰¥ 0.500, safely covers 0.667)
+    [0.500, "#F59E0B"],  # z=1  → yellow  (≥ 0.500, safely covers 0.667)
     [0.832, "#F59E0B"],
-    [0.833, "#00B341"],  # z=2  â†’ green
+    [0.833, "#00B341"],  # z=2  → green
     [1.000, "#00B341"],
 ]
 
@@ -242,7 +242,7 @@ fig.update_layout(
 )
 st.plotly_chart(fig, use_container_width=True)
 
-# â”€â”€ Ranking por mÃ©trica â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Ranking por métrica ───────────────────────────────────────────────────────
 st.markdown("---")
 st.markdown("## Rankings por palanca")
 
@@ -257,14 +257,14 @@ metric_tabs = st.tabs(list(METRICS_DISPLAY.keys()))
 for tab, (metric, (key, fmt)) in zip(metric_tabs, METRICS_DISPLAY.items()):
     with tab:
         sub = df[["name", f"val_{metric}", f"sem_{metric}"]].copy()
-        sub.columns = ["Farmer", "Valor", "SemÃ¡foro"]
+        sub.columns = ["Farmer", "Valor", "Semáforo"]
         sub = sub.dropna(subset=["Valor"]).sort_values("Valor",
               ascending=(metric == "No Contactados"))
 
         sub["Display"] = sub.apply(
-            lambda r: EMOJI.get(r["SemÃ¡foro"], "âšª") + " " + _fmt_metric(r["Valor"], fmt), axis=1)
+            lambda r: EMOJI.get(r["Semáforo"], "⚪") + " " + _fmt_metric(r["Valor"], fmt), axis=1)
 
-        colors = [COLOR_HEX.get(s, "#9CA3AF") for s in sub["SemÃ¡foro"]]
+        colors = [COLOR_HEX.get(s, "#9CA3AF") for s in sub["Semáforo"]]
         vals = sub["Valor"].tolist()
         if fmt == "decimal":
             vals_display = [v * 100 for v in vals]
@@ -294,9 +294,9 @@ for tab, (metric, (key, fmt)) in zip(metric_tabs, METRICS_DISPLAY.items()):
         )
         st.plotly_chart(fig2, use_container_width=True)
 
-# â”€â”€ ðŸ§  DiagnÃ³stico + acciÃ³n inmediata (secciÃ³n unificada) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── 🧠 Diagnóstico + acción inmediata (sección unificada) ────────────────────
 st.markdown("---")
-st.markdown("## ðŸ§  DiagnÃ³stico gerencial y acciÃ³n inmediata")
+st.markdown("## 🧠 Diagnóstico gerencial y acción inmediata")
 
 metric_reds_count = {m: int((df[f"sem_{m}"] == "red").sum()) for m in metrics_list}
 worst_metric = max(metric_reds_count, key=metric_reds_count.get)
@@ -306,47 +306,47 @@ total_f      = len(df)
 q4_names = df[df["quartile"] == "Q4"]["name"].tolist()
 q4_rows  = df[df["quartile"] == "Q4"].sort_values("score")
 
-# â”€â”€ Contexto macro â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Contexto macro ────────────────────────────────────────────────────────────
 st.markdown(
-    f"**Progreso del mes:** {progreso_pct:.1f}% Â· dÃ­a {dia_corte}/{dias_mes} &nbsp;|&nbsp; "
-    f"**Palanca mÃ¡s crÃ­tica:** {worst_metric} ({worst_count}/{total_f} en ðŸ”´) &nbsp;|&nbsp; "
-    f"**Cuartiles:** ðŸ† Q1 {(df['quartile']=='Q1').sum()} Â· "
-    f"âœ… Q2 {(df['quartile']=='Q2').sum()} Â· "
-    f"âš ï¸ Q3 {(df['quartile']=='Q3').sum()} Â· "
-    f"ðŸš¨ Q4 {(df['quartile']=='Q4').sum()}"
+    f"**Progreso del mes:** {progreso_pct:.1f}% · día {dia_corte}/{dias_mes} &nbsp;|&nbsp; "
+    f"**Palanca más crítica:** {worst_metric} ({worst_count}/{total_f} en 🔴) &nbsp;|&nbsp; "
+    f"**Cuartiles:** 🏆 Q1 {(df['quartile']=='Q1').sum()} · "
+    f"✅ Q2 {(df['quartile']=='Q2').sum()} · "
+    f"⚠️ Q3 {(df['quartile']=='Q3').sum()} · "
+    f"🚨 Q4 {(df['quartile']=='Q4').sum()}"
 )
 
 st.markdown("---")
 
-# â”€â”€ SeÃ±ales a nivel equipo â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Señales a nivel equipo ────────────────────────────────────────────────────
 signals = []
 if metric_reds_count.get("No Contactados", 0) >= total_f * 0.4:
-    signals.append("âš ï¸ MÃ¡s del 40% del equipo con contactabilidad crÃ­tica â€” posible problema estructural de gestiÃ³n de tiempo o calidad de base de aliados.")
+    signals.append("⚠️ Más del 40% del equipo con contactabilidad crítica — posible problema estructural de gestión de tiempo o calidad de base de aliados.")
 if metric_reds_count.get("Churn", 0) >= total_f * 0.5:
-    signals.append("âš ï¸ Churn crÃ­tico en mÃ¡s de la mitad del equipo â€” revisar si es problema de mercado o de seguimiento de retenciÃ³n.")
+    signals.append("⚠️ Churn crítico en más de la mitad del equipo — revisar si es problema de mercado o de seguimiento de retención.")
 if metric_reds_count.get("Ads Revenue", 0) >= total_f * 0.5:
-    signals.append("âš ï¸ ADS Revenue por debajo del pace en la mayorÃ­a â€” evaluar pipeline de inversiÃ³n y calidad del pitch ADS.")
+    signals.append("⚠️ ADS Revenue por debajo del pace en la mayoría — evaluar pipeline de inversión y calidad del pitch ADS.")
 if no_qualifier >= 3:
-    signals.append(f"ðŸš¨ {no_qualifier} farmers sin qualifier de productividad â€” en riesgo de perder variable completo. IntervenciÃ³n urgente.")
+    signals.append(f"🚨 {no_qualifier} farmers sin qualifier de productividad — en riesgo de perder variable completo. Intervención urgente.")
 
 behind_pace = df[df["net_rev_adj"].notna() & (df["net_rev_adj"] < -5)]
 if not behind_pace.empty:
-    signals.append(f"ðŸ“‰ ADS Revenue crÃ­tico (>5pp bajo pace): {', '.join(behind_pace['name'].tolist())} â€” no llegarÃ­an al 100% a fin de mes.")
+    signals.append(f"📉 ADS Revenue crítico (>5pp bajo pace): {', '.join(behind_pace['name'].tolist())} — no llegarían al 100% a fin de mes.")
 
 if signals:
-    st.markdown("**SeÃ±ales a nivel equipo:**")
+    st.markdown("**Señales a nivel equipo:**")
     for s in signals:
         st.markdown(f"- {s}")
 else:
-    st.markdown("âœ… No hay seÃ±ales de alerta crÃ­ticas a nivel equipo esta semana.")
+    st.markdown("✅ No hay señales de alerta críticas a nivel equipo esta semana.")
 
-# â”€â”€ Farmers Q4: diagnÃ³stico individual en texto â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+# ── Farmers Q4: diagnóstico individual en texto ───────────────────────────────
 st.markdown("---")
-st.markdown("**ðŸš¨ Farmers en Q4 â€” acciÃ³n inmediata esta semana:**")
+st.markdown("**🚨 Farmers en Q4 — acción inmediata esta semana:**")
 st.caption("Peor cuartil del equipo por score compuesto KPIs + variable. Requieren seguimiento 1:1.")
 
 if q4_rows.empty:
-    st.markdown("âœ… NingÃºn farmer en Q4 esta corrida.")
+    st.markdown("✅ Ningún farmer en Q4 esta corrida.")
 else:
     for row in q4_rows.to_dict("records"):
         farmer_email = row["email"]
@@ -362,20 +362,19 @@ else:
         kpis_amarillos = [m for m in metrics_list if row.get(f"sem_{m}") == "yellow"]
 
         recs = generar_recomendaciones(farmer_data, sems_f)
-        rec_txt = " Â· ".join(
-            r.split("â€”")[0].strip().lstrip("ðŸŽ¯ðŸ“žðŸ’°â­ðŸ“¢ðŸŽ¤ðŸ“µðŸ“‰âš ï¸âœ…").strip()
+        rec_txt = " · ".join(
+            r.split("—")[0].strip().lstrip("🎯📞💰⭐📢🎤📵📉⚠️✅").strip()
             for r in recs[:3]
         )
 
-        qualifier_txt = "â›” SIN QUALIFIER (pierde variable)" if not qualifies else f"Variable {var_pct:.0f}%"
+        qualifier_txt = "⛔ SIN QUALIFIER (pierde variable)" if not qualifies else f"Variable {var_pct:.0f}%"
         rojos_txt  = ", ".join(kpis_rojos)  if kpis_rojos  else "ninguno"
-        amarillos_txt = ", ".join(kpis_amarillos) if kpis_amarillos else "â€”"
+        amarillos_txt = ", ".join(kpis_amarillos) if kpis_amarillos else "—"
 
         st.markdown(
-            f"**{row['name']}** â€” Score {row['score']:.0f}/100 Â· {qualifier_txt} Â· "
+            f"**{row['name']}** — Score {row['score']:.0f}/100 · {qualifier_txt} · "
             f"Net Rev {net_rev_str}  \n"
-            f"ðŸ”´ {rojos_txt}  Â·  ðŸŸ¡ {amarillos_txt}  \n"
+            f"🔴 {rojos_txt}  ·  🟡 {amarillos_txt}  \n"
             f"_Acciones: {rec_txt}_"
         )
         st.markdown("")   # blank line between farmers
-
