@@ -215,7 +215,13 @@ if is_supervisor:
                     st.error(f"Error: {ex}")
 
 if farmer_df.empty:
-    st.info("⬆️ Cargá el archivo de Métricas Semanales para comenzar el análisis.")
+    st.markdown("""
+    <div class="rb-empty-state">
+        <div class="rb-empty-icon">📊</div>
+        <h3>Sin métricas semanales</h3>
+        <p>Cargá el archivo <b>Metrics Weekly</b> en <b>Carga de Datos</b> para comenzar el análisis.</p>
+    </div>
+    """, unsafe_allow_html=True)
     st.stop()
 
 # ── GLOBAL FILTERS ────────────────────────────────────────────────────────────

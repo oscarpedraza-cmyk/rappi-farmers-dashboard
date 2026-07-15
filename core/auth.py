@@ -260,12 +260,13 @@ def render_sidebar_user_badge():
     role   = "🔑 Supervisor" if is_sup else "👤 Farmer"
 
     st.sidebar.markdown(f"""
-    <div style="background:rgba(255,255,255,0.08);border-radius:10px;
-                padding:0.7rem 0.9rem;margin-bottom:0.5rem;
-                border-left:3px solid rgba(255,255,255,0.4)">
-        <div style="font-size:0.68rem;color:rgba(255,255,255,0.55);margin-bottom:2px">{role}</div>
-        <div style="font-weight:700;color:white;font-size:0.9rem">{name}</div>
-        <div style="font-size:0.68rem;color:rgba(255,255,255,0.5)">{email}</div>
+    <div style="background:#F8F9FB;border-radius:10px;
+                padding:0.6rem 0.8rem;margin-bottom:0.5rem;
+                border:1px solid #E2E8F0;border-left:3px solid #FF441B">
+        <div style="font-size:0.62rem;color:#94A3B8;margin-bottom:2px;text-transform:uppercase;
+                    letter-spacing:0.6px;font-weight:600">{role}</div>
+        <div style="font-weight:700;color:#0F172A;font-size:0.85rem">{name}</div>
+        <div style="font-size:0.68rem;color:#64748B">{email}</div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -325,8 +326,16 @@ def render_topbar(updated_at: str = "", dia_corte: int = None, progreso_pct: flo
         </div>
         """, unsafe_allow_html=True)
     with col_btn:
-        st.markdown("<div style='margin-top:0.3rem'>", unsafe_allow_html=True)
+        st.markdown('<div class="rb-logout-btn" style="margin-top:0.35rem">', unsafe_allow_html=True)
         if st.button("⏏", help="Cerrar sesión", key="topbar_logout"):
             _clear_auth()
             st.rerun()
         st.markdown("</div>", unsafe_allow_html=True)
+
+    # Sidebar footer — brand identifier below the nav
+    st.sidebar.markdown("""
+    <div class="rb-sidebar-footer" style="border-top:1px solid #E2E8F0;padding-top:0.6rem;margin-top:0.4rem">
+        <strong>Rappi</strong> Farmers Dashboard<br>
+        <span style="color:#94A3B8">AR / UY · Supervisión comercial</span>
+    </div>
+    """, unsafe_allow_html=True)

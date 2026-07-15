@@ -398,6 +398,123 @@ section[data-testid="stSidebar"],
     border-left-width: 3px !important;
 }}
 
+/* ── HR divider ──────────────────────────────────────────────────────────────── */
+hr {{
+    border: none !important;
+    border-top: 1px solid {C_BORDER} !important;
+    margin: 0.75rem 0 !important;
+    opacity: 1 !important;
+}}
+
+/* ── Section headings (markdown ## ###) ──────────────────────────────────────── */
+.main .block-container h1 {{
+    font-size: 1.15rem !important; font-weight: 700 !important;
+    color: {C_TEXT} !important; letter-spacing: -0.3px !important;
+    margin: 1.1rem 0 0.55rem !important;
+    padding-bottom: 0.45rem !important;
+    border-bottom: 1px solid {C_BORDER} !important;
+    line-height: 1.3 !important;
+}}
+.main .block-container h2 {{
+    font-size: 0.95rem !important; font-weight: 700 !important;
+    color: {C_TEXT} !important; letter-spacing: -0.15px !important;
+    margin: 1rem 0 0.45rem !important; line-height: 1.3 !important;
+}}
+.main .block-container h3 {{
+    font-size: 0.88rem !important; font-weight: 600 !important;
+    color: {C_TEXT_2} !important; margin: 0.8rem 0 0.4rem !important;
+    line-height: 1.3 !important;
+}}
+.main .block-container h4 {{
+    font-size: 0.82rem !important; font-weight: 600 !important;
+    color: {C_MUTED} !important; text-transform: uppercase !important;
+    letter-spacing: 0.5px !important; margin: 0.75rem 0 0.35rem !important;
+}}
+
+/* ── Logout button ───────────────────────────────────────────────────────────── */
+.rb-logout-btn .stButton > button {{
+    background: transparent !important;
+    border: 1px solid {C_BORDER} !important;
+    color: {C_MUTED} !important;
+    font-size: 0.8rem !important;
+    padding: 0.28rem 0.6rem !important;
+    box-shadow: none !important;
+    min-height: 0 !important;
+    line-height: 1.4 !important;
+}}
+.rb-logout-btn .stButton > button:hover {{
+    background: #FFF1EE !important;
+    color: {C_RED} !important;
+    border-color: rgba(255,68,27,0.35) !important;
+    box-shadow: none !important;
+    transform: none !important;
+}}
+
+/* ── Sidebar brand footer ────────────────────────────────────────────────────── */
+.rb-sidebar-footer {{
+    font-size: 0.68rem; color: {C_MUTED};
+    padding: 0.4rem 0.3rem 0.2rem;
+    letter-spacing: 0.2px;
+    line-height: 1.5;
+}}
+.rb-sidebar-footer strong {{ color: {C_RED}; }}
+
+/* ── Sidebar nav label (group header) ────────────────────────────────────────── */
+[data-testid="stSidebarNav"]::before {{
+    content: "PÁGINAS";
+    display: block;
+    font-size: 0.58rem;
+    font-weight: 700;
+    letter-spacing: 1.8px;
+    color: {C_BORDER_2};
+    padding: 0 0.85rem 0.35rem;
+    text-transform: uppercase;
+}}
+
+/* ── Selectbox / multiselect refinement ──────────────────────────────────────── */
+[data-testid="stSelectbox"] > div > div:focus-within,
+[data-testid="stMultiSelect"] > div > div:focus-within {{
+    border-color: {C_RED} !important;
+    box-shadow: 0 0 0 2px rgba(255,68,27,0.12) !important;
+}}
+[data-testid="stMultiSelect"] span[data-baseweb="tag"] {{
+    background: {C_RED_SOFT} !important;
+    border-color: rgba(255,68,27,0.25) !important;
+    color: {C_RED} !important;
+    font-size: 0.72rem !important;
+    border-radius: 5px !important;
+}}
+
+/* ── Radio buttons ───────────────────────────────────────────────────────────── */
+[data-testid="stRadio"] label {{
+    font-size: 0.82rem !important;
+    color: {C_TEXT_2} !important;
+}}
+[data-testid="stRadio"] [data-testid="stMarkdownContainer"] p {{
+    font-size: 0.82rem !important;
+}}
+
+/* ── Empty state ─────────────────────────────────────────────────────────────── */
+.rb-empty-state {{
+    background: {BG_CARD};
+    border: 1px dashed {C_BORDER_2};
+    border-radius: 12px;
+    padding: 2rem 1.5rem;
+    text-align: center;
+    margin: 1rem 0;
+}}
+.rb-empty-state .rb-empty-icon {{ font-size: 2rem; margin-bottom: 0.5rem; }}
+.rb-empty-state h3 {{ color: {C_TEXT} !important; font-size: 1rem !important; margin: 0 0 0.3rem !important; }}
+.rb-empty-state p {{ color: {C_MUTED}; font-size: 0.82rem; margin: 0; }}
+
+/* ── Caption text ────────────────────────────────────────────────────────────── */
+.stCaption {{ color: {C_MUTED} !important; font-size: 0.74rem !important; }}
+
+/* ── Info/warning/error alerts ───────────────────────────────────────────────── */
+[data-testid="stAlert"] [data-testid="stMarkdownContainer"] {{
+    font-size: 0.83rem !important;
+}}
+
 /* ── Scrollbar ───────────────────────────────────────────────────────────────── */
 ::-webkit-scrollbar {{ width: 4px; height: 4px; }}
 ::-webkit-scrollbar-track {{ background: {BG_PAGE}; }}
