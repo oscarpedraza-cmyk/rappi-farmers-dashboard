@@ -327,25 +327,67 @@ else:
                     continue
 
                 _fig = go.Figure()
+                _show_farmer_detail = (len(sel_farmers) == 1 and not _show_total_only)
 
                 # Individual farmer lines (skipped when "Total País" is selected)
                 if not _show_total_only:
                     for _idx, _fe in enumerate(_ts_farmers):
-                        _fd = _mdf[_mdf["farmer"] == _fe].sort_values("week")
+                        _fd = _mdf[_mdf["farmer"] == _fe].sort_values("week").reset_index(drop=True)
                         if _fd.empty:
                             continue
+                        _clr = _PALETTE[_idx % len(_PALETTE)]
                         _fig.add_trace(go.Scatter(
                             x=_fd["week"],
                             y=_fd["value"],
-                            mode="lines+markers",
+                            mode="lines+markers+text" if _show_farmer_detail else "lines+markers",
                             name=_name(_fe),
-                            line=dict(color=_PALETTE[_idx % len(_PALETTE)], width=1.5),
-                            marker=dict(size=4),
+                            line=dict(color=_clr, width=2.5 if _show_farmer_detail else 1.5),
+                            marker=dict(size=6 if _show_farmer_detail else 4),
+                            text=[f"{v:,.2f}" for v in _fd["value"]] if _show_farmer_detail else None,
+                            textposition="top center",
+                            textfont=dict(size=9, color=_clr),
                             hovertemplate=(
                                 f"<b>{_name(_fe)}</b><br>%{{x}}<br>"
                                 f"{_metric}: %{{y:,.2f}}<extra></extra>"
                             ),
                         ))
+
+                        # Alarm markers for individual farmer (same thresholds as Total País)
+                        if _show_farmer_detail and len(_fd) >= 2:
+                            _fa_x_r, _fa_y_r, _fa_t_r = [], [], []
+                            _fa_x_y, _fa_y_y, _fa_t_y = [], [], []
+                            for _i in range(1, len(_fd)):
+                                _vp = _fd.loc[_i - 1, "value"]
+                                _vc = _fd.loc[_i,     "value"]
+                                if _vp and _vp != 0:
+                                    _chg = (_vc - _vp) / abs(_vp)
+                                    _lbl = f"▼ {_chg:.1%}"
+                                    if _chg <= ALARM_RED:
+                                        _fa_x_r.append(_fd.loc[_i, "week"]); _fa_y_r.append(_vc); _fa_t_r.append(_lbl)
+                                    elif _chg <= ALARM_YELLOW:
+                                        _fa_x_y.append(_fd.loc[_i, "week"]); _fa_y_y.append(_vc); _fa_t_y.append(_lbl)
+                            if _fa_x_r:
+                                _fig.add_trace(go.Scatter(
+                                    x=_fa_x_r, y=_fa_y_r, mode="markers+text",
+                                    name="⚠️ Caída grave (≥10%)",
+                                    marker=dict(symbol="triangle-down", size=14, color="#EF4444",
+                                                line=dict(color="#fff", width=1.5)),
+                                    text=_fa_t_r, textposition="bottom center",
+                                    textfont=dict(size=9, color="#EF4444"),
+                                    hovertemplate="<b>Caída grave</b><br>%{x}<br>%{text}<extra></extra>",
+                                    showlegend=True,
+                                ))
+                            if _fa_x_y:
+                                _fig.add_trace(go.Scatter(
+                                    x=_fa_x_y, y=_fa_y_y, mode="markers+text",
+                                    name="⚠️ Caída moderada (≥5%)",
+                                    marker=dict(symbol="triangle-down", size=11, color="#D97706",
+                                                line=dict(color="#fff", width=1.5)),
+                                    text=_fa_t_y, textposition="bottom center",
+                                    textfont=dict(size=9, color="#D97706"),
+                                    hovertemplate="<b>Caída moderada</b><br>%{x}<br>%{text}<extra></extra>",
+                                    showlegend=True,
+                                ))
 
                 # Country aggregate — always shown; thicker + labeled "Total País" when solo
                 _avg_w = (
