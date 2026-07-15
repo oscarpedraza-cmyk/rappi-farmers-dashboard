@@ -287,12 +287,18 @@ def _summary_table_html(
         try:
             v = float(vs_raw)
             color = C_RED if v <= ALARM_RED else C_YELLOW if v <= ALARM_YELLOW else (C_GREEN if v > 0 else C_MUTED)
+            bg = (
+                "rgba(239,68,68,0.1)" if v <= ALARM_RED else
+                "rgba(217,119,6,0.1)" if v <= ALARM_YELLOW else
+                ("rgba(22,163,74,0.1)" if v > 0 else "rgba(100,116,139,0.08)")
+            )
             return (
-                f'<span style="font-size:0.68rem;font-weight:700;color:{color}">'
+                f'<span style="font-size:0.78rem;font-weight:800;color:{color};'
+                f'background:{bg};padding:2px 5px;border-radius:4px;white-space:nowrap">'
                 f'{v*100:+.1f}%</span>'
             )
         except (TypeError, ValueError):
-            return '<span style="color:#CBD5E1;font-size:0.68rem">—</span>'
+            return '<span style="color:#CBD5E1;font-size:0.78rem">—</span>'
 
     # Header
     header_cells = (
@@ -328,6 +334,24 @@ def _summary_table_html(
             f'border-bottom:1px solid #F1F5F9">{cells}</div>'
         )
 
+    # Total row — sum of values, average of vs_lw
+    total_cells = (
+        f'<div style="padding:8px 8px;font-size:0.76rem;font-weight:800;color:#0F172A;'
+        f'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+        f'border-top:2px solid #E2E8F0">TOTAL</div>'
+    )
+    for m in metrics:
+        vals = [r.get(f"{m}__val") for r in rows_data if r.get(f"{m}__val") is not None]
+        vss  = [r.get(f"{m}__vs")  for r in rows_data if r.get(f"{m}__vs")  is not None]
+        total_val = sum(vals) if vals else None
+        avg_vs    = sum(vss) / len(vss) if vss else None
+        val_str   = _fmt_val(m, total_val) if total_val is not None else "—"
+        total_cells += (
+            f'<div style="padding:8px 4px;font-size:0.76rem;font-weight:800;color:#0F172A;'
+            f'text-align:right;border-top:2px solid #E2E8F0">{val_str}</div>'
+            + f'<div style="padding:8px 4px;text-align:right;border-top:2px solid #E2E8F0">{_vs_pill(avg_vs)}</div>'
+        )
+
     return (
         f'<div style="border-radius:10px;overflow:hidden;border:1px solid #E2E8F0;'
         f'box-shadow:0 1px 4px rgba(15,23,42,0.06)">'
@@ -339,6 +363,9 @@ def _summary_table_html(
         f'{header_cells}</div>'
         # data rows
         f'{rows_html}'
+        # total row
+        f'<div style="display:grid;grid-template-columns:{GRID};background:#F8FAFC">'
+        f'{total_cells}</div>'
         f'</div>'
     )
 

@@ -369,7 +369,7 @@ if is_supervisor:
             if "farmers_data" in st.session_state:
                 if st.button("💾 Guardar snapshot histórico", use_container_width=True):
                     save_snapshot(
-                        snap_date    = st.session_state["snap_date"],
+                        snap_date    = st.session_state.get("snap_date", today),
                         dia_corte    = st.session_state["dia_corte"],
                         farmers_data = st.session_state["farmers_data"],
                     )
