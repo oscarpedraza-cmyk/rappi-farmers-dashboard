@@ -253,7 +253,8 @@ except Exception as e:
     st.stop()
 
 _cols_lower = {c.lower(): c for c in df_cart.columns}
-FARMER_COL  = _cols_lower.get("brand_owner_email_nuevo")
+FARMER_COL  = (_cols_lower.get("brand_owner_email_nuevo")
+               or _cols_lower.get("brand_owner_email"))
 ID_COL      = _cols_lower.get("country_brand_id")
 NAME_COL    = _cols_lower.get("brand_name")
 COUNTRY_COL = _cols_lower.get("country")
@@ -265,7 +266,7 @@ CAMBIO_COL  = _cols_lower.get("cambio_cartera")
 if not FARMER_COL or not ID_COL:
     st.error(
         "❌ No se encontraron columnas necesarias en la hoja Cartera. "
-        "Se esperan: **COUNTRY_BRAND_ID** y **BRAND_OWNER_EMAIL_NUEVO**. "
+        "Se esperan: **COUNTRY_BRAND_ID** y **BRAND_OWNER_EMAIL_NUEVO** (o BRAND_OWNER_EMAIL). "
         f"Columnas encontradas: {', '.join(df_cart.columns.tolist())}"
     )
     st.stop()
