@@ -326,7 +326,7 @@ def generar_recomendaciones(farmer: dict, semaforos: dict) -> list[str]:
         brands = farmer.get("brands_riesgo", [])
         if brands:
             brand_str = ", ".join(brands[:3])
-            recs.append(f"📢 Ads Revenue en rojo — brands en riesgo de penetración +70%: {brand_str}. Reforzar upsell de Ads en estas cuentas.")
+            recs.append(f"📢 Ads Revenue en rojo — aliados con baja penetración ADS (< 20% del GMV): {brand_str}. Proponer inversión ADS en la próxima visita.")
         else:
             recs.append("📢 Ads Revenue en rojo — revisar pipeline de inversión con aliados estratégicos.")
 
