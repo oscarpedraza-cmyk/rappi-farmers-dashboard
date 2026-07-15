@@ -270,242 +270,135 @@ def _apply_f(df: pd.DataFrame, week: str | None = None) -> pd.DataFrame:
 
 week_df = _apply_f(farmer_df, sel_week)
 
-# ─────────────────────────────────────────────────────────────────────────────
-# Helper: build one HTML summary table (farmers or brands)
-# ─────────────────────────────────────────────────────────────────────────────
-def _summary_table_html(
-    rows_data: list[dict],          # [{label, metric1_val, metric1_vs, ...}, ...]
-    metrics: list[str],
-    title: str,
-    title_color: str = "#FF441B",
-) -> str:
-    COL_W_LABEL = "2fr"
-    COL_W_METRIC = " ".join(["1fr 0.9fr"] * len(metrics))
-    GRID = f"{COL_W_LABEL} {COL_W_METRIC}"
+# ── Build time-series base (all weeks, all metrics) ──────────────────────────
+_ts_df = farmer_df[farmer_df["brand"] == "Total"].copy()
+_ts_df = _ts_df[~_ts_df["farmer"].isin(["Total", "nan", ""])]
+if sel_country != "Todos":
+    _ts_df = _ts_df[_ts_df["country"] == sel_country]
+if sel_farmers:
+    _ts_df = _ts_df[_ts_df["farmer"].isin(sel_farmers)]
 
-    def _vs_pill(vs_raw: object) -> str:
-        try:
-            v = float(vs_raw)
-            color = C_RED if v <= ALARM_RED else C_YELLOW if v <= ALARM_YELLOW else (C_GREEN if v > 0 else C_MUTED)
-            bg = (
-                "rgba(239,68,68,0.1)" if v <= ALARM_RED else
-                "rgba(217,119,6,0.1)" if v <= ALARM_YELLOW else
-                ("rgba(22,163,74,0.1)" if v > 0 else "rgba(100,116,139,0.08)")
-            )
-            return (
-                f'<span style="font-size:0.78rem;font-weight:800;color:{color};'
-                f'background:{bg};padding:2px 5px;border-radius:4px;white-space:nowrap">'
-                f'{v*100:+.1f}%</span>'
-            )
-        except (TypeError, ValueError):
-            return '<span style="color:#CBD5E1;font-size:0.78rem">—</span>'
+_ts_farmers  = sorted(_ts_df["farmer"].unique())
+_ts_weeks    = sorted(_ts_df["week"].unique())        # chronological
+_ts_metrics  = sorted(_ts_df["metric"].unique())      # ALL metrics in the base
 
-    # Header
-    header_cells = (
-        f'<div style="padding:6px 8px;font-size:0.58rem;text-transform:uppercase;'
-        f'letter-spacing:1.5px;color:#fff;font-weight:700">FARMER</div>'
-    )
-    for m in metrics:
-        short = m.upper()[:10]
-        header_cells += (
-            f'<div style="padding:6px 4px;font-size:0.58rem;text-transform:uppercase;'
-            f'letter-spacing:1px;color:#fff;font-weight:700;text-align:right">{short}</div>'
-            f'<div style="padding:6px 4px;font-size:0.58rem;text-transform:uppercase;'
-            f'letter-spacing:1px;color:rgba(255,255,255,0.7);font-weight:600;text-align:right">vs LW</div>'
-        )
-
-    rows_html = ""
-    for i, row in enumerate(rows_data):
-        bg = "#FFFFFF" if i % 2 == 0 else "#FFF8F6"
-        cells = (
-            f'<div style="padding:7px 8px;font-size:0.76rem;font-weight:600;color:#0F172A;'
-            f'overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{row["label"]}</div>'
-        )
-        for m in metrics:
-            val_raw = row.get(f"{m}__val")
-            vs_raw  = row.get(f"{m}__vs")
-            val_str = _fmt_val(m, val_raw) if val_raw is not None else "—"
-            cells += (
-                f'<div style="padding:7px 4px;font-size:0.76rem;color:#0F172A;text-align:right">{val_str}</div>'
-                + f'<div style="padding:7px 4px;text-align:right">{_vs_pill(vs_raw)}</div>'
-            )
-        rows_html += (
-            f'<div style="display:grid;grid-template-columns:{GRID};background:{bg};'
-            f'border-bottom:1px solid #F1F5F9">{cells}</div>'
-        )
-
-    # Total row — sum of values, average of vs_lw
-    total_cells = (
-        f'<div style="padding:8px 8px;font-size:0.76rem;font-weight:800;color:#0F172A;'
-        f'overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
-        f'border-top:2px solid #E2E8F0">TOTAL</div>'
-    )
-    for m in metrics:
-        vals = [r.get(f"{m}__val") for r in rows_data if r.get(f"{m}__val") is not None]
-        vss  = [r.get(f"{m}__vs")  for r in rows_data if r.get(f"{m}__vs")  is not None]
-        total_val = sum(vals) if vals else None
-        avg_vs    = sum(vss) / len(vss) if vss else None
-        val_str   = _fmt_val(m, total_val) if total_val is not None else "—"
-        total_cells += (
-            f'<div style="padding:8px 4px;font-size:0.76rem;font-weight:800;color:#0F172A;'
-            f'text-align:right;border-top:2px solid #E2E8F0">{val_str}</div>'
-            + f'<div style="padding:8px 4px;text-align:right;border-top:2px solid #E2E8F0">{_vs_pill(avg_vs)}</div>'
-        )
-
-    return (
-        f'<div style="border-radius:10px;overflow:hidden;border:1px solid #E2E8F0;'
-        f'box-shadow:0 1px 4px rgba(15,23,42,0.06)">'
-        # title bar
-        f'<div style="background:{title_color};padding:8px 12px;font-size:0.65rem;'
-        f'text-transform:uppercase;letter-spacing:2px;color:#fff;font-weight:800">{title}</div>'
-        # header row
-        f'<div style="display:grid;grid-template-columns:{GRID};background:#1E293B">'
-        f'{header_cells}</div>'
-        # data rows
-        f'{rows_html}'
-        # total row
-        f'<div style="display:grid;grid-template-columns:{GRID};background:#F8FAFC">'
-        f'{total_cells}</div>'
-        f'</div>'
-    )
-
-
-# ── Build farmers table data ──────────────────────────────────────────────────
-_farmers_tbl_data: list[dict] = []
-_f_sub = week_df[week_df["brand"] == "Total"].copy()
-_farmer_emails = sorted(e for e in _f_sub["farmer"].unique() if e not in ("Total", "nan", ""))
-
-for _fe in _farmer_emails:
-    _fd = _f_sub[_f_sub["farmer"] == _fe]
-    row: dict = {"label": _name(_fe)}
-    for _m in sel_metrics:
-        _mr = _fd[_fd["metric"] == _m]
-        row[f"{_m}__val"] = _mr.iloc[0]["value"]  if not _mr.empty else None
-        row[f"{_m}__vs"]  = _mr.iloc[0]["vs_lw"]  if not _mr.empty else None
-    _farmers_tbl_data.append(row)
-
-# ── Build brands table data ───────────────────────────────────────────────────
-_brands_tbl_data: list[dict] = []
-if not brand_df.empty:
-    _bd_filt = brand_df[brand_df["week"] == sel_week].copy()
-    if sel_country != "Todos":
-        _bd_filt = _bd_filt[_bd_filt["country"] == sel_country]
-    if sel_farmers:
-        _bd_filt = _bd_filt[_bd_filt["farmer"].isin(sel_farmers)]
-    _brand_names = sorted(b for b in _bd_filt["brand"].unique() if b not in ("Total", "nan", ""))
-    for _bn in _brand_names:
-        _brow = _bd_filt[_bd_filt["brand"] == _bn]
-        row2: dict = {"label": _bn}
-        for _m in sel_metrics:
-            _mr2 = _brow[_brow["metric"] == _m]
-            row2[f"{_m}__val"] = _mr2.iloc[0]["value"]  if not _mr2.empty else None
-            row2[f"{_m}__vs"]  = _mr2.iloc[0]["vs_lw"]  if not _mr2.empty else None
-        _brands_tbl_data.append(row2)
-
-# ── Render side-by-side tables ────────────────────────────────────────────────
-_show_metrics_in_table = sel_metrics[:4]  # cap at 4 for readability
-tcol_f, tcol_b = st.columns([6, 4])
-
-with tcol_f:
-    if _farmers_tbl_data:
-        st.markdown(
-            _summary_table_html(_farmers_tbl_data, _show_metrics_in_table, "FARMERS"),
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            '<div style="text-align:center;padding:2rem;color:#94A3B8;font-size:0.85rem">'
-            'Sin datos de farmers para esta semana.</div>',
-            unsafe_allow_html=True,
-        )
-
-with tcol_b:
-    if _brands_tbl_data:
-        st.markdown(
-            _summary_table_html(_brands_tbl_data, _show_metrics_in_table, "BRANDS", title_color="#E05A00"),
-            unsafe_allow_html=True,
-        )
-    else:
-        st.markdown(
-            '<div style="text-align:center;padding:2rem;color:#94A3B8;font-size:0.85rem">'
-            'Sin datos de brands. Cargá el archivo Metrics Weekly para ver este panel.</div>',
-            unsafe_allow_html=True,
-        )
-
-# ── REVIEW GENERAL ────────────────────────────────────────────────────────────
-st.markdown('<div style="height:1.4rem"></div>', unsafe_allow_html=True)
+# ── REVIEW GENERAL header ─────────────────────────────────────────────────────
 st.markdown(
-    '<div style="text-align:center;margin:0.5rem 0 1.2rem">'
+    '<div style="text-align:center;margin:1rem 0 1.2rem">'
     '<span style="font-size:0.68rem;text-transform:uppercase;letter-spacing:3px;'
     'font-weight:800;color:#1E293B;border-bottom:2.5px solid #FF441B;'
     'padding-bottom:4px">&#8226; REVIEW GENERAL</span></div>',
     unsafe_allow_html=True,
 )
 
-# ── 3-column bar chart grid ───────────────────────────────────────────────────
-_chart_farmers = _f_sub.copy()
-_all_emails = sorted(e for e in _chart_farmers["farmer"].unique() if e not in ("Total","nan",""))
+if _ts_df.empty or not _ts_metrics:
+    st.info("Sin datos. Cargá el archivo Metrics Weekly para ver las gráficas.")
+else:
+    for _chunk_start in range(0, len(_ts_metrics), 3):
+        _chunk = _ts_metrics[_chunk_start : _chunk_start + 3]
+        _cols  = st.columns(3)
 
-for _chunk_start in range(0, len(sel_metrics), 3):
-    _chunk = sel_metrics[_chunk_start : _chunk_start + 3]
-    _cols = st.columns(len(_chunk))
-    for _col, _metric in zip(_cols, _chunk):
-        with _col:
-            # coral header box
-            st.markdown(
-                f'<div style="background:#FF441B;border-radius:8px 8px 0 0;'
-                f'padding:7px 12px;font-size:0.62rem;text-transform:uppercase;'
-                f'letter-spacing:1.5px;color:#fff;font-weight:800;margin-bottom:0">'
-                f'{_metric}</div>',
-                unsafe_allow_html=True,
-            )
-            _mdf = _chart_farmers[_chart_farmers["metric"] == _metric].copy()
-            if _mdf.empty:
+        for _col, _metric in zip(_cols, _chunk):
+            with _col:
                 st.markdown(
-                    '<div style="background:#fff;border:1px solid #E2E8F0;border-radius:0 0 8px 8px;'
-                    'padding:1.5rem;text-align:center;color:#94A3B8;font-size:0.78rem">'
-                    'Sin datos</div>',
+                    f'<div style="background:#FF441B;border-radius:8px 8px 0 0;'
+                    f'padding:7px 12px;font-size:0.62rem;text-transform:uppercase;'
+                    f'letter-spacing:1.5px;color:#fff;font-weight:800">'
+                    f'{_metric}</div>',
                     unsafe_allow_html=True,
                 )
-            else:
-                _mdf["_label"] = _mdf["farmer"].apply(_name)
-                _mdf["_color"] = _mdf["vs_lw"].apply(_sema_color)
-                _mdf["_text"]  = _mdf["value"].apply(lambda v: _fmt_val(_metric, v))
-                _mdf = _mdf.sort_values("value", ascending=False)
-                _avg = _mdf["value"].mean()
-                _fig = go.Figure(go.Bar(
-                    x=_mdf["_label"],
-                    y=_mdf["value"],
-                    marker_color="rgba(255,68,27,0.75)",
-                    text=_mdf["_text"],
-                    textposition="outside",
-                    textfont=dict(size=10, color="#0F172A"),
-                    hovertemplate="<b>%{x}</b><br>" + _metric + ": %{text}<extra></extra>",
-                ))
-                _fig.add_hline(
-                    y=_avg, line_dash="dash", line_color="#94A3B8", line_width=1.2,
-                    annotation_text=f"prom {_fmt_val(_metric, _avg)}",
-                    annotation_position="right", annotation_font=dict(size=8, color="#94A3B8"),
+                _mdf = _ts_df[_ts_df["metric"] == _metric]
+                if _mdf.empty:
+                    st.markdown(
+                        '<div style="background:#fff;border:1px solid #E2E8F0;'
+                        'border-radius:0 0 8px 8px;padding:1.5rem;text-align:center;'
+                        'color:#94A3B8;font-size:0.78rem">Sin datos</div>',
+                        unsafe_allow_html=True,
+                    )
+                    continue
+
+                _fig = go.Figure()
+
+                # One line per farmer
+                for _idx, _fe in enumerate(_ts_farmers):
+                    _fd = _mdf[_mdf["farmer"] == _fe].sort_values("week")
+                    if _fd.empty:
+                        continue
+                    _fig.add_trace(go.Scatter(
+                        x=_fd["week"],
+                        y=_fd["value"],
+                        mode="lines+markers",
+                        name=_name(_fe),
+                        line=dict(color=_PALETTE[_idx % len(_PALETTE)], width=1.5),
+                        marker=dict(size=4),
+                        hovertemplate=(
+                            f"<b>{_name(_fe)}</b><br>%{{x}}<br>"
+                            f"{_metric}: %{{y:,.2f}}<extra></extra>"
+                        ),
+                    ))
+
+                # Team average per week (dashed dark line)
+                _avg_w = (
+                    _mdf.groupby("week")["value"].mean()
+                    .reset_index()
+                    .sort_values("week")
                 )
+                _fig.add_trace(go.Scatter(
+                    x=_avg_w["week"],
+                    y=_avg_w["value"],
+                    mode="lines",
+                    name="Prom. equipo",
+                    line=dict(color="#1E293B", width=2.5, dash="dash"),
+                    hovertemplate=(
+                        f"<b>Prom. equipo</b><br>%{{x}}<br>"
+                        f"{_metric}: %{{y:,.2f}}<extra></extra>"
+                    ),
+                ))
+
+                # Highlight the selected week
+                if sel_week in _ts_weeks:
+                    _fig.add_vline(
+                        x=sel_week,
+                        line_dash="dot",
+                        line_color=C_RAPPI,
+                        line_width=1.5,
+                        annotation_text=f"Sem. {sel_week}",
+                        annotation_font=dict(size=8, color=C_RAPPI),
+                        annotation_position="top left",
+                    )
+
                 _fig.update_layout(
-                    height=210,
-                    margin=dict(l=0, r=55, t=18, b=40),
+                    height=280,
+                    margin=dict(l=0, r=10, t=12, b=55),
                     plot_bgcolor="#FFFFFF",
                     paper_bgcolor="#FFFFFF",
-                    showlegend=False,
+                    showlegend=True,
+                    legend=dict(
+                        orientation="h", y=-0.32, x=0,
+                        font=dict(size=8), bgcolor="rgba(0,0,0,0)",
+                    ),
                     xaxis=dict(
-                        showgrid=False, tickangle=-35,
-                        tickfont=dict(size=9, color="#64748B"),
+                        showgrid=False,
+                        tickangle=-45,
+                        tickfont=dict(size=8, color="#64748B"),
                         zeroline=False,
                     ),
                     yaxis=dict(
-                        showgrid=True, gridcolor="#F1F5F9",
-                        tickfont=dict(size=9, color="#64748B"),
+                        showgrid=True,
+                        gridcolor="#F1F5F9",
+                        tickfont=dict(size=8, color="#64748B"),
                         zeroline=False,
                     ),
+                    hovermode="x unified",
                 )
                 st.plotly_chart(
-                    _fig, use_container_width=True,
-                    key=f"rev_bar_{_metric}_{_chunk_start}",
+                    _fig,
+                    use_container_width=True,
+                    key=f"ts_{_chunk_start}_{_metric}",
                     config={"displayModeBar": False},
                 )
+
+        # Pad remaining columns in last row if chunk < 3
+        for _empty_col in _cols[len(_chunk):]:
+            with _empty_col:
+                st.empty()
