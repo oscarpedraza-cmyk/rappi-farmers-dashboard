@@ -271,22 +271,22 @@ for i, row in df_heat.iterrows():
 # ── Colorscale: z ∈ {-1=gray, 0=Q4/red, 1=Q3/orange, 2=Q2/blue, 3=Q1/green}
 # With zmin=-1, zmax=3 (range=4), midpoints at 0.125, 0.375, 0.625, 0.875
 colorscale = [
-    [0.000, "#9CA3AF"],  # -1 → S/D gray
-    [0.124, "#9CA3AF"],
-    [0.125, "#EF4444"],  #  0 → Q4 red
-    [0.374, "#EF4444"],
-    [0.375, "#F97316"],  #  1 → Q3 orange
-    [0.624, "#F97316"],
-    [0.625, "#3B82F6"],  #  2 → Q2 blue
-    [0.874, "#3B82F6"],
-    [0.875, "#16A34A"],  #  3 → Q1 green
-    [1.000, "#16A34A"],
+    [0.000, "#F1F5F9"],  # -1 → S/D light gray
+    [0.124, "#F1F5F9"],
+    [0.125, "#FECACA"],  #  0 → Q4 soft red
+    [0.374, "#FECACA"],
+    [0.375, "#FED7AA"],  #  1 → Q3 soft orange
+    [0.624, "#FED7AA"],
+    [0.625, "#BFDBFE"],  #  2 → Q2 soft blue
+    [0.874, "#BFDBFE"],
+    [0.875, "#BBF7D0"],  #  3 → Q1 soft green
+    [1.000, "#BBF7D0"],
 ]
 
 fig = go.Figure(data=go.Heatmap(
     z=z, x=x_labels, y=farmers_list,
     text=text, texttemplate="%{text}",
-    textfont={"size": 11, "color": "white", "family": "sans-serif"},
+    textfont={"size": 11, "color": "#1E293B", "family": "sans-serif"},
     colorscale=colorscale, showscale=False,
     hovertemplate="%{y} | %{x}: %{text}<extra></extra>",
     zmin=-1, zmax=3,
