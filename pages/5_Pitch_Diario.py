@@ -359,40 +359,48 @@ if is_supervisor and len(selected_emails) > 1:
                 continue
             heat_pivot = heat_df.pivot(index="Farmer", columns="_dia", values="Pitches").fillna(0)
 
-            # Format column labels as "dd mmm"
+            # Add TOTAL column (sum per farmer row)
+            heat_pivot["TOTAL"] = heat_pivot.sum(axis=1).astype(int)
+
+            # Format column labels as "dd mmm"; keep "TOTAL" as-is
             col_labels = [
-                pd.Timestamp(c).strftime("%d %b") if not isinstance(c, str) else c
+                (pd.Timestamp(c).strftime("%d %b") if not isinstance(c, str) else c)
                 for c in heat_pivot.columns
             ]
 
-            # Build text matrix: show number if > 0, blank if 0
-            text_matrix = heat_pivot.values.astype(int).astype(str)
-            text_matrix[heat_pivot.values == 0] = ""
+            # Build text matrix: blank for 0-value day cells; always show TOTAL
+            z_vals   = heat_pivot.values.astype(float)
+            t_matrix = z_vals.astype(int).astype(str)
+            t_matrix[z_vals == 0] = ""
+            # Always display the TOTAL column (last)
+            t_matrix[:, -1] = heat_pivot.iloc[:, -1].astype(int).astype(str).values
 
-            cell_h = max(38, min(55, 420 // max(len(heat_pivot), 1)))
+            cell_h = max(40, min(58, 460 // max(len(heat_pivot), 1)))
             fig_heat = go.Figure(go.Heatmap(
-                z=heat_pivot.values,
+                z=z_vals,
                 x=col_labels,
                 y=list(heat_pivot.index),
-                text=text_matrix,
+                text=t_matrix,
                 texttemplate="%{text}",
-                textfont=dict(
-                    size=max(9, min(13, 120 // max(len(col_labels), 1))),
-                    color="white",
-                ),
+                textfont=dict(size=14, color="#1e293b"),
                 colorscale=[
-                    [0,    "#F1F5F9"],
+                    [0,    "#F8FAFC"],
                     [0.01, "#EEF2FF"],
                     [0.3,  p["fill"]],
                     [1,    p["color"]],
                 ],
                 showscale=False,
-                hovertemplate="<b>%{y}</b><br>%{x}<br>%{z} pitches<extra></extra>",
+                hovertemplate="<b>%{y}</b><br>%{x}<br>%{z:.0f} pitches<extra></extra>",
                 xgap=2,
                 ygap=2,
             ))
+            # White vertical separator before TOTAL column
+            fig_heat.add_vline(
+                x=len(col_labels) - 1.5,
+                line_color="white", line_width=3,
+            )
             fig_heat.update_layout(
-                height=max(180, len(heat_pivot) * cell_h + 80),
+                height=max(200, len(heat_pivot) * cell_h + 80),
                 margin=dict(l=10, r=10, t=10, b=60),
                 plot_bgcolor="rgba(0,0,0,0)",
                 paper_bgcolor="rgba(0,0,0,0)",
