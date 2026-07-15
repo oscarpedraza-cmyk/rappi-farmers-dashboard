@@ -513,9 +513,9 @@ else:
 # ── CAÍDAS GRAVES — semana anterior inmediata ─────────────────────────────────
 # Siempre compara las dos últimas semanas disponibles en el dataset filtrado.
 _all_weeks_sorted = sorted(_ts_df["week"].unique())
-if len(_all_weeks_sorted) >= 2:
-    _w_curr = _all_weeks_sorted[-1]   # semana más reciente
-    _w_prev = _all_weeks_sorted[-2]   # inmediatamente anterior
+if len(_all_weeks_sorted) >= 3:
+    _w_curr = _all_weeks_sorted[-2]   # penúltima (última completa)
+    _w_prev = _all_weeks_sorted[-3]   # antepenúltima
 
     _curr_df = _ts_df[_ts_df["week"] == _w_curr]
     _prev_df = _ts_df[_ts_df["week"] == _w_prev]
