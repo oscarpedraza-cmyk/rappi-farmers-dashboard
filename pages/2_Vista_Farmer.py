@@ -456,34 +456,38 @@ if urgent:
 for r in normal:
     st.info(r)
 
-# ── Aliados clave ─────────────────────────────────────────────────────────────
+# ── Aliados en riesgo ADS ─────────────────────────────────────────────────────
 brands = data.get("brands_riesgo", [])
 st.markdown("---")
-st.markdown("### 🏪 Tus aliados con mayor potencial ADS")
+st.markdown("### 🚨 ADS en riesgo — Penetración > 70%")
 
 if brands:
-    st.caption(f"Brands activos con baja penetración ADS (< 20% del GMV) — {len(brands)} oportunidades detectadas")
+    st.caption(
+        f"{len(brands)} marca{'s' if len(brands) != 1 else ''} con penetración ADS superior al 70% del GMV "
+        f"— el aliado está cediendo más del 70% de sus ganancias en fees de ADS"
+    )
     cols_b = st.columns(min(len(brands), 5))
     for col, brand in zip(cols_b, brands[:5]):
         with col:
             st.markdown(f"""
-            <div style="background:#FFF7ED;border:1px solid #FF6B00;border-radius:8px;
+            <div style="background:#FEF2F2;border:1px solid #EF4444;border-radius:8px;
                         padding:0.5rem 0.4rem;text-align:center;font-size:0.78rem;
-                        font-weight:600;color:#FF6B00">
-                ⚡ {brand}
+                        font-weight:600;color:#EF4444">
+                🔴 {brand}
             </div>
             """, unsafe_allow_html=True)
     if len(brands) > 5:
-        st.caption(f"… y {len(brands)-5} aliados más. Ver lista completa en Vista Equipo → Rankings.")
+        st.caption(f"… y {len(brands)-5} marcas más en riesgo.")
     st.markdown("""
-    <div style="background:#F0FDF9;border-radius:8px;padding:0.7rem 1rem;
-                border-left:3px solid #00C9A7;margin-top:0.5rem;font-size:0.82rem;color:#374151">
-        💡 <b>Acción:</b> proponer inversión ADS a estos brands en la próxima visita.
-        Son aliados activos con revenue significativo y baja penetración — el upsell más sencillo.
+    <div style="background:#FEF2F2;border-radius:8px;padding:0.7rem 1rem;
+                border-left:3px solid #EF4444;margin-top:0.5rem;font-size:0.82rem;color:#374151">
+        🚨 <b>Acción urgente:</b> revisar con el aliado su inversión ADS.
+        Una penetración &gt; 70% del GMV significa que el aliado está perdiendo una parte crítica
+        de sus ganancias en fees — riesgo de churn si no se optimiza o reduce la pauta.
     </div>
     """, unsafe_allow_html=True)
 else:
-    st.success("✅ Sin aliados en riesgo de penetración identificados esta corrida.")
+    st.success("✅ Ninguna marca supera el 70% de penetración ADS esta corrida.")
 
 # ── Gap al próximo hito de variable ──────────────────────────────────────────
 st.markdown("---")

@@ -402,10 +402,10 @@ def load_penetracion(xl):
 
         brands_at_risk = {}
         for farmer, sub in df.groupby(2):
-            # Brands with LOW ADS penetration (<20%) and active revenue = real upsell opportunity
+            # Brands with ADS penetration > 70% of GMV = critical risk (ally losing earnings to ADS fees)
             at_risk_sub = sub[
-                (sub["pen_media"] < 0.20) & (sub["revenue"] > 0)
-            ].sort_values("rev_perdido", ascending=False)
+                (sub["pen_media"] > 0.70) & (sub["revenue"] > 0)
+            ].sort_values("pen_media", ascending=False)
 
             if not at_risk_sub.empty:
                 # Top 10 by revenue perdido (most impactful)
