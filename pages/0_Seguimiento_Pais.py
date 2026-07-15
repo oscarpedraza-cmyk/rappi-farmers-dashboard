@@ -270,10 +270,13 @@ def _apply_f(df: pd.DataFrame, week: str | None = None) -> pd.DataFrame:
 week_df = _apply_f(farmer_df, sel_week)
 
 # ── Build time-series base (all weeks, all metrics) ──────────────────────────
-_ts_df = farmer_df[farmer_df["brand"] == "Total"].copy()
-_ts_df = _ts_df[~_ts_df["farmer"].isin(["Total", "nan", ""])]
+_ts_df_team = farmer_df[farmer_df["brand"] == "Total"].copy()
+_ts_df_team = _ts_df_team[~_ts_df_team["farmer"].isin(["Total", "nan", ""])]
 if sel_country != "Todos":
-    _ts_df = _ts_df[_ts_df["country"] == sel_country]
+    _ts_df_team = _ts_df_team[_ts_df_team["country"] == sel_country]
+
+# Filtered view for selected farmers (lines + Caídas Graves)
+_ts_df = _ts_df_team.copy()
 if sel_farmers:
     _ts_df = _ts_df[_ts_df["farmer"].isin(sel_farmers)]
 
@@ -336,9 +339,10 @@ else:
                         ),
                     ))
 
-                # Team average per week (dashed dark line)
+                # Team average per week — always uses the full-team df, not the filtered one
                 _avg_w = (
-                    _mdf.groupby("week")["value"].mean()
+                    _ts_df_team[_ts_df_team["metric"] == _metric]
+                    .groupby("week")["value"].mean()
                     .reset_index()
                     .sort_values("week")
                 )
