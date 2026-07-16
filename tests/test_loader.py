@@ -1,86 +1,14 @@
 """Characterization tests for core.loader.
 
-A small synthetic .xlsx fixture is built in-memory that mirrors the real Sheet
-Maestro column layout, so parsing behaviour is locked without depending on any
+The synthetic Sheet Maestro fixture (``xl``) lives in conftest.py and mirrors the
+real column layout, so parsing behaviour is locked without depending on any
 private file on disk.
 """
 from __future__ import annotations
 
-import io
-
-import pandas as pd
 import pytest
 
 from core import loader
-
-
-# ── Fixture: synthetic Sheet Maestro ──────────────────────────────────────────
-def _pad(row: list, width: int) -> list:
-    return row + [None] * (width - len(row))
-
-
-def _build_workbook() -> pd.ExcelFile:
-    """Return a pd.ExcelFile mirroring the real column positions per sheet."""
-    # MD: row0 MONTH, row1 headers, data from row2. col2=email, col6=Total, col10=Pro
-    md_rows = [
-        _pad(["MONTH"], 11),
-        _pad(["LEADER", "COUNTRY", "EMAIL", "MD$", "MD%", "TGT", "ATT_TOT",
-              "PRO$", "PRO%", "TGT2", "ATT_PRO"], 11),
-        _pad(["oscar", "AR", "fanny.landazabal@rappi.com", 1, 2, 3, 0.7353,
-              5, 6, 7, 0.7611], 11),
-        _pad(["oscar", "AR", "alejandro.salamanca@rappi.com", 1, 2, 3, 0.6852,
-              5, 6, 7, 0.7260], 11),
-        _pad(["oscar", "AR", "Total", 1, 2, 3, 0.99, 5, 6, 7, 0.99], 11),
-    ]
-
-    # Ads: row0 headers, data from row1. col2=email, col8=bookings, col13=rev
-    ads_rows = [
-        _pad(["LIDER", "COUNTRY", "KAM", "b", "b", "b", "b", "TGT",
-              "ATT_BOOK", "rg", "rr", "ra", "tr", "ATT_REV"], 14),
-        _pad(["oscar", "AR", "fanny.landazabal@rappi.com", 1, 1, 1, 1, 1,
-              0.8554, 1, 1, 1, 1, 0.3282], 14),
-        _pad(["oscar", "AR", "Total", 1, 1, 1, 1, 1, 0.9, 1, 1, 1, 1, 0.9], 14),
-    ]
-
-    # Churn: row0 headers, data from row1.
-    # col2=email col3=ava col7=gross col8=react col9=net col13=ATT
-    churn_rows = [
-        _pad(["COUNTRY", "LEADER", "FARMER", "AVA", "x", "x", "x", "GROSS",
-              "REACT", "NET", "g%", "n%", "TGT", "ATT"], 14),
-        _pad(["AR", "oscar", "fanny.landazabal@rappi.com", 120, 0, 0, 0, 5,
-              2, 3, 0, 0, 0, 0.9600], 14),
-    ]
-
-    # Penetración: row0 MONTH, row1 headers, data from row2.
-    # col2=email col3="ID - Name" col4=revenue col11=pen_media col12=rev_perdido
-    pen_rows = [
-        _pad(["MONTH"], 13),
-        _pad(["COUNTRY", "LEADER", "EMAIL", "BRAND", "REV", "GMV",
-              "s0", "s1", "s2", "s3", "s4", "PEN", "REVLOST"], 13),
-        # brand with high penetration (>70%) → should appear in brands_riesgo
-        _pad(["AR", "oscar", "fanny.landazabal@rappi.com", "AR1 - Pizza Hut",
-              1000, 5000, 0, 0, 0, 0, 0, 0.85, 200], 13),
-        # brand with low penetration → should NOT appear
-        _pad(["AR", "oscar", "fanny.landazabal@rappi.com", "AR2 - Burger",
-              800, 4000, 0, 0, 0, 0, 0, 0.15, 50], 13),
-        # Total row → filtered out
-        _pad(["AR", "oscar", "fanny.landazabal@rappi.com", "Total",
-              1800, 9000, 0, 0, 0, 0, 0, 0.5, 250], 13),
-    ]
-
-    buf = io.BytesIO()
-    with pd.ExcelWriter(buf, engine="openpyxl") as writer:
-        pd.DataFrame(md_rows).to_excel(writer, sheet_name="MD", header=False, index=False)
-        pd.DataFrame(ads_rows).to_excel(writer, sheet_name="Ads", header=False, index=False)
-        pd.DataFrame(churn_rows).to_excel(writer, sheet_name="Churn", header=False, index=False)
-        pd.DataFrame(pen_rows).to_excel(writer, sheet_name="Penetración", header=False, index=False)
-    buf.seek(0)
-    return pd.ExcelFile(buf, engine="openpyxl")
-
-
-@pytest.fixture
-def xl():
-    return _build_workbook()
 
 
 # ── _is_farmer_email ──────────────────────────────────────────────────────────
