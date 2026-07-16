@@ -17,6 +17,7 @@ from core.loader import load_sheet_maestro, refresh_net_rev_adj, load_cartera
 from core.db import save_snapshot, get_available_dates, save_latest_state, load_latest_state
 from core.auth import require_auth, render_topbar
 from core.style import inject_global_css
+from config.storage import use_gsheet
 
 st.set_page_config(
     page_title="Carga de Datos — Rappi Farmers",
@@ -92,7 +93,12 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ── Persistence status ────────────────────────────────────────────────────────
-_has_gsheets = bool(os.environ.get("GSHEET_ID"))
+# Mirror the exact condition the persistence layer uses (config.storage.use_gsheet):
+# BOTH vars are required. Checking only GSHEET_ID used to show "Sheets activo"
+# while nothing was actually being persisted.
+_gsheet_id_set    = bool(os.environ.get("GSHEET_ID"))
+_gsheet_creds_set = bool(os.environ.get("GOOGLE_CREDS"))
+_has_gsheets      = use_gsheet()
 if is_supervisor:
     if _has_gsheets:
         st.markdown("""
@@ -100,6 +106,16 @@ if is_supervisor:
                     border-radius:8px;padding:0.6rem 1rem;margin-bottom:0.9rem;font-size:0.82rem;color:#15803D;display:flex;gap:8px;align-items:center">
             <span style="font-size:1rem">☁️</span>
             <div><b>Google Sheets activo</b> — los datos persisten entre deploys de Render automáticamente.</div>
+        </div>""", unsafe_allow_html=True)
+    elif _gsheet_id_set and not _gsheet_creds_set:
+        # Partially configured: the most dangerous case — it looks set up but isn't.
+        st.markdown("""
+        <div style="background:#FEF2F2;border:1px solid #FECACA;border-left:4px solid #DC2626;
+                    border-radius:8px;padding:0.6rem 1rem;margin-bottom:0.9rem;font-size:0.82rem;color:#991B1B;display:flex;gap:8px;align-items:center">
+            <span style="font-size:1rem">🚨</span>
+            <div><b>Persistencia INACTIVA — configuración incompleta.</b> Está definida
+            <code>GSHEET_ID</code> pero falta <code>GOOGLE_CREDS</code>, así que los datos
+            <b>no se están guardando</b> y se perderán al reiniciar Render.</div>
         </div>""", unsafe_allow_html=True)
     else:
         st.markdown("""
